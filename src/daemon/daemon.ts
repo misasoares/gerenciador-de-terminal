@@ -8,6 +8,7 @@ import { PaneManager, buildPaneEnv } from './panes'
 import { loadPersisted, savePersisted, type Persisted } from './persist'
 import { ProjectRegistry } from './projects'
 import { startServer, type Conn, type RpcServer } from './server'
+import { checkRemove, removeWorktree } from './worktree-remove'
 
 export interface DaemonOptions {
   home: string
@@ -154,6 +155,37 @@ export class Daemon {
     }
   }
 
+  private findWorktree(p: string) {
+    for (const project of this.registry.list()) {
+      const wts = this.registry.worktrees(project.path)
+      const worktree = wts.find((w) => w.path === p)
+      if (worktree) return { project, worktree, main: wts[0] }
+    }
+    throw new Error(`worktree não encontrada: ${p}`)
+  }
+
+  private checkRemove(p: string) {
+    const { project, worktree, main } = this.findWorktree(p)
+    return checkRemove({
+      mainPath: project.path,
+      worktree,
+      mainBranch: main?.branch ?? null,
+      hasOpenSession: this.panes.records().some((r) => r.alive && r.worktreePath === p),
+    })
+  }
+
+  private async removeWorktree(p: string, force: boolean, deleteBranch: boolean): Promise<void> {
+    const check = await this.checkRemove(p)
+    if (check.isMain) throw new Error('a worktree principal não pode ser removida')
+    if (check.hasOpenSession) throw new Error('feche as sessões abertas nesta worktree antes de remover')
+    if (!force && (check.dirtyFiles.length > 0 || check.unpushedCommits.length > 0)) {
+      throw new Error('a worktree tem alterações ou commits que seriam perdidos')
+    }
+    const { project, worktree } = this.findWorktree(p)
+    await removeWorktree({ mainPath: project.path, worktree, force, deleteBranch })
+    await this.registry.refresh(project.path)
+  }
+
   private async handle(req: ClientRequest, conn: Conn): Promise<unknown> {
     switch (req.t) {
       case 'hello':
@@ -208,8 +240,10 @@ export class Daemon {
         this.changed()
         return null
       case 'worktree.checkRemove':
+        return this.checkRemove(req.path)
       case 'worktree.remove':
-        throw new Error('não implementado')
+        await this.removeWorktree(req.path, req.force, req.deleteBranch)
+        return null
       case 'hooks.install':
         for (const f of this.hookWarnings) installHooks(f, this.hookCmd)
         this.hookWarnings = checkProfiles(this.o.userHome, this.hookCmd)
