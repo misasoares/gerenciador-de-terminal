@@ -39,7 +39,10 @@ terminais". O usuário não lê código no editor; ele precisa ver, por terminal
 - Os três `settings.json` dos perfis são symlinks para `~/.claude/settings.json`.
 - `~/.claude/settings.json` já tem hook `PreToolUse` (RTK) que deve ser preservado.
 - As contas weboption recebem `--settings <arquivo>` (gateway ou max), sem hooks.
-- O usuário **nunca** usa `cswap switch`/`auto` no dia a dia; o app também não.
+- As funções por conta usam `cswap run` (session mode, isolado por processo);
+  `claude` puro não passa pelo cswap. `cswap switch`/`auto` (troca o login
+  padrão da máquina) não é usado nem pelo usuário nem pelo app: o app só digita
+  o comando da conta no shell e nunca invoca o cswap diretamente.
 - 99,9% das worktrees são criadas pelo próprio Claude durante a sessão.
 
 ## 2. Plataforma
