@@ -1,5 +1,6 @@
 import type { Layout, Tab } from '../../shared/types'
 import { findTab, insertBeside, leaves, neighbor, removeLeaf, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone } from './layout'
+import { focusAfterHide, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
 import { terminals } from './terminals'
 
@@ -63,8 +64,13 @@ export function revealPane(paneId: string): void {
 }
 
 export function hidePane(paneId: string): void {
+  const before = getUi().app?.layout
+  const next = before && getUi().focusedPaneId === paneId ? focusAfterHide(before, paneId) : undefined
   updateLayout((l) => ({ ...l, tabs: l.tabs.map((t) => ({ ...t, root: t.root ? removeLeaf(t.root, paneId) : null })) }))
-  if (getUi().focusedPaneId === paneId) setUi({ focusedPaneId: null })
+  if (next !== undefined) {
+    if (next) focusPane(next)
+    else setUi({ focusedPaneId: null })
+  }
 }
 
 export function togglePane(paneId: string): void {
@@ -113,10 +119,8 @@ export function requestKill(paneId: string): void {
 
 export function splitFocused(dir: 'row' | 'column'): void {
   const ui = getUi()
-  const p = ui.app?.panes.find((x) => x.id === ui.focusedPaneId)
-  const cwd = p?.worktreePath ?? p?.cwd ?? ui.app?.userHome
-  if (!cwd) return
-  openNewPane({ cwd, accountId: null, dir }).catch(showError)
+  if (!ui.app) return
+  openNewPane({ cwd: splitCwd(ui.app, ui.focusedPaneId), accountId: null, dir }).catch(showError)
 }
 
 export function addTab(): void {
