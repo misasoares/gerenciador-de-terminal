@@ -1,9 +1,111 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import os from 'node:os'
 import path from 'node:path'
+import type { ClientRequest } from '../shared/protocol'
+import type { ConfirmOptions, MenuItemSpec } from '../shared/bridge'
+import { DaemonLink } from './daemon-link'
+import { buildMenu } from './menu'
 
-app.whenReady().then(() => {
-  const win = new BrowserWindow({ width: 1200, height: 800, webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false } })
+let win: BrowserWindow | null = null
+const home = process.env.GT_HOME ?? path.join(os.homedir(), '.gerenciador-terminal')
+
+const link = new DaemonLink({
+  socketPath: path.join(home, 'daemon.sock'),
+  daemonScript: path.join(__dirname, 'daemon.js'),
+  onEvent: (e) => win?.webContents.send('gt:event', e),
+})
+
+function createWindow(): void {
+  win = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    backgroundColor: '#1e1e1e',
+    title: 'Gerenciador de Terminal',
+    webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
+  })
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void win.loadFile(path.join(__dirname, '../renderer/index.html'))
+  win.on('closed', () => {
+    win = null
+  })
+}
+
+ipcMain.handle('gt:request', (_e, req: ClientRequest) => link.request(req))
+ipcMain.on('gt:send', (_e, req: ClientRequest) => link.send(req))
+ipcMain.handle('gt:pickFolder', async () => {
+  const r = await dialog.showOpenDialog(win!, { properties: ['openDirectory'] })
+  return r.canceled ? null : r.filePaths[0]
 })
+ipcMain.handle('gt:confirm', async (_e, o: ConfirmOptions) => {
+  const r = await dialog.showMessageBox(win!, {
+    type: 'warning',
+    message: o.message,
+    detail: o.detail,
+    buttons: [o.confirmLabel ?? 'Confirmar', 'Cancelar'],
+    defaultId: 1,
+    cancelId: 1,
+    checkboxLabel: o.checkboxLabel,
+  })
+  return { ok: r.response === 0, checked: r.checkboxChecked }
+})
+ipcMain.handle('gt:alert', async (_e, message: string, detail?: string) => {
+  await dialog.showMessageBox(win!, { type: 'info', message, detail })
+})
+ipcMain.handle(
+  'gt:contextMenu',
+  (_e, items: MenuItemSpec[]) =>
+    new Promise<string | null>((resolve) => {
+      let done = false
+      const finish = (v: string | null) => {
+        if (!done) {
+          done = true
+          resolve(v)
+        }
+      }
+      const menu = Menu.buildFromTemplate(
+        items.map((i) =>
+          i.id === '-' ? { type: 'separator' as const } : { label: i.label, enabled: i.enabled !== false, click: () => finish(i.id) },
+        ),
+      )
+      // o callback de fechamento pode vir antes do click
+      menu.popup({ window: win ?? undefined, callback: () => setTimeout(() => finish(null), 50) })
+    }),
+)
+ipcMain.handle('gt:openPath', async (_e, p: string) => {
+  await shell.openPath(p)
+})
+ipcMain.handle('gt:openExternal', async (_e, url: string) => {
+  if (/^https?:\/\//i.test(url)) await shell.openExternal(url)
+})
+ipcMain.handle('gt:restartDaemon', () => link.shutdownDaemon(true))
+
+async function quitAll(): Promise<void> {
+  const r = await dialog.showMessageBox(win!, {
+    type: 'warning',
+    message: 'Encerrar tudo?',
+    detail: 'Todas as sessões e terminais serão finalizados. Eles poderão ser retomados na próxima abertura.',
+    buttons: ['Encerrar tudo', 'Cancelar'],
+    defaultId: 1,
+    cancelId: 1,
+  })
+  if (r.response !== 0) return
+  await link.shutdownDaemon(false)
+  app.quit()
+}
+
+app.whenReady().then(async () => {
+  try {
+    await link.start()
+  } catch (e) {
+    dialog.showErrorBox('Gerenciador de Terminal', `Não foi possível iniciar o daemon.\n\n${String(e)}\n\nVeja ${path.join(home, 'daemon.log')}`)
+    app.quit()
+    return
+  }
+  Menu.setApplicationMenu(buildMenu({ send: (a) => win?.webContents.send('gt:menu', a), quitAll: () => void quitAll() }))
+  createWindow()
+  app.on('activate', () => {
+    if (!win) createWindow()
+  })
+})
+
 app.on('window-all-closed', () => app.quit())
