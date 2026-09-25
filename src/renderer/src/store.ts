@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { AppState, Layout } from '../../shared/types'
+import type { AppState, Layout, RemoveCheck } from '../../shared/types'
 import { errorMessage } from './api'
 
 export interface UiState {
@@ -9,9 +9,18 @@ export interface UiState {
   focusedPaneId: string | null
   newSession: { projectPath: string | null; worktreePath: string | null } | null
   error: string | null
+  sidebarCollapsed: boolean
+  /** painel cujo contorno pisca (foi revelado por clique na sidebar) */
+  flashPaneId: string | null
+  modal: Modal | null
 }
 
-let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null }
+export type Modal =
+  | { kind: 'kill'; paneId: string }
+  | { kind: 'remove'; check: RemoveCheck }
+  | { kind: 'blocked'; check: RemoveCheck }
+
+let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null }
 const subs = new Set<() => void>()
 
 const subscribe = (cb: () => void) => {

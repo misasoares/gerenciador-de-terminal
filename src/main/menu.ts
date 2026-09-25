@@ -42,7 +42,20 @@ export function buildMenu(o: { send(action: string): void; quitAll(): void }): M
         ...Array.from({ length: 9 }, (_, i) => item(`Aba ${i + 1}`, `CmdOrCtrl+${i + 1}`, `tab-${i + 1}`)),
       ],
     },
-    { role: 'viewMenu' },
+    {
+      label: 'Exibir',
+      submenu: [
+        item('Mostrar/recolher sidebar', 'CmdOrCtrl+B', 'toggle-sidebar'),
+        { type: 'separator' },
+        { role: 'reload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { role: 'togglefullscreen' },
+      ],
+    },
     {
       label: 'Janela',
       submenu: [{ role: 'minimize', label: 'Minimizar' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }],

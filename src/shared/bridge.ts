@@ -26,4 +26,5 @@ export interface GtApi {
   openPath(p: string): Promise<void>
   openExternal(url: string): Promise<void>
   restartDaemon(): Promise<void>
+  pathForFile(file: File): string
 }

@@ -1,0 +1,114 @@
+import { Terminal } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import { WebLinksAddon } from '@xterm/addon-web-links'
+import '@xterm/xterm/css/xterm.css'
+import { decideKey, SHIFT_ENTER_SEQUENCE } from './keys'
+import { setUi } from './store'
+
+interface Entry {
+  term: Terminal
+  fit: FitAddon
+  el: HTMLDivElement
+  state: 'idle' | 'attaching' | 'live'
+  pending: string[]
+  lastSize: string
+}
+
+const OPTIONS = {
+  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+  fontSize: 13,
+  lineHeight: 1.2,
+  scrollback: 10_000,
+  cursorBlink: true,
+  macOptionIsMeta: false, // ⌥ digita caracteres do layout (teclas mortas, ç, etc.)
+  allowProposedApi: true,
+  theme: { background: '#1e1e1e', foreground: '#cccccc', cursor: '#aeafad', selectionBackground: '#264f78' },
+}
+
+class TerminalRegistry {
+  private entries = new Map<string, Entry>()
+
+  mount(paneId: string, container: HTMLElement): void {
+    const e = this.ensure(paneId)
+    container.appendChild(e.el)
+    requestAnimationFrame(() => {
+      if (e.state === 'idle') void this.attach(paneId)
+      else this.fit(paneId)
+    })
+  }
+
+  unmount(paneId: string, container: HTMLElement): void {
+    const e = this.entries.get(paneId)
+    if (e && e.el.parentElement === container) container.removeChild(e.el)
+  }
+
+  fit(paneId: string): void {
+    const e = this.entries.get(paneId)
+    if (!e || e.state !== 'live' || !e.el.isConnected || e.el.clientWidth === 0) return
+    e.fit.fit()
+    const size = `${e.term.cols}x${e.term.rows}`
+    if (size === e.lastSize) return
+    e.lastSize = size
+    window.gt.send({ t: 'pane.resize', paneId, cols: e.term.cols, rows: e.term.rows })
+  }
+
+  focus(paneId: string): void {
+    this.entries.get(paneId)?.term.focus()
+  }
+
+  onData(paneId: string, data: string): void {
+    const e = this.entries.get(paneId)
+    if (!e) return
+    if (e.state === 'live') e.term.write(data)
+    else if (e.state === 'attaching') e.pending.push(data)
+  }
+
+  reattachAll(): void {
+    for (const id of this.entries.keys()) void this.attach(id)
+  }
+
+  private ensure(paneId: string): Entry {
+    const found = this.entries.get(paneId)
+    if (found) return found
+    const el = document.createElement('div')
+    el.className = 'term-host'
+    const term = new Terminal(OPTIONS)
+    const fit = new FitAddon()
+    term.loadAddon(fit)
+    term.loadAddon(new WebLinksAddon((_ev, uri) => void window.gt.openExternal(uri)))
+    term.open(el)
+    term.attachCustomKeyEventHandler((ev) => {
+      const d = decideKey(ev)
+      if (d === 'send-shift-enter') window.gt.send({ t: 'pane.input', paneId, data: SHIFT_ENTER_SEQUENCE })
+      return d === 'xterm'
+    })
+    term.onData((data) => window.gt.send({ t: 'pane.input', paneId, data }))
+    term.textarea?.addEventListener('focus', () => setUi({ focusedPaneId: paneId }))
+    const entry: Entry = { term, fit, el, state: 'idle', pending: [], lastSize: '' }
+    this.entries.set(paneId, entry)
+    return entry
+  }
+
+  private async attach(paneId: string): Promise<void> {
+    const e = this.entries.get(paneId)
+    if (!e) return
+    e.state = 'attaching'
+    e.pending = []
+    const dims = e.el.isConnected && e.el.clientWidth > 0 ? e.fit.proposeDimensions() : undefined
+    try {
+      const { snapshot } = await window.gt.request<{ snapshot: string }>({ t: 'pane.attach', paneId, cols: dims?.cols, rows: dims?.rows })
+      e.term.reset()
+      if (dims?.cols && dims?.rows) e.term.resize(dims.cols, dims.rows)
+      e.term.write(snapshot)
+      for (const d of e.pending) e.term.write(d)
+      e.pending = []
+      e.state = 'live'
+      e.lastSize = `${e.term.cols}x${e.term.rows}`
+      this.fit(paneId)
+    } catch {
+      e.state = 'idle' // painel morreu ou daemon caiu; tenta de novo no próximo mount/reconnect
+    }
+  }
+}
+
+export const terminals = new TerminalRegistry()

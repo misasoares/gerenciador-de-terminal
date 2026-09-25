@@ -1,5 +1,6 @@
 import type { AppState, GitStatus, PaneView, SessionStatus } from '../../shared/types'
 import { worktreeLabel } from './header'
+import { leaves } from './layout'
 
 export interface SessionItem {
   paneId: string
@@ -7,6 +8,10 @@ export interface SessionItem {
   status: SessionStatus | 'shell'
   alive: boolean
   cwd: string
+  /** número (1-based) da aba em que o painel aparece; null = fora da tela */
+  tab: number | null
+  /** vivo mas fora de qualquer aba */
+  hidden: boolean
 }
 
 export interface WorktreeItem {
@@ -27,6 +32,7 @@ export interface ProjectItem {
   fetchError: string | null
   worktrees: WorktreeItem[]
   summary: { working: number; needsYou: number; idle: number }
+  worst: SessionStatus | null
 }
 
 export function sessionLabel(p: PaneView): string {
@@ -35,15 +41,14 @@ export function sessionLabel(p: PaneView): string {
   return `terminal ${p.seq}`
 }
 
-const toItem = (p: PaneView): SessionItem => ({
-  paneId: p.id,
-  label: sessionLabel(p),
-  status: p.claude?.status ?? 'shell',
-  alive: p.alive,
-  cwd: p.cwd,
-})
 
 export function buildSidebar(app: AppState): { projects: ProjectItem[]; outside: SessionItem[] } {
+  const tabOf = new Map<string, number>()
+  app.layout.tabs.forEach((t, i) => leaves(t.root).forEach((id) => tabOf.set(id, i + 1)))
+  const toItem = (p: PaneView): SessionItem => {
+    const tab = tabOf.get(p.id) ?? null
+    return { paneId: p.id, label: sessionLabel(p), status: p.claude?.status ?? 'shell', alive: p.alive, cwd: p.cwd, tab, hidden: p.alive && tab === null }
+  }
   const used = new Set<string>()
   const projects = app.projects.map((p): ProjectItem => {
     const worktrees = p.worktrees.map((w): WorktreeItem => {
@@ -65,8 +70,29 @@ export function buildSidebar(app: AppState): { projects: ProjectItem[]; outside:
       fetchError: p.fetchError,
       worktrees,
       summary: { working: count('working'), needsYou: count('needs-you'), idle: count('idle') },
+      worst: count('needs-you') ? 'needs-you' : count('working') ? 'working' : count('idle') ? 'idle' : null,
     }
   })
   const outside = app.panes.filter((x) => !used.has(x.id)).map(toItem)
   return { projects, outside }
+}
+
+/** projetos sem foco recolhem sozinhos (com poucos projetos, todos abertos); o clique do usuário vence */
+export function isExpanded(projectPath: string, focusedProjectPath: string | null, overrides: Record<string, boolean>, projectCount: number): boolean {
+  if (projectPath in overrides) return overrides[projectPath]
+  return projectCount <= 2 || projectPath === focusedProjectPath
+}
+
+export function railLabel(name: string): string {
+  return (name.length <= 4 ? name : name.slice(0, 3)).toUpperCase()
+}
+
+/** o settings.json principal vale para todos os perfis (symlinks); um perfil com arquivo próprio afeta só a sua conta */
+export function accountsWithoutHooks(app: Pick<AppState, 'hookWarnings' | 'accounts' | 'userHome'>): Set<string> {
+  const out = new Set<string>()
+  for (const w of app.hookWarnings) {
+    if (w === `${app.userHome}/.claude/settings.json`) app.accounts.forEach((a) => out.add(a.id))
+    else app.accounts.filter((a) => a.configDirMatch.some((m) => w.includes(m))).forEach((a) => out.add(a.id))
+  }
+  return out
 }

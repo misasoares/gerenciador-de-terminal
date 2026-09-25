@@ -64,3 +64,35 @@ export function neighbor(rects: Rect[], fromId: string | null, dir: Dir): string
       : Math.abs(cy(r) - cy(src)) + Math.abs(cx(r) - cx(src)) * 2
   return rects.filter((r) => r.id !== src.id && inDir(r)).sort((a, b) => score(a) - score(b))[0]?.id ?? null
 }
+
+export type DropZone = 'left' | 'right' | 'top' | 'bottom' | 'center'
+export type Side = Exclude<DropZone, 'center'>
+
+/** bordas (25%) viram split daquele lado; o miolo substitui o painel */
+export function dropZone(relX: number, relY: number): DropZone {
+  const dists: [Side, number][] = [['left', relX], ['right', 1 - relX], ['top', relY], ['bottom', 1 - relY]]
+  const [side, dist] = dists.sort((a, b) => a[1] - b[1])[0]
+  return dist < 0.25 ? side : 'center'
+}
+
+export function insertBeside(root: LayoutNode, target: string, paneId: string, side: Side): LayoutNode {
+  const dir = side === 'left' || side === 'right' ? 'row' : 'column'
+  const before = side === 'left' || side === 'top'
+  const fresh: LayoutNode = { type: 'leaf', paneId }
+  if (root.type === 'leaf') {
+    if (root.paneId !== target) return root
+    return { type: 'split', dir, sizes: [], children: before ? [fresh, root] : [root, fresh] }
+  }
+  const idx = root.children.findIndex((c) => c.type === 'leaf' && c.paneId === target)
+  if (idx >= 0 && root.dir === dir) {
+    const children = [...root.children]
+    children.splice(before ? idx : idx + 1, 0, fresh)
+    return { ...root, children, sizes: [] }
+  }
+  return { ...root, children: root.children.map((c) => insertBeside(c, target, paneId, side)) }
+}
+
+export function replaceLeaf(root: LayoutNode, target: string, paneId: string): LayoutNode {
+  if (root.type === 'leaf') return root.paneId === target ? { type: 'leaf', paneId } : root
+  return { ...root, children: root.children.map((c) => replaceLeaf(c, target, paneId)) }
+}

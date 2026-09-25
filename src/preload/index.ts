@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { BridgeEvent, ClientRequest } from '../shared/protocol'
 import type { ConfirmOptions, GtApi, MenuItemSpec } from '../shared/bridge'
 
@@ -22,6 +22,7 @@ const api: GtApi = {
   openPath: (p: string) => ipcRenderer.invoke('gt:openPath', p),
   openExternal: (url: string) => ipcRenderer.invoke('gt:openExternal', url),
   restartDaemon: () => ipcRenderer.invoke('gt:restartDaemon'),
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
 }
 
 contextBridge.exposeInMainWorld('gt', api)
