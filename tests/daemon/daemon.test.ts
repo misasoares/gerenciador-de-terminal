@@ -1,0 +1,188 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
+import { buildPaneEnv } from '../../src/daemon/panes'
+import { connectApp } from '../helpers/app-client'
+import { makeRepo, type TestRepo } from '../helpers/repo'
+import { runWithInput } from '../helpers/run'
+
+let daemons: Daemon[] = []
+let repo: TestRepo | null = null
+
+afterEach(async () => {
+  for (const d of daemons) await d.stop(true)
+  daemons = []
+  repo?.cleanup()
+  repo = null
+})
+
+function opts(home: string, extra: Partial<DaemonOptions> = {}): DaemonOptions {
+  const userHome = path.join(home, 'user')
+  fs.mkdirSync(userHome, { recursive: true })
+  return {
+    home,
+    socketPath: path.join(home, 'd.sock'),
+    stateFile: path.join(home, 'state.json'),
+    hookScriptPath: path.join(home, 'bin', 'gt-hook'),
+    userHome,
+    shell: '/bin/sh',
+    shellArgs: [],
+    env: { PATH: process.env.PATH, HOME: userHome, ELECTRON_RUN_AS_NODE: '1', CLAUDECODE: '1', CLAUDE_CONFIG_DIR: '/x', GT_PANE_ID: 'herdado' },
+    pollMs: 60_000,
+    gitPollMs: 500,
+    fetchIntervalMs: 3_600_000,
+    ...extra,
+  }
+}
+
+async function boot(extra: Partial<DaemonOptions> = {}, home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))) {
+  const o = opts(home, extra)
+  const d = await Daemon.start(o)
+  daemons.push(d)
+  const app = await connectApp(o.socketPath)
+  return { o, d, app, home }
+}
+
+function hook(o: DaemonOptions, paneId: string, payload: Record<string, unknown>, configDir?: string) {
+  return runWithInput('/bin/sh', [o.hookScriptPath], JSON.stringify(payload), {
+    PATH: '/usr/bin:/bin', GT_PANE_ID: paneId, GT_SOCKET: o.socketPath, ...(configDir ? { CLAUDE_CONFIG_DIR: configDir } : {}),
+  })
+}
+
+describe('buildPaneEnv', () => {
+  it('remove variáveis do daemon/Claude e garante LANG e TERM', () => {
+    const env = buildPaneEnv({ PATH: '/bin', ELECTRON_RUN_AS_NODE: '1', CLAUDECODE: '1', CLAUDE_CONFIG_DIR: '/x', CLAUDE_CODE_ENTRYPOINT: 'cli', GT_PANE_ID: 'a', HOME: '/h' })
+    expect(env).toEqual({ PATH: '/bin', HOME: '/h', LANG: 'en_US.UTF-8', TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: 'gerenciador-terminal' })
+  })
+  it('respeita LANG existente', () => {
+    expect(buildPaneEnv({ LANG: 'pt_BR.UTF-8' }).LANG).toBe('pt_BR.UTF-8')
+  })
+})
+
+describe('Daemon', () => {
+  it('adiciona projeto e publica worktrees com status git', async () => {
+    repo = makeRepo()
+    const { app } = await boot()
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const st = await app.waitState((s) => s.projects[0]?.worktrees[0]?.git?.branch === 'main')
+    expect(st.projects[0]).toMatchObject({ path: repo.dir, name: 'meu projeto' })
+  })
+
+  it('cria painel, anexa, recebe saída e o ambiente vem limpo', async () => {
+    repo = makeRepo()
+    const { app } = await boot()
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 100, rows: 30 })
+    const { snapshot } = await app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId, cols: 90, rows: 20 })
+    expect(typeof snapshot).toBe('string')
+    app.client.send({ t: 'pane.input', paneId, data: 'echo "[$ELECTRON_RUN_AS_NODE][$CLAUDECODE][$CLAUDE_CONFIG_DIR][$GT_PANE_ID][$LANG]"\r' })
+    await app.waitState(() => app.output(paneId).includes(`[][][][${paneId}][en_US.UTF-8]`))
+    await app.waitState((s) => s.panes.some((p) => p.id === paneId && p.worktreePath === repo!.dir))
+  })
+
+  it('hooks: sessão, estado, título, conta e worktree nova criada pelo Claude', async () => {
+    repo = makeRepo()
+    const { o, app, home } = await boot()
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    const transcript = path.join(home, 't.jsonl')
+    fs.writeFileSync(transcript, JSON.stringify({ type: 'custom-title', customTitle: 'minha tarefa' }) + '\n')
+    const base = { session_id: 's1', cwd: repo.dir, transcript_path: transcript }
+    const mslabs = '/Users/u/.claude-swap-backup/sessions/3-misael_mslabs-dev.com'
+
+    await hook(o, paneId, { ...base, hook_event_name: 'SessionStart', source: 'startup' }, mslabs)
+    let st = await app.waitState((s) => s.panes[0]?.claude?.title === 'minha tarefa')
+    expect(st.panes[0]).toMatchObject({ accountId: 'mslabs', claude: { sessionId: 's1', status: 'idle' } })
+
+    await hook(o, paneId, { ...base, hook_event_name: 'UserPromptSubmit' }, mslabs)
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'working')
+    await hook(o, paneId, { ...base, hook_event_name: 'PermissionRequest' }, mslabs)
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'needs-you')
+
+    // o Claude cria uma worktree e entra nela
+    const nova = path.join(repo.dir, '.claude', 'worktrees', 'feat x')
+    repo.git('worktree', 'add', '-b', 'feat-x', nova)
+    await hook(o, paneId, { ...base, cwd: nova, hook_event_name: 'CwdChanged' }, mslabs)
+    st = await app.waitState((s) => s.panes[0]?.worktreePath === nova)
+    expect(st.projects[0].worktrees.map((w) => w.path)).toContain(nova)
+
+    await hook(o, paneId, { ...base, cwd: nova, hook_event_name: 'Stop' }, mslabs)
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'idle')
+    await hook(o, paneId, { ...base, cwd: nova, hook_event_name: 'SessionEnd' }, mslabs)
+    st = await app.waitState((s) => s.panes[0]?.claude === null)
+    expect(st.panes[0].accountId).toBeNull()
+  })
+
+  it('poller: cd no shell muda a worktree; sessão sem processo claude é encerrada', async () => {
+    repo = makeRepo()
+    const wt = path.join(repo.root, 'wt b')
+    repo.git('worktree', 'add', '-b', 'b', wt)
+    const { o, app } = await boot({ pollMs: 200 })
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    app.client.send({ t: 'pane.input', paneId, data: `cd "${wt}"\r` })
+    await app.waitState((s) => s.panes[0]?.worktreePath === wt)
+
+    await hook(o, paneId, { hook_event_name: 'SessionStart', session_id: 's9', cwd: wt })
+    await app.waitState((s) => s.panes[0]?.claude?.sessionId === 's9', 2000).catch(() => null)
+    await app.waitState((s) => s.panes[0]?.claude === null)
+  })
+
+  it('painel aberto com conta digita o comando da conta', async () => {
+    repo = makeRepo()
+    const { app } = await boot()
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'mslabs', cols: 80, rows: 24 })
+    const { snapshot } = await app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
+    // o eco pode chegar antes do attach (vai no snapshot) ou depois (vai em pane.data)
+    await app.waitState(() => (snapshot + app.output(paneId)).includes('claude-mslabs'))
+    const st = await app.waitState((s) => s.panes[0]?.accountId === 'mslabs')
+    expect(st.panes[0].id).toBe(paneId)
+  })
+
+  it('reinício do daemon: painéis vivos viram retomáveis com o mesmo id', async () => {
+    repo = makeRepo()
+    const first = await boot()
+    const { paneId } = await first.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await hook(first.o, paneId, { hook_event_name: 'SessionStart', session_id: 'abcd-1234', cwd: repo.dir })
+    await first.app.waitState((s) => s.panes[0]?.claude?.sessionId === 'abcd-1234')
+    first.app.client.close()
+    await first.d.stop(true)
+    daemons = []
+
+    const second = await boot({}, first.home)
+    const st = await second.app.waitState((s) => s.resumable.length === 1)
+    expect(st.resumable[0]).toEqual({ paneId, cwd: repo.dir, accountId: 'misa', sessionId: 'abcd-1234' })
+    expect(st.panes).toEqual([])
+
+    await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: 'misa', resumeSessionId: 'abcd-1234', cols: 80, rows: 24 })
+    const { snapshot } = await second.app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
+    await second.app.waitState((s) => s.resumable.length === 0 && s.panes[0]?.id === paneId)
+    await second.app.waitState(() => (snapshot + second.app.output(paneId)).includes('claude --resume abcd-1234'))
+  })
+
+  it('layout é salvo e volta após reinício; avisos de hooks e instalação', async () => {
+    const first = await boot()
+    let st = await first.app.waitState((s) => s.hookWarnings.length === 1)
+    expect(st.hookWarnings[0]).toBe(path.join(first.o.userHome, '.claude', 'settings.json'))
+    await first.app.client.request({ t: 'hooks.install' })
+    await first.app.waitState((s) => s.hookWarnings.length === 0)
+
+    const layout = { tabs: [{ id: 't1', name: 'Trabalho', root: { type: 'leaf' as const, paneId: 'x' } }], activeTabId: 't1' }
+    await first.app.client.request({ t: 'layout.save', layout })
+    await new Promise((r) => setTimeout(r, 400))
+    first.app.client.close()
+    await first.d.stop(false)
+    daemons = []
+    const second = await boot({}, first.home)
+    st = await second.app.waitState((s) => s.layout.tabs.length === 1)
+    expect(st.layout).toEqual(layout)
+  })
+
+  it('erros de requisição voltam como mensagem', async () => {
+    const { app } = await boot()
+    await expect(app.client.request({ t: 'pane.create', cwd: '/', accountId: 'nao-existe', cols: 80, rows: 24 })).rejects.toThrow('conta desconhecida')
+    await expect(app.client.request({ t: 'project.add', path: '/' })).rejects.toThrow('não é um repositório git')
+  })
+})
