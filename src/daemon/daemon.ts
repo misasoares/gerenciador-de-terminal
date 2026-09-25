@@ -35,6 +35,7 @@ export class Daemon {
   private broadcastTimer: NodeJS.Timeout | null = null
   private saveTimer: NodeJS.Timeout | null = null
   private pollTimer: NodeJS.Timeout | null = null
+  private worktreeTimer: NodeJS.Timeout | null = null
   private stopping = false
 
   private constructor(private o: DaemonOptions) {}
@@ -79,6 +80,10 @@ export class Daemon {
     this.server = await startServer(this.o.socketPath, (req, conn) => this.handle(req, conn))
     await this.registry.refreshAll()
     this.monitor.startFetch(() => this.registry.list().map((c) => c.path), this.o.fetchIntervalMs ?? p.fetchIntervalMin * 60_000)
+    // worktrees criadas/removidas por fora (Claude, subagente, git na mão) entram e saem da lista
+    this.worktreeTimer = setInterval(() => {
+      this.registry.refreshAll().catch((e) => console.error('refresh de worktrees falhou', e))
+    }, this.o.gitPollMs ?? 10_000)
     this.pollTimer = setInterval(() => {
       this.panes.poll().catch((e) => console.error('poll falhou', e))
     }, this.o.pollMs ?? 2000)
@@ -90,6 +95,7 @@ export class Daemon {
     this.save() // antes de matar: os painéis vivos viram retomáveis no próximo início
     this.stopping = true
     if (this.pollTimer) clearInterval(this.pollTimer)
+    if (this.worktreeTimer) clearInterval(this.worktreeTimer)
     if (this.broadcastTimer) clearTimeout(this.broadcastTimer)
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.monitor.stop()

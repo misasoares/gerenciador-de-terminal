@@ -90,7 +90,7 @@ describe('script gt-hook', () => {
     const dir = tmp()
     const script = path.join(dir, 'bin', 'gt-hook')
     writeHookScript(script)
-    expect(hookCommand(script)).toBe(`"${script}"`)
+    expect(hookCommand(script)).toBe(`sh -c '[ -x "$0" ] && exec "$0"; cat >/dev/null' "${script}"`)
     return { dir, script }
   }
 

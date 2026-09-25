@@ -58,13 +58,14 @@ export class ProjectRegistry {
 
   async refresh(p: string): Promise<void> {
     const r = await listWorktrees(p)
+    const before = JSON.stringify([this.wts.get(p) ?? null, this.errors.get(p) ?? null])
     if (r.ok) {
       this.wts.set(p, r.worktrees)
       this.errors.set(p, null)
     } else {
       this.errors.set(p, r.error)
     }
-    this.onChange()
+    if (JSON.stringify([this.wts.get(p) ?? null, this.errors.get(p) ?? null]) !== before) this.onChange()
   }
 
   async refreshAll(): Promise<void> {

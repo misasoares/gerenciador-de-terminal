@@ -33,8 +33,9 @@ cfg=$(printf '%s' "\${CLAUDE_CONFIG_DIR:-}" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/
 exit 0
 `
 
+/** tolera o script ausente (app desinstalado, GT_HOME temporário apagado): sai 0 sem quebrar o Claude */
 export function hookCommand(scriptPath: string): string {
-  return `"${scriptPath}"`
+  return `sh -c '[ -x "$0" ] && exec "$0"; cat >/dev/null' "${scriptPath}"`
 }
 
 export function writeHookScript(scriptPath: string): void {

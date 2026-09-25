@@ -8,7 +8,6 @@ export interface GitResult {
 
 const GIT_ENV = {
   GIT_TERMINAL_PROMPT: '0',
-  GIT_SSH_COMMAND: 'ssh -o BatchMode=yes',
   // status em segundo plano não pode segurar o index.lock enquanto o Claude usa git
   GIT_OPTIONAL_LOCKS: '0',
   LC_ALL: 'C',

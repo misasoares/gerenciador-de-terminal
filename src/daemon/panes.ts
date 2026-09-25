@@ -46,12 +46,14 @@ export interface PaneManagerDeps {
   onGitHint(worktreePath: string): void
 }
 
-const DROP_ENV = new Set(['ELECTRON_RUN_AS_NODE', 'CLAUDECODE', 'CLAUDE_CONFIG_DIR'])
+// o daemon pode ter nascido dentro de uma sessão do Claude, do VS Code ou do npm: nada disso vai para os terminais
+const DROP_ENV = new Set(['AI_AGENT', 'GIT_EDITOR', 'PAGER', 'NODE_OPTIONS'])
+const DROP_PREFIXES = ['CLAUDE', 'GT_', 'ELECTRON_', 'VSCODE_', 'npm_']
 
 export function buildPaneEnv(base: Record<string, string | undefined>): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [k, v] of Object.entries(base)) {
-    if (v === undefined || DROP_ENV.has(k) || k.startsWith('GT_') || k.startsWith('CLAUDE_CODE_')) continue
+    if (v === undefined || DROP_ENV.has(k) || DROP_PREFIXES.some((p) => k.startsWith(p))) continue
     env[k] = v
   }
   if (!env.LANG && !env.LC_ALL && !env.LC_CTYPE) env.LANG = 'en_US.UTF-8'
@@ -59,6 +61,12 @@ export function buildPaneEnv(base: Record<string, string | undefined>): Record<s
   env.COLORTERM = 'truecolor'
   env.TERM_PROGRAM = 'gerenciador-terminal'
   return env
+}
+
+/** leituras seguidas sem o processo claude; snapshot vazio (ps falhou) não conta */
+export function nextMissingPolls(prev: number, o: { found: boolean; snapshotEmpty: boolean }): number {
+  if (o.snapshotEmpty) return prev
+  return o.found ? 0 : prev + 1
 }
 
 const GIT_HINT_EVENTS = new Set(['PostToolUse', 'Stop', 'CwdChanged'])
@@ -160,7 +168,8 @@ export class PaneManager {
     }
     this.d.onChange()
 
-    if (p.cwd && p.cwd !== rec.cwd) {
+    // hooks de subagente (agent_id) trazem o cwd do subagente, que pode estar em outra worktree
+    if (p.cwd && p.cwd !== rec.cwd && !p.agent_id) {
       rec.cwd = p.cwd
       await this.relocate(rec)
     }
@@ -180,6 +189,7 @@ export class PaneManager {
     const live = this.records().filter((r) => r.alive)
     if (live.length === 0) return
     const procs = await snapshotProcs()
+    if (procs.length === 0) return // ps falhou: não dá para concluir nada
     const want = new Map<number, PaneRecord>()
     let changed = false
     for (const rec of live) {
@@ -194,8 +204,8 @@ export class PaneManager {
           changed = true
         }
       }
+      rec.missingPolls = nextMissingPolls(rec.missingPolls, { found: claudeProc !== null, snapshotEmpty: false })
       if (rec.claude && !claudeProc) {
-        rec.missingPolls++
         if (rec.missingPolls >= 2) {
           rec.claude = null
           rec.launchedAccountId = null

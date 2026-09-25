@@ -51,20 +51,38 @@ export function findClaude(procs: Proc[], rootPid: number): Proc | null {
   return descendants(procs, rootPid).find((p) => CLAUDE_RE.test(p.args)) ?? null
 }
 
+/** sem locale UTF-8 o lsof escreve bytes não-ASCII como \xNN */
+function decodeLsofEscapes(s: string): string {
+  if (!s.includes('\\x')) return s
+  const bytes: number[] = []
+  for (let i = 0; i < s.length; i++) {
+    const m = /^\\x([0-9a-fA-F]{2})/.exec(s.slice(i, i + 4))
+    if (m) {
+      bytes.push(parseInt(m[1], 16))
+      i += 3
+    } else {
+      bytes.push(...Buffer.from(s[i], 'utf8'))
+    }
+  }
+  return Buffer.from(bytes).toString('utf8')
+}
+
 export function parseLsofCwd(out: string): Map<number, string> {
   const result = new Map<number, string>()
   let pid: number | null = null
   for (const line of out.split('\n')) {
     if (line.startsWith('p')) pid = Number(line.slice(1))
-    else if (line.startsWith('n') && pid !== null) result.set(pid, line.slice(1))
+    else if (line.startsWith('n') && pid !== null) result.set(pid, decodeLsofEscapes(line.slice(1)))
   }
   return result
 }
 
 function run(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve) => {
-    // lsof sai com código 1 se algum pid sumiu; a saída parcial ainda vale
-    execFile(cmd, args, { timeout: 5000, maxBuffer: 8 * 1024 * 1024 }, (_err, stdout) => resolve(String(stdout ?? '')))
+    // lsof sai com código 1 se algum pid sumiu; a saída parcial ainda vale.
+    // App aberto pelo Finder não tem LANG: força UTF-8 para caminhos com acento.
+    const env = { ...process.env, LC_ALL: 'en_US.UTF-8' }
+    execFile(cmd, args, { timeout: 5000, maxBuffer: 8 * 1024 * 1024, env }, (_err, stdout) => resolve(String(stdout ?? '')))
   })
 }
 

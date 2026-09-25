@@ -37,8 +37,9 @@ export function spawnDetached(daemonScript: string, env: NodeJS.ProcessEnv): voi
 export class DaemonLink {
   private client: RpcClient | null = null
   private quitting = false
+  private reconnecting = false
 
-  constructor(private o: { socketPath: string; daemonScript: string; onEvent(e: BridgeEvent): void }) {}
+  constructor(private o: { socketPath: string; daemonScript: string; onEvent(e: BridgeEvent): void; spawnDaemon?: () => void }) {}
 
   async start(): Promise<void> {
     await this.connectOnce(false)
@@ -60,16 +61,26 @@ export class DaemonLink {
   }
 
   private async connectOnce(isReconnect: boolean): Promise<void> {
-    const client = await ensureDaemon(this.o.socketPath, () => spawnDetached(this.o.daemonScript, process.env))
+    const client = await ensureDaemon(this.o.socketPath, this.o.spawnDaemon ?? (() => spawnDetached(this.o.daemonScript, process.env)))
+    let hello: { protocolVersion: number }
+    try {
+      hello = await client.request<{ protocolVersion: number }>({ t: 'hello', role: 'app', version: PROTOCOL_VERSION })
+    } catch (e) {
+      client.close()
+      throw e
+    }
+    // só vira o cliente ativo depois do hello; um cliente antigo que feche não derruba o novo
     this.client = client
-    client.onMessage((m) => this.o.onEvent(m))
+    client.onMessage((m) => {
+      if (this.client === client) this.o.onEvent(m)
+    })
     client.onClose(() => {
+      if (this.client !== client) return
       this.client = null
       if (this.quitting) return
       this.o.onEvent({ t: 'disconnected' })
       void this.reconnectLoop()
     })
-    const hello = await client.request<{ protocolVersion: number }>({ t: 'hello', role: 'app', version: PROTOCOL_VERSION })
     if (hello.protocolVersion !== PROTOCOL_VERSION) {
       this.o.onEvent({ t: 'version-mismatch', daemon: hello.protocolVersion, app: PROTOCOL_VERSION })
     }
@@ -77,13 +88,19 @@ export class DaemonLink {
   }
 
   private async reconnectLoop(): Promise<void> {
-    while (!this.quitting) {
-      try {
-        await this.connectOnce(true)
-        return
-      } catch {
-        await sleep(1000)
+    if (this.reconnecting) return
+    this.reconnecting = true
+    try {
+      while (!this.quitting) {
+        try {
+          await this.connectOnce(true)
+          return
+        } catch {
+          await sleep(1000)
+        }
       }
+    } finally {
+      this.reconnecting = false
     }
   }
 }

@@ -23,6 +23,8 @@ export function reduceSession(prev: ClaudeSession | null, p: HookPayload): Claud
     case 'PermissionRequest':
       return { ...next, status: 'needs-you' }
     case 'Notification':
+      // Esc/Ctrl+C não dispara Stop; o idle_prompt (~60s parado) corrige o estado
+      if (p.notification_type === 'idle_prompt') return { ...next, status: 'idle' }
       return NEEDS_YOU_NOTIFICATIONS.has(p.notification_type ?? '') ? { ...next, status: 'needs-you' } : next
     case 'Stop':
     case 'StopFailure':

@@ -180,6 +180,34 @@ describe('Daemon', () => {
     expect(st.layout).toEqual(layout)
   })
 
+  it('I3: worktree criada ou removida por fora aparece/some sem painel nenhum nela', async () => {
+    repo = makeRepo()
+    const { app } = await boot()
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const wt = path.join(repo.root, 'wt externa')
+    repo.git('worktree', 'add', '-b', 'externa', wt)
+    await app.waitState((s) => !!s.projects[0]?.worktrees.some((w) => w.path === wt))
+    repo.git('worktree', 'remove', wt)
+    await app.waitState((s) => !!s.projects[0] && !s.projects[0].worktrees.some((w) => w.path === wt))
+  })
+
+  it('I6: hook de subagente (agent_id) não muda a worktree do painel', async () => {
+    repo = makeRepo()
+    const wt = path.join(repo.root, 'wt sub')
+    repo.git('worktree', 'add', '-b', 'sub', wt)
+    const { o, app } = await boot()
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await hook(o, paneId, { hook_event_name: 'SessionStart', session_id: 's1', cwd: repo.dir })
+    await app.waitState((s) => s.panes[0]?.claude?.sessionId === 's1' && s.panes[0].worktreePath === repo!.dir)
+    await hook(o, paneId, { hook_event_name: 'PostToolUse', session_id: 's1', cwd: wt, agent_id: 'a1', agent_type: 'general-purpose' })
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'working')
+    await new Promise((r) => setTimeout(r, 800)) // tempo para um relocate indevido acontecer
+    const st = app.state()!
+    expect(st.panes[0].cwd).toBe(repo.dir)
+    expect(st.panes[0].worktreePath).toBe(repo.dir)
+  })
+
   it('erros de requisição voltam como mensagem', async () => {
     const { app } = await boot()
     await expect(app.client.request({ t: 'pane.create', cwd: '/', accountId: 'nao-existe', cols: 80, rows: 24 })).rejects.toThrow('conta desconhecida')
