@@ -141,3 +141,11 @@ kbd { font-family: inherit; background: #3a3d41; border-radius: 3px; padding: 1p
 .card-note { font-size: 10.5px; color: var(--fg-dim); }
 .card-note.warn { color: var(--warn); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.pane.your-turn { outline: 2px solid #3b82f6; outline-offset: -2px; }
+.tab-dot { width: 8px; height: 8px; border-radius: 50%; }
+.tab-dot.needs-you { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.tab-dot.your-turn { background: #3b82f6; box-shadow: 0 0 6px #3b82f6; }
+.hooks-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; background: #4b3d10; color: #ffe08a; border-bottom: 1px solid #6b5616; }
+.hooks-banner.ok { background: #1e3a24; color: #b5f0c0; }
+.hooks-error { color: var(--error); }

@@ -22,6 +22,13 @@ const api: GtApi = {
   openPath: (p: string) => ipcRenderer.invoke('gt:openPath', p),
   openExternal: (url: string) => ipcRenderer.invoke('gt:openExternal', url),
   restartDaemon: () => ipcRenderer.invoke('gt:restartDaemon'),
+  notify: (o) => ipcRenderer.send('gt:notify', o),
+  setBadge: (text: string) => ipcRenderer.send('gt:setBadge', text),
+  onReveal: (cb) => {
+    const l = (_e: unknown, id: string) => cb(id)
+    ipcRenderer.on('gt:reveal', l)
+    return () => ipcRenderer.removeListener('gt:reveal', l)
+  },
   pathForFile: (file: File) => webUtils.getPathForFile(file),
 }
 

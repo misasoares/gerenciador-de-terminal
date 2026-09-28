@@ -1,5 +1,6 @@
 import type { Layout, Tab } from '../../shared/types'
 import { findTab, insertBeside, leaves, neighbor, removeLeaf, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone } from './layout'
+import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
 import { terminals } from './terminals'
@@ -32,6 +33,7 @@ export function placePane(paneId: string, dir: 'row' | 'column'): void {
 
 export function focusPane(paneId: string): void {
   setUi({ focusedPaneId: paneId })
+  markSeenIfLooking(paneId)
   requestAnimationFrame(() => terminals.focus(paneId))
 }
 
@@ -171,6 +173,19 @@ export function moveFocus(dir: Dir): void {
   if (next) focusPane(next)
 }
 
+/** o usuário está olhando para o painel: janela focada e painel em foco → 🔵 vira ⚪ no daemon */
+export function markSeenIfLooking(paneId: string | null): void {
+  if (!paneId || !document.hasFocus()) return
+  const p = getUi().app?.panes.find((x) => x.id === paneId)
+  if (p?.claude?.status === 'your-turn') window.gt.send({ t: 'pane.seen', paneId })
+}
+
+export function revealNextAttention(): void {
+  const ui = getUi()
+  const next = nextInQueue(attentionQueue(ui.app?.panes ?? []), ui.focusedPaneId)
+  if (next) revealPane(next)
+}
+
 export function runMenuAction(action: string): void {
   if (action === 'new-session') openNewSessionDialog()
   else if (action === 'split-right') splitFocused('row')
@@ -178,7 +193,8 @@ export function runMenuAction(action: string): void {
   else if (action === 'hide-pane') {
     const id = getUi().focusedPaneId
     if (id) hidePane(id)
-  } else if (action === 'new-tab') addTab()
+  } else if (action === 'next-attention') revealNextAttention()
+  else if (action === 'new-tab') addTab()
   else if (action === 'toggle-sidebar') setUi((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }))
   else if (action.startsWith('tab-')) {
     const n = Number(action.slice(4))

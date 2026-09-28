@@ -1,4 +1,5 @@
 import { EmptyState } from './components/EmptyState'
+import { HooksBanner } from './components/HooksBanner'
 import { Modals } from './components/Modals'
 import { NewSessionDialog } from './components/NewSessionDialog'
 import { Sidebar } from './components/Sidebar'
@@ -26,6 +27,7 @@ export function App() {
     >
       <Sidebar />
       <main className="main">
+        <HooksBanner />
         <Workspace empty={<EmptyState hasProjects={hasProjects} />} onAddProject={(dir) => void addProjectFlow(dir)} />
         <StatusBar />
       </main>

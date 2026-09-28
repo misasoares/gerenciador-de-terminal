@@ -9,6 +9,7 @@ function Summary({ s }: { s: ProjectItem['summary'] }) {
   return (
     <span className="sb-summary">
       {s.needsYou > 0 && <span>🟡{s.needsYou}</span>}
+      {s.yourTurn > 0 && <span>🔵{s.yourTurn}</span>}
       {s.working > 0 && <span>🟢{s.working}</span>}
       {s.idle > 0 && <span>⚪{s.idle}</span>}
     </span>

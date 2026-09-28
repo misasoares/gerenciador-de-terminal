@@ -1,7 +1,8 @@
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import type React from 'react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
 import { addTab, closeTab, renameTab, saveSizes } from '../actions'
 import { leaves } from '../layout'
@@ -28,6 +29,8 @@ function SplitNode({ node, tabId, path }: { node: LayoutNode; tabId: string; pat
 }
 
 function TabBar({ layout }: { layout: Layout }) {
+  const panes = useUi((s) => s.app?.panes)
+  const attn = useMemo(() => tabAttention(layout, panes ?? []), [layout, panes])
   const [editing, setEditing] = useState<string | null>(null)
   return (
     <div className="tabbar">
@@ -54,6 +57,7 @@ function TabBar({ layout }: { layout: Layout }) {
           ) : (
             <span>{t.name}</span>
           )}
+          {attn[t.id] && <span className={`tab-dot ${attn[t.id]}`} title={attn[t.id] === 'needs-you' ? 'precisa de você' : 'sua vez'} />}
           {i < 9 && <span className="tab-key">⌘{i + 1}</span>}
           <button
             className="tab-close"

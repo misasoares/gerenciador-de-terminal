@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, shell } from 'electron'
 import os from 'node:os'
 import path from 'node:path'
 import type { ClientRequest } from '../shared/protocol'
@@ -78,6 +78,20 @@ ipcMain.handle('gt:openExternal', async (_e, url: string) => {
   if (/^https?:\/\//i.test(url)) await shell.openExternal(url)
 })
 ipcMain.handle('gt:restartDaemon', () => link.shutdownDaemon(true))
+ipcMain.on('gt:notify', (_e, o: { paneId: string; title: string; body: string }) => {
+  if (!Notification.isSupported()) return
+  const n = new Notification({ title: o.title, body: o.body, silent: false })
+  n.on('click', () => {
+    if (!win) createWindow()
+    win?.show()
+    win?.focus()
+    win?.webContents.send('gt:reveal', o.paneId)
+  })
+  n.show()
+})
+ipcMain.on('gt:setBadge', (_e, text: string) => {
+  app.dock?.setBadge(text)
+})
 
 async function quitAll(): Promise<void> {
   const r = await dialog.showMessageBox(win!, {

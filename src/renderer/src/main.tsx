@@ -1,17 +1,52 @@
 import { createRoot } from 'react-dom/client'
-import type { AppState } from '../../shared/types'
-import { runMenuAction } from './actions'
+import type { AppState, PaneView } from '../../shared/types'
+import { markSeenIfLooking, revealPane, runMenuAction } from './actions'
 import { App } from './App'
-import { setUi, showError } from './store'
+import { dockBadge, noticesFor } from './attention'
+import { headerView } from './header'
+import { leaves } from './layout'
+import { getUi, setUi, showError } from './store'
 import { terminals } from './terminals'
 import './styles.css'
 
+let seenFirstState = false
+
+function visiblePaneIds(): Set<string> {
+  const app = getUi().app
+  const tab = app?.layout.tabs.find((t) => t.id === app.layout.activeTabId)
+  return new Set(leaves(tab?.root ?? null))
+}
+
+function onStateArrived(prevPanes: PaneView[] | null): void {
+  const app = getUi().app
+  if (!app) return
+  window.gt.setBadge(dockBadge(app.panes))
+  const notices = noticesFor(seenFirstState ? prevPanes : null, app.panes, { windowFocused: document.hasFocus(), visible: visiblePaneIds() })
+  seenFirstState = true
+  for (const n of notices) {
+    const p = app.panes.find((x) => x.id === n.paneId)
+    if (!p) continue
+    const h = headerView(p, app)
+    const who = p.claude?.title ?? `sessão ${p.seq}`
+    window.gt.notify({
+      paneId: p.id,
+      title: `${h.project.toUpperCase()} · ⎇ ${h.worktree}`,
+      body: `${who} — ${n.kind === 'needs-you' ? 'pedindo permissão' : 'terminou, sua vez'}`,
+    })
+  }
+  // olhando para o painel quando ele virou 🔵: já conta como visto
+  markSeenIfLooking(getUi().focusedPaneId)
+}
+
 window.gt.onEvent((e) => {
   switch (e.t) {
-    case 'state':
+    case 'state': {
+      const prev = getUi().app
       // depois do primeiro carregamento o layout é do renderer (evita "voltar" com broadcast atrasado)
       setUi((s) => ({ app: s.app ? { ...e.state, layout: s.app.layout } : e.state, connected: true }))
+      onStateArrived(prev?.panes ?? null)
       break
+    }
     case 'pane.data':
       terminals.onData(e.paneId, e.data)
       break
@@ -28,6 +63,8 @@ window.gt.onEvent((e) => {
   }
 })
 window.gt.onMenu(runMenuAction)
+window.addEventListener('focus', () => markSeenIfLooking(getUi().focusedPaneId))
+window.gt.onReveal((paneId) => revealPane(paneId))
 window.gt
   .request<AppState>({ t: 'state.get' })
   .then((app) => setUi((s) => ({ app: s.app ?? app, connected: true })))

@@ -83,7 +83,10 @@ class TerminalRegistry {
       return d === 'xterm'
     })
     term.onData((data) => window.gt.send({ t: 'pane.input', paneId, data }))
-    term.textarea?.addEventListener('focus', () => setUi({ focusedPaneId: paneId }))
+    term.textarea?.addEventListener('focus', () => {
+      setUi({ focusedPaneId: paneId })
+      void import('./actions').then((a) => a.markSeenIfLooking(paneId))
+    })
     const entry: Entry = { term, fit, el, state: 'idle', pending: [], lastSize: '' }
     this.entries.set(paneId, entry)
     return entry

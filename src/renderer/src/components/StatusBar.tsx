@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { resumeAll, restartDaemonFlow } from '../flows'
 import { hidePane } from '../actions'
-import { accountsWithoutHooks } from '../sidebar-model'
 import { setUi, showError, useUi } from '../store'
 
 /** 2l: avisos não intrusivos na barra de status inferior */
@@ -11,10 +10,8 @@ export function StatusBar() {
   const vm = useUi((s) => s.versionMismatch)
   const error = useUi((s) => s.error)
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
-  const noHooks = useMemo(() => (app ? [...accountsWithoutHooks(app)] : []), [app])
   if (!app) return null
   const alive = app.panes.filter((p) => p.alive).length
-  const labels = noHooks.map((id) => app.accounts.find((a) => a.id === id)?.label ?? id)
   const dismiss = (k: string) => setDismissed((d) => ({ ...d, [k]: true }))
 
   return (
@@ -47,17 +44,6 @@ export function StatusBar() {
             Reiniciar daemon quando eu quiser
           </button>
           <button className="st-x" onClick={() => dismiss('vm')}>
-            ✕
-          </button>
-        </span>
-      )}
-      {labels.length > 0 && !dismissed.hooks && (
-        <span className="st-item warn">
-          {labels.length === 1 ? `A conta ${labels[0]} está sem os hooks` : `As contas ${labels.join(', ')} estão sem os hooks`} ·{' '}
-          <button className="st-btn" onClick={() => window.gt.request({ t: 'hooks.install' }).catch(showError)}>
-            Instalar
-          </button>
-          <button className="st-x" onClick={() => dismiss('hooks')}>
             ✕
           </button>
         </span>

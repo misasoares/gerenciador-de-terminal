@@ -26,5 +26,8 @@ export interface GtApi {
   openPath(p: string): Promise<void>
   openExternal(url: string): Promise<void>
   restartDaemon(): Promise<void>
+  notify(o: { paneId: string; title: string; body: string }): void
+  setBadge(text: string): void
+  onReveal(cb: (paneId: string) => void): () => void
   pathForFile(file: File): string
 }

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { closeDeadPane, dropOnPane, openNewPane, PANE_MIME } from '../actions'
+import { closeDeadPane, dropOnPane, focusPane, openNewPane, PANE_MIME } from '../actions'
 import { tildify } from '../header'
 import { dropZone, type DropZone } from '../layout'
 import { setUi, showError, useUi } from '../store'
@@ -37,15 +37,17 @@ export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProje
     openNewPane({ paneId, cwd: resumable.cwd, accountId: resumable.accountId, resumeSessionId: resumable.sessionId ?? undefined }).catch(showError)
   }
 
-  const needsYou = pane?.claude?.status === 'needs-you'
-  const cls = ['pane', focused && 'focused', needsYou && 'needs-you', flashing && 'flash-outline'].filter(Boolean).join(' ')
+  const status = pane?.claude?.status
+  const cls = ['pane', focused && 'focused', status === 'needs-you' && 'needs-you', status === 'your-turn' && 'your-turn', flashing && 'flash-outline']
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <div
       ref={ref}
       className={cls}
       data-pane-id={paneId}
-      onMouseDown={() => setUi({ focusedPaneId: paneId })}
+      onMouseDown={() => focusPane(paneId)}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes(PANE_MIME)) return
         e.preventDefault()
