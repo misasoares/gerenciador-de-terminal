@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Account, Layout, ProjectConfig, ResumeEntry } from '../shared/types'
 import { DEFAULT_ACCOUNTS } from './accounts'
+import { DEFAULT_SETTINGS, normalizeSettings, type TerminalSettings } from '../shared/settings'
 
 export interface PersistedPane {
   id: string
@@ -18,6 +19,8 @@ export interface Persisted {
   panes: PersistedPane[]
   resumable: ResumeEntry[]
   fetchIntervalMin: number
+  paneMeta: Record<string, { name: string | null; color: string | null }>
+  settings: TerminalSettings
 }
 
 export function defaultPersisted(): Persisted {
@@ -29,6 +32,8 @@ export function defaultPersisted(): Persisted {
     panes: [],
     resumable: [],
     fetchIntervalMin: 5,
+    paneMeta: {},
+    settings: { ...DEFAULT_SETTINGS },
   }
 }
 
@@ -47,6 +52,8 @@ export function loadPersisted(file: string): Persisted {
       ...parsed,
       version: 1,
       accounts: parsed.accounts?.length ? parsed.accounts : base.accounts,
+      paneMeta: parsed.paneMeta ?? {},
+      settings: normalizeSettings(parsed.settings),
     }
   } catch {
     fs.renameSync(file, `${file}.corrupt-${Date.now()}`)

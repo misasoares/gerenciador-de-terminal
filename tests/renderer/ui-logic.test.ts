@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../../src/shared/settings'
 import { describe, expect, it } from 'vitest'
 import { dropZone, insertBeside, replaceLeaf } from '../../src/renderer/src/layout'
 import { accountsWithoutHooks, buildSidebar, isExpanded, railLabel } from '../../src/renderer/src/sidebar-model'
@@ -28,11 +29,11 @@ describe('zonas de soltar', () => {
   })
 })
 
-const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: 1, cwd: '/r/api', alive: true, exitCode: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
+const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
 const claude = (status: 'working' | 'needs-you' | 'idle') => ({ sessionId: 's', status, statusSince: 0, title: null, transcriptPath: null })
 
 const app = (over: Partial<AppState> = {}): AppState => ({
-  protocolVersion: 1, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [],
+  protocolVersion: 1, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS,
   layout: { tabs: [{ id: 't1', name: 'A', root: leaf('p1') }, { id: 't2', name: 'B', root: leaf('p2') }], activeTabId: 't1' },
   projects: [{ path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null, worktrees: [{ path: '/r/api', head: null, branch: 'main', isMain: true, locked: false, prunable: false, git: null }] }],
   panes: [pane('p1', { claude: claude('working') }), pane('p2', { claude: claude('needs-you') }), pane('p3', { claude: claude('idle') })],

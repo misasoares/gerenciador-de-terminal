@@ -238,6 +238,31 @@ describe('Daemon', () => {
     expect(st.projects[0].conflicts!.pairs[0]).toMatchObject({ files: ['f.txt'], dirty: true })
   })
 
+  it('nome e cor da sessão: especiais, persistem após reinício e validam cor', async () => {
+    repo = makeRepo()
+    const first = await boot()
+    const { paneId } = await first.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    const name = 'Revisão "PR #12" 🚀'
+    await first.app.client.request({ t: 'pane.meta', paneId, name, color: '#3b82f6' })
+    await first.app.waitState((s) => s.panes[0]?.name === name && s.panes[0]?.color === '#3b82f6')
+    await expect(first.app.client.request({ t: 'pane.meta', paneId, color: 'red; drop' })).rejects.toThrow('cor inválida')
+    await first.app.client.request({ t: 'pane.meta', paneId, name: '   ' })
+    await first.app.waitState((s) => s.panes[0]?.name === null)
+    await first.app.client.request({ t: 'pane.meta', paneId, name })
+    await first.app.client.request({ t: 'settings.save', settings: { theme: 'dracula', fontFamily: 'JetBrains Mono', fontSize: 99, lineHeight: 1.3 } })
+    await first.app.waitState((s) => s.settings.theme === 'dracula' && s.settings.fontSize === 24)
+    await new Promise((r) => setTimeout(r, 400))
+    first.app.client.close()
+    await first.d.stop(true)
+    daemons = []
+    const second = await boot({}, first.home)
+    const st = await second.app.waitState((s) => s.resumable.length === 1)
+    expect(st.settings).toMatchObject({ theme: 'dracula', fontFamily: 'JetBrains Mono', fontSize: 24 })
+    // o painel retomado com o mesmo id recupera nome e cor
+    await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await second.app.waitState((s) => s.panes[0]?.name === name && s.panes[0]?.color === '#3b82f6')
+  })
+
   it('erros de requisição voltam como mensagem', async () => {
     const { app } = await boot()
     await expect(app.client.request({ t: 'pane.create', cwd: '/', accountId: 'nao-existe', cols: 80, rows: 24 })).rejects.toThrow('conta desconhecida')

@@ -1,12 +1,13 @@
+import { DEFAULT_SETTINGS } from '../../src/shared/settings'
 import { describe, expect, it } from 'vitest'
 import { buildSidebar, sessionLabel } from '../../src/renderer/src/sidebar-model'
 import type { AppState, PaneView } from '../../src/shared/types'
 
-const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: Number(id.slice(1)), cwd: '/r/api', alive: true, exitCode: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
+const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: Number(id.slice(1)), cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
 const claude = (status: 'working' | 'needs-you' | 'idle', title: string | null = null) => ({ sessionId: 's', status, statusSince: 0, title, transcriptPath: null })
 
 const app: AppState = {
-  protocolVersion: 1, userHome: '/u', accounts: [], resumable: [], hookWarnings: [], layout: { tabs: [], activeTabId: null },
+  protocolVersion: 1, userHome: '/u', accounts: [], resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, layout: { tabs: [], activeTabId: null },
   projects: [{
     path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null,
     worktrees: [

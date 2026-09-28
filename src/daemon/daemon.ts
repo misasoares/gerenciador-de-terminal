@@ -2,6 +2,7 @@ import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
 import type { AppState, ConflictReport } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
+import { normalizeSettings } from '../shared/settings'
 import { suggestAccount } from './accounts'
 import { GitMonitor } from './git/monitor'
 import { checkProfiles, hookCommand, installHooks, writeHookScript } from './hooks'
@@ -163,11 +164,14 @@ export class Daemon {
         claude: r.claude,
         projectPath: r.projectPath,
         worktreePath: r.worktreePath,
+        name: this.persisted.paneMeta[r.id]?.name ?? null,
+        color: this.persisted.paneMeta[r.id]?.color ?? null,
       })),
       layout: this.persisted.layout,
       accounts: this.persisted.accounts,
       resumable: this.persisted.resumable,
       hookWarnings: this.hookWarnings,
+      settings: this.persisted.settings,
     }
   }
 
@@ -271,6 +275,23 @@ export class Daemon {
         return null
       case 'pane.forget':
         this.panes.forget(req.paneId)
+        delete this.persisted.paneMeta[req.paneId]
+        return null
+      case 'pane.meta': {
+        const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
+        const next = { ...cur }
+        if (req.name !== undefined) next.name = req.name === null ? null : req.name.trim().slice(0, 60) || null
+        if (req.color !== undefined) {
+          if (req.color !== null && !/^#[0-9a-fA-F]{6}$/.test(req.color)) throw new Error(`cor inválida: ${req.color}`)
+          next.color = req.color
+        }
+        this.persisted.paneMeta[req.paneId] = next
+        this.changed()
+        return null
+      }
+      case 'settings.save':
+        this.persisted.settings = normalizeSettings(req.settings)
+        this.changed()
         return null
       case 'conflicts.analyze':
         void this.analyzeConflicts(req.projectPath).catch((e) => console.error('análise de conflitos falhou', e))
@@ -307,6 +328,7 @@ export class Daemon {
         return null
       case 'resume.dismiss':
         this.persisted.resumable = this.persisted.resumable.filter((r) => r.paneId !== req.paneId)
+        delete this.persisted.paneMeta[req.paneId]
         this.changed()
         return null
       case 'daemon.shutdown':

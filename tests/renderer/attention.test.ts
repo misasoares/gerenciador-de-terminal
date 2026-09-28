@@ -3,7 +3,7 @@ import { attentionQueue, dockBadge, nextInQueue, noticesFor, tabAttention } from
 import type { Layout, PaneView, SessionStatus } from '../../src/shared/types'
 
 const pane = (id: string, status: SessionStatus | null, since = 0, alive = true): PaneView => ({
-  id, seq: 1, cwd: '/p', alive, exitCode: null, accountId: null, projectPath: null, worktreePath: null,
+  id, seq: 1, cwd: '/p', alive, exitCode: null, name: null, color: null, accountId: null, projectPath: null, worktreePath: null,
   claude: status ? { sessionId: id, status, statusSince: since, title: null, transcriptPath: null } : null,
 })
 const layout: Layout = {

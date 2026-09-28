@@ -1,3 +1,6 @@
+import type { TerminalSettings } from './settings'
+export type { TerminalSettings } from './settings'
+
 export type SessionStatus = 'working' | 'needs-you' | 'your-turn' | 'idle'
 
 export interface ClaudeSession {
@@ -71,6 +74,8 @@ export interface PaneView {
   claude: ClaudeSession | null
   projectPath: string | null
   worktreePath: string | null
+  name: string | null
+  color: string | null
 }
 
 export type LayoutNode =
@@ -105,6 +110,7 @@ export interface AppState {
   resumable: ResumeEntry[]
   /** arquivos settings.json sem os hooks do app */
   hookWarnings: string[]
+  settings: TerminalSettings
 }
 
 export interface HookPayload {

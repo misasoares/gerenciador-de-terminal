@@ -1,4 +1,5 @@
 import type { AppState, HookPayload, Layout } from './types'
+import type { TerminalSettings } from './settings'
 
 export const PROTOCOL_VERSION = 1
 
@@ -14,6 +15,8 @@ export type ClientRequest =
   | { t: 'pane.forget'; paneId: string }
   | { t: 'pane.seen'; paneId: string }
   | { t: 'conflicts.analyze'; projectPath: string }
+  | { t: 'pane.meta'; paneId: string; name?: string | null; color?: string | null }
+  | { t: 'settings.save'; settings: TerminalSettings }
   | { t: 'project.add'; path: string }
   | { t: 'project.remove'; path: string }
   | { t: 'project.setAccount'; path: string; accountId: string | null }
