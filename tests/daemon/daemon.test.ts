@@ -109,7 +109,7 @@ describe('Daemon', () => {
     expect(st.projects[0].worktrees.map((w) => w.path)).toContain(nova)
 
     await hook(o, paneId, { ...base, cwd: nova, hook_event_name: 'Stop' }, mslabs)
-    await app.waitState((s) => s.panes[0]?.claude?.status === 'idle')
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'your-turn')
     await hook(o, paneId, { ...base, cwd: nova, hook_event_name: 'SessionEnd' }, mslabs)
     st = await app.waitState((s) => s.panes[0]?.claude === null)
     expect(st.panes[0].accountId).toBeNull()
@@ -206,6 +206,17 @@ describe('Daemon', () => {
     const st = app.state()!
     expect(st.panes[0].cwd).toBe(repo.dir)
     expect(st.panes[0].worktreePath).toBe(repo.dir)
+  })
+
+  it('pane.seen transforma 🔵 em ⚪', async () => {
+    repo = makeRepo()
+    const { o, app } = await boot()
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await hook(o, paneId, { hook_event_name: 'UserPromptSubmit', session_id: 's1', cwd: repo.dir })
+    await hook(o, paneId, { hook_event_name: 'Stop', session_id: 's1', cwd: repo.dir })
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'your-turn')
+    await app.client.request({ t: 'pane.seen', paneId })
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'idle')
   })
 
   it('erros de requisição voltam como mensagem', async () => {

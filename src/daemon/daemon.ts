@@ -229,6 +229,9 @@ export class Daemon {
       case 'pane.forget':
         this.panes.forget(req.paneId)
         return null
+      case 'pane.seen':
+        this.panes.markSeen(req.paneId)
+        return null
       case 'project.add': {
         const cfg = await this.registry.add(req.path, suggestAccount(this.persisted.accounts, req.path, this.o.userHome))
         await this.panes.relocateAll()

@@ -17,7 +17,7 @@ describe('reduceSession', () => {
     expect(run([ev('SessionStart')])?.status).toBe('idle')
     expect(run([ev('SessionStart'), ev('UserPromptSubmit')])?.status).toBe('working')
     expect(run([ev('SessionStart'), ev('UserPromptSubmit'), ev('PreToolUse', { tool_name: 'Bash' }), ev('PostToolUse')])?.status).toBe('working')
-    expect(run([ev('SessionStart'), ev('UserPromptSubmit'), ev('Stop')])?.status).toBe('idle')
+    expect(run([ev('SessionStart'), ev('UserPromptSubmit'), ev('Stop')])?.status).toBe('your-turn')
   })
 
   it('precisa de você: permissão, pergunta e notificações', () => {
@@ -32,7 +32,7 @@ describe('reduceSession', () => {
   })
 
   it('evento sem SessionStart cria a sessão (app aberto no meio)', () => {
-    expect(run([ev('PostToolUse', { transcript_path: '/t.jsonl' })])).toEqual({ sessionId: 's1', status: 'working', title: null, transcriptPath: '/t.jsonl' })
+    expect(run([ev('PostToolUse', { transcript_path: '/t.jsonl' })])).toEqual({ sessionId: 's1', status: 'working', statusSince: expect.any(Number), title: null, transcriptPath: '/t.jsonl' })
   })
 
   it('/clear troca o id e zera o título; SessionEnd encerra', () => {

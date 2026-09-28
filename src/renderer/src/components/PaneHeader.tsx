@@ -4,7 +4,7 @@ import { hidePane, PANE_MIME } from '../actions'
 import { headerView } from '../header'
 import { useUi } from '../store'
 
-export const STATUS_DOT = { working: '🟢', 'needs-you': '🟡', idle: '⚪', shell: '' } as const
+export const STATUS_DOT = { working: '🟢', 'needs-you': '🟡', 'your-turn': '🔵', idle: '⚪', shell: '' } as const
 
 /** Cabeçalho "C" do wireframe: bloco do projeto + bloco da worktree colados no início */
 export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; compact: boolean; onAddProject?: (dir: string) => void }) {

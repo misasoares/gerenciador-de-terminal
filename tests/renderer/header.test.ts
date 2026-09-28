@@ -15,7 +15,7 @@ const app = { projects: [project], accounts: DEFAULT_ACCOUNTS, userHome: '/Users
 
 describe('headerView', () => {
   it('worktree secundária com sessão e conta', () => {
-    const h = headerView(pane({ worktreePath: '/r/api/.claude/worktrees/auth', accountId: 'mslabs', claude: { sessionId: 's', status: 'needs-you', title: null, transcriptPath: null } }), app)
+    const h = headerView(pane({ worktreePath: '/r/api/.claude/worktrees/auth', accountId: 'mslabs', claude: { sessionId: 's', status: 'needs-you', statusSince: 0, title: null, transcriptPath: null } }), app)
     expect(h).toEqual({
       project: 'api', worktree: 'auth', isMainWorktree: false, branch: 'feat/auth', changed: 5, ahead: 2, behind: 0,
       hasUpstream: false, status: 'needs-you', account: { label: 'mslabs', color: '#c586c0' }, warning: null,

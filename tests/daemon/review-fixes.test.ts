@@ -45,9 +45,9 @@ describe('I2: ambiente herdado de uma sessão do Claude', () => {
 })
 
 describe('I4: interrupção com Esc não deixa 🟢/🟡 preso', () => {
-  it('idle_prompt volta para ocioso', () => {
+  it('idle_prompt depois de Esc vira sua vez', () => {
     const s = reduceSession(null, { hook_event_name: 'UserPromptSubmit', session_id: 's', cwd: '/' })
-    expect(reduceSession(s, { hook_event_name: 'Notification', session_id: 's', cwd: '/', notification_type: 'idle_prompt' })?.status).toBe('idle')
+    expect(reduceSession(s, { hook_event_name: 'Notification', session_id: 's', cwd: '/', notification_type: 'idle_prompt' })?.status).toBe('your-turn')
   })
 })
 

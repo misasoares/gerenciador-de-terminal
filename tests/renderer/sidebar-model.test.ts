@@ -3,7 +3,7 @@ import { buildSidebar, sessionLabel } from '../../src/renderer/src/sidebar-model
 import type { AppState, PaneView } from '../../src/shared/types'
 
 const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: Number(id.slice(1)), cwd: '/r/api', alive: true, exitCode: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
-const claude = (status: 'working' | 'needs-you' | 'idle', title: string | null = null) => ({ sessionId: 's', status, title, transcriptPath: null })
+const claude = (status: 'working' | 'needs-you' | 'idle', title: string | null = null) => ({ sessionId: 's', status, statusSince: 0, title, transcriptPath: null })
 
 const app: AppState = {
   protocolVersion: 1, userHome: '/u', accounts: [], resumable: [], hookWarnings: [], layout: { tabs: [], activeTabId: null },

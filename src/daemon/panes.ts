@@ -5,7 +5,7 @@ import { buildCommand, detectAccount } from './accounts'
 import { cwdOf, findClaude, foregroundOf, snapshotProcs } from './platform/procs'
 import type { ProjectRegistry } from './projects'
 import { PtyHost } from './pty-host'
-import { reduceSession } from './session'
+import { markSeen, reduceSession } from './session'
 import { readTitle } from './title'
 
 export interface PaneRecord {
@@ -150,6 +150,15 @@ export class PaneManager {
     if (!r) return
     if (r.alive) this.host.kill(id)
     this.recs.delete(id)
+    this.d.onChange()
+  }
+
+  markSeen(id: string): void {
+    const r = this.recs.get(id)
+    if (!r) return
+    const next = markSeen(r.claude)
+    if (next === r.claude) return
+    r.claude = next
     this.d.onChange()
   }
 

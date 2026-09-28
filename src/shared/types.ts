@@ -1,8 +1,10 @@
-export type SessionStatus = 'working' | 'needs-you' | 'idle'
+export type SessionStatus = 'working' | 'needs-you' | 'your-turn' | 'idle'
 
 export interface ClaudeSession {
   sessionId: string
   status: SessionStatus
+  /** epoch ms da última mudança de status */
+  statusSince: number
   title: string | null
   transcriptPath: string | null
 }
