@@ -23,8 +23,24 @@ const home = process.env.GT_HOME ?? path.join(os.homedir(), '.gerenciador-termin
 const link = new DaemonLink({
   socketPath: path.join(home, 'daemon.sock'),
   daemonScript: path.join(__dirname, 'daemon.js'),
-  onEvent: (e) => win?.webContents.send('gt:event', e),
+  onEvent: (e) => {
+    // o aviso de uso sai daqui: a janela pode estar carregando ou fechada
+    if (e.t === 'usage.alert') showUsageAlert(e.text)
+    else win?.webContents.send('gt:event', e)
+  },
 })
+
+function showUsageAlert(text: string): void {
+  if (!Notification.isSupported()) return
+  const n = new Notification({ title: 'Uso do plano', body: text, silent: false })
+  notifications.keep(n)
+  n.on('click', () => {
+    if (!win) createWindow()
+    win?.show()
+    win?.focus()
+  })
+  n.show()
+}
 
 function createWindow(): void {
   win = new BrowserWindow({

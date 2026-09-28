@@ -16,7 +16,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function make(results: ReadResult[], extra: { notified?: string[] } = {}) {
+function make(results: ReadResult[], extra: { notified?: string[]; delivered?: () => boolean } = {}) {
   const reads: string[] = []
   const alerts: { text: string; notified: string[] }[] = []
   const logs: string[] = []
@@ -26,7 +26,10 @@ function make(results: ReadResult[], extra: { notified?: string[] } = {}) {
       return results.length > 1 ? results.shift()! : results[0]
     },
     onChange: () => {},
-    onAlert: (text, notified) => alerts.push({ text, notified }),
+    onAlert: (text, notified) => {
+      alerts.push({ text, notified })
+      return extra.delivered ? extra.delivered() : true
+    },
     labelOf: (id) => id,
     notified: extra.notified ?? [],
     log: (m) => logs.push(m),
@@ -105,6 +108,20 @@ describe('UsageMonitor', () => {
     mon.setLogins([L('claude:/s/1-m', ['misa'])])
     await vi.advanceTimersByTimeAsync(0)
     expect(mon.views().map((v) => v.loginKey)).toEqual(['claude:/s/1-m'])
+  })
+
+  it('aviso não entregue (app fechado) não conta como avisado e volta na próxima leitura', async () => {
+    let online = false
+    const { mon, alerts } = make([ok(81)], { delivered: () => online })
+    mon.setLogins([L('claude:/a', ['a'])])
+    await vi.advanceTimersByTimeAsync(0)
+    expect(alerts).toHaveLength(1)
+    online = true
+    await vi.advanceTimersByTimeAsync(300_000)
+    expect(alerts).toHaveLength(2)
+    expect(alerts[1].notified).toEqual(['claude:/a|week|na|80'])
+    await vi.advanceTimersByTimeAsync(300_000)
+    expect(alerts).toHaveLength(2)
   })
 
   it('avisa uma vez por limiar, não repete com notified salvo e mostra 0% após reset', async () => {

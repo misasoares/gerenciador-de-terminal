@@ -6,8 +6,8 @@ import type { Login, ReadResult } from './types'
 export interface MonitorDeps {
   read: (login: Login) => Promise<ReadResult>
   onChange: () => void
-  /** texto do aviso + todas as chaves avisadas (para persistir) */
-  onAlert: (text: string, notified: string[]) => void
+  /** texto do aviso + todas as chaves avisadas (para persistir); devolve se chegou a algum app */
+  onAlert: (text: string, notified: string[]) => boolean
   labelOf: (accountId: string) => string
   notified: string[]
   log?: (msg: string) => void
@@ -160,8 +160,9 @@ export class UsageMonitor {
     this.notified = new Set(pruneNotified(this.notified, now))
     const label = this.d.labelOf(e.login.accountIds[0])
     for (const c of crossings(e.login.key, label, applyResets(e.view!.windows, now), this.notified, now)) {
-      c.keys.forEach((k) => this.notified.add(k))
-      this.d.onAlert(c.text, [...this.notified])
+      const next = new Set([...this.notified, ...c.keys])
+      // não entregue (app fechado): não conta como avisado, volta na próxima leitura
+      if (this.d.onAlert(c.text, [...next])) this.notified = next
     }
   }
 

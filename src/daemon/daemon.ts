@@ -122,9 +122,12 @@ export class Daemon {
       read: this.o.usageRead ?? (async () => ({ kind: 'no-token' })),
       onChange: () => this.changed(false),
       onAlert: (text, notified) => {
+        const apps = [...(this.server?.conns ?? [])].filter((c) => c.role === 'app')
+        for (const c of apps) c.send({ t: 'usage.alert', text })
+        if (apps.length === 0) return false
         this.persisted.usageNotified = notified
-        for (const c of this.server?.conns ?? []) if (c.role === 'app') c.send({ t: 'usage.alert', text })
         this.changed()
+        return true
       },
       labelOf: (id) => this.persisted.accounts.find((a) => a.id === id)?.label ?? id,
       notified: p.usageNotified,
