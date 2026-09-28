@@ -30,6 +30,7 @@ export function buildMenu(o: { send(action: string): void; quitAll(): void }): M
         item('Dividir abaixo', 'CmdOrCtrl+Shift+D', 'split-down'),
         item('Esconder painel', 'CmdOrCtrl+W', 'hide-pane'),
         item('Próxima que precisa de mim', 'CmdOrCtrl+J', 'next-attention'),
+        item('Buscar…', 'CmdOrCtrl+K', 'palette'),
         { type: 'separator' },
         item('Foco à esquerda', 'Alt+CmdOrCtrl+Left', 'focus-left'),
         item('Foco à direita', 'Alt+CmdOrCtrl+Right', 'focus-right'),

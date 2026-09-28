@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ConflictsModal } from './ConflictsModal'
 import { Preferences } from './Preferences'
+import { Palette } from './Palette'
 import { revealPane } from '../actions'
 import { confirmRemove } from '../flows'
 import { headerView } from '../header'
@@ -25,6 +26,7 @@ export function Modals() {
   if (!modal || !app) return null
   if (modal.kind === 'conflicts') return <ConflictsModal projectPath={modal.projectPath} />
   if (modal.kind === 'preferences') return <Preferences />
+  if (modal.kind === 'palette') return <Palette />
   const close = () => {
     setDeleteBranch(false)
     setUi({ modal: null })

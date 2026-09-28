@@ -7,6 +7,9 @@ const SHORTCUTS = [
   ['⌘1…9', 'abas'],
   ['⌥⌘←→', 'foco'],
   ['⌘B', 'sidebar'],
+  ['⌘J', 'próxima que precisa de mim'],
+  ['⌘K', 'buscar'],
+  ['⌘,', 'preferências'],
 ]
 
 /** 2m: CTA + arrastar pasta + atalhos */
