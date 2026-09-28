@@ -49,7 +49,7 @@ window.gt.onEvent((e) => {
       break
     }
     case 'pane.data':
-      terminals.onData(e.paneId, e.data)
+      terminals.onData(e.paneId, e.data, e.seq)
       break
     case 'disconnected':
       setUi({ connected: false })

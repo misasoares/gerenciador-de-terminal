@@ -14,7 +14,11 @@ interface Entry {
   state: 'idle' | 'attaching' | 'live'
   pending: string[]
   lastSize: string
+  /** seq do attach em vigor; dados de attach antigo (ex.: depois de ⌘R) são descartados */
+  seq: number
 }
+
+let nextSeq = 0
 
 const BASE_OPTIONS = {
   scrollback: 10_000,
@@ -64,13 +68,22 @@ class TerminalRegistry {
     window.gt.send({ t: 'pane.resize', paneId, cols: e.term.cols, rows: e.term.rows })
   }
 
+  dispose(paneId: string): void {
+    const e = this.entries.get(paneId)
+    if (!e) return
+    this.entries.delete(paneId)
+    window.gt.send({ t: 'pane.detach', paneId })
+    e.term.dispose()
+    e.el.remove()
+  }
+
   focus(paneId: string): void {
     this.entries.get(paneId)?.term.focus()
   }
 
-  onData(paneId: string, data: string): void {
+  onData(paneId: string, data: string, seq: number): void {
     const e = this.entries.get(paneId)
-    if (!e) return
+    if (!e || seq !== e.seq) return
     if (e.state === 'live') e.term.write(data)
     else if (e.state === 'attaching') e.pending.push(data)
   }
@@ -99,7 +112,7 @@ class TerminalRegistry {
       setUi({ focusedPaneId: paneId })
       void import('./actions').then((a) => a.markSeenIfLooking(paneId))
     })
-    const entry: Entry = { term, fit, el, state: 'idle', pending: [], lastSize: '' }
+    const entry: Entry = { term, fit, el, state: 'idle', pending: [], lastSize: '', seq: 0 }
     this.entries.set(paneId, entry)
     return entry
   }
@@ -109,9 +122,12 @@ class TerminalRegistry {
     if (!e) return
     e.state = 'attaching'
     e.pending = []
+    const seq = ++nextSeq
+    e.seq = seq
     const dims = e.el.isConnected && e.el.clientWidth > 0 ? e.fit.proposeDimensions() : undefined
     try {
-      const { snapshot } = await window.gt.request<{ snapshot: string }>({ t: 'pane.attach', paneId, cols: dims?.cols, rows: dims?.rows })
+      const { snapshot } = await window.gt.request<{ snapshot: string }>({ t: 'pane.attach', paneId, cols: dims?.cols, rows: dims?.rows, seq })
+      if (e.seq !== seq) return // outro attach começou depois deste
       e.term.reset()
       if (dims?.cols && dims?.rows) e.term.resize(dims.cols, dims.rows)
       e.term.write(snapshot)

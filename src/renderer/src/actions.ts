@@ -108,6 +108,7 @@ export function moveToTab(paneId: string, tabId: string): void {
 
 export function closeDeadPane(paneId: string): void {
   hidePane(paneId)
+  terminals.dispose(paneId)
   window.gt.send({ t: 'pane.forget', paneId })
   window.gt.send({ t: 'resume.dismiss', paneId })
 }
