@@ -3,6 +3,7 @@ import type { AppState } from '../../../shared/types'
 import { openNewPane } from '../actions'
 import { worktreeLabel } from '../header'
 import { AGENT_LABEL } from '../agents-model'
+import { accountUsage } from '../usage-model'
 import { accountsWithoutHooks } from '../sidebar-model'
 import { getUi, setUi, showError, useUi } from '../store'
 
@@ -101,6 +102,10 @@ export function NewSessionDialog() {
                   >
                     <span style={{ color: a.color }}>{a.label}</span>
                     <span className="card-note">{AGENT_LABEL[a.agent]}</span>
+                    {(() => {
+                      const u = accountUsage(app, a.id)
+                      return u.text ? <span className="card-note">{u.text}</span> : u.hint ? <span className="card-note" title={u.hint}>uso: —</span> : null
+                    })()}
                     {form.accountId === a.id && ' ✓'}
                     {project?.defaultAccountId === a.id && <span className="card-note">padrão do projeto</span>}
                     {noHooks.has(a.id) && <span className="card-note warn">⚠ sem hooks</span>}

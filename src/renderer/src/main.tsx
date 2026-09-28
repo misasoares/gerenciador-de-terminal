@@ -76,11 +76,16 @@ window.gt.onEvent((e) => {
     case 'version-mismatch':
       setUi({ versionMismatch: { daemon: e.daemon, app: e.app } })
       break
+    case 'usage.alert':
+      window.gt.notify({ paneId: '', title: 'Uso do plano', body: e.text })
+      break
   }
 })
 window.gt.onMenu(runMenuAction)
 window.addEventListener('focus', () => markSeenIfLooking(getUi().focusedPaneId))
-window.gt.onReveal((paneId) => revealPane(paneId))
+window.gt.onReveal((paneId) => {
+  if (paneId) revealPane(paneId) // aviso de uso não tem painel
+})
 window.gt
   .request<AppState>({ t: 'state.get' })
   .then((app) => {

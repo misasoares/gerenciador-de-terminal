@@ -58,6 +58,9 @@ export function AgentsPanel() {
             <button onClick={() => setList(list.filter((_, j) => j !== i))} title="Remover">✕</button>
           </div>
           <input className="text-input mono" value={a.command} onChange={(e) => set(i, { command: e.target.value })} placeholder="comando digitado no shell" />
+          <label className="check">
+            <input type="checkbox" checked={a.planUsage !== false} onChange={(e) => set(i, { planUsage: e.target.checked })} /> usa o plano (mostrar uso)
+          </label>
           <button className="sb-mini" onClick={() => setOpen(open === a.id ? null : a.id)}>
             {open === a.id ? '▾' : '▸'} identificação avançada
           </button>
