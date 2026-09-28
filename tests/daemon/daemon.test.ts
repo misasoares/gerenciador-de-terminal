@@ -317,6 +317,46 @@ describe('Daemon', () => {
     c.close()
   })
 
+  it('I7: edição de arquivo já alterado (sem mudar a contagem) também reanalisa, via hook', async () => {
+    repo = makeRepo()
+    repo.write('f.txt', 'l1\nl2\nl3\nl4\nl5\n'); repo.git('add', '.'); repo.git('commit', '-m', 'f')
+    const a = path.join(repo.root, 'wt a'), b = path.join(repo.root, 'wt b')
+    repo.git('worktree', 'add', '-b', 'a', a)
+    repo.git('worktree', 'add', '-b', 'b', b)
+    fs.writeFileSync(path.join(a, 'f.txt'), 'A1\nl2\nl3\nl4\nl5\n'); repo.git('-C', a, 'commit', '-qam', 'a')
+    fs.writeFileSync(path.join(b, 'f.txt'), 'l1\nl2\nl3\nl4\nB5\n') // já alterado, sem conflito
+    const { o, app } = await boot({ gitPollMs: 300, conflictsDebounceMs: 200 })
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: b, accountId: null, cols: 80, rows: 24 })
+    await app.waitState((s) => s.panes[0]?.worktreePath === b && (s.projects[0]?.worktrees[2]?.git?.changed ?? 0) === 1)
+    await app.client.request({ t: 'conflicts.analyze', projectPath: repo.dir })
+    await app.waitState((s) => !!s.projects[0]?.conflicts && !s.projects[0].conflicts.running && s.projects[0].conflicts.pairs.length === 0)
+    // o Claude mexe de novo no mesmo arquivo (continua 1 alterado) e agora conflita com a
+    fs.writeFileSync(path.join(b, 'f.txt'), 'B1\nl2\nl3\nl4\nB5\n')
+    await hook(o, paneId, { hook_event_name: 'PostToolUse', session_id: 's1', cwd: b })
+    await app.waitState((s) => (s.projects[0]?.conflicts?.pairs.length ?? 0) === 1, 10_000)
+  })
+
+  it('nome longo com emoji não é cortado no meio do emoji', async () => {
+    repo = makeRepo()
+    const { app } = await boot()
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await app.client.request({ t: 'pane.meta', paneId, name: 'a'.repeat(59) + '🚀fim' })
+    const st = await app.waitState((s) => !!s.panes[0]?.name)
+    expect(st.panes[0].name).toBe('a'.repeat(59) + '🚀')
+  })
+
+  it('o que o usuário digita durante a espera do prompt vem depois do comando da conta', async () => {
+    repo = makeRepo()
+    const { app } = await boot({ shellArgs: ['-c', 'sleep 1; printf "PRONTO\\n"; exec cat'] })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'mslabs', cols: 80, rows: 24 })
+    const snap = await app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
+    app.client.send({ t: 'pane.input', paneId, data: 'digitado' })
+    await app.waitState(() => (snap.snapshot + app.output(paneId)).includes('digitado') && (snap.snapshot + app.output(paneId)).includes('claude-mslabs'), 8000)
+    const all = snap.snapshot + app.output(paneId)
+    expect(all.indexOf('claude-mslabs')).toBeLessThan(all.indexOf('digitado'))
+  })
+
   it('erros de requisição voltam como mensagem', async () => {
     const { app } = await boot()
     await expect(app.client.request({ t: 'pane.create', cwd: '/', accountId: 'nao-existe', cols: 80, rows: 24 })).rejects.toThrow('conta desconhecida')

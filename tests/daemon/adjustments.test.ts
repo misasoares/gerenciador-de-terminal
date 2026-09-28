@@ -41,3 +41,26 @@ describe('trava do daemon', () => {
     expect(fs.readFileSync(lock, 'utf8')).toBe(String(process.pid))
   })
 })
+
+describe('I3: trava velha depois de reboot/crash', () => {
+  it('trava com pid vivo mas antiga (> 30 s) é recuperada; recente é respeitada', async () => {
+    const dir = tmp()
+    const lock = path.join(dir, 'daemon.lock')
+    const alive = spawn('/bin/sleep', ['10'])
+    try {
+      fs.writeFileSync(lock, String(alive.pid))
+      expect(acquireLock(lock)).toBe(false)
+      const old = new Date(Date.now() - 60_000)
+      fs.utimesSync(lock, old, old)
+      expect(acquireLock(lock)).toBe(true)
+      expect(fs.readFileSync(lock, 'utf8')).toBe(String(process.pid))
+    } finally {
+      alive.kill()
+    }
+  })
+  it('trava vazia recente (outro processo gravando) é respeitada', () => {
+    const lock = path.join(tmp(), 'daemon.lock')
+    fs.writeFileSync(lock, '')
+    expect(acquireLock(lock)).toBe(false)
+  })
+})

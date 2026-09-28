@@ -9,6 +9,9 @@ const WIP_ENV = {
   GIT_AUTHOR_EMAIL: 'gt@localhost',
   GIT_COMMITTER_NAME: 'gerenciador-terminal',
   GIT_COMMITTER_EMAIL: 'gt@localhost',
+  // data fixa: mesmo conteúdo → mesmo sha (permite cache e o atalho de tips iguais)
+  GIT_AUTHOR_DATE: '1700000000 +0000',
+  GIT_COMMITTER_DATE: '1700000000 +0000',
 }
 const TIMEOUT = 30_000
 let counter = 0
@@ -26,20 +29,26 @@ const firstLine = (s: string) => s.trim().split('\n')[0] ?? ''
  * montado num índice temporário — o índice real, o stash e as refs não são tocados.
  */
 export async function snapshotTip(worktreePath: string): Promise<Tip> {
-  const head = await git(worktreePath, ['rev-parse', 'HEAD'])
+  const head = await git(worktreePath, ['rev-parse', 'HEAD'], TIMEOUT)
   if (!head.ok) throw new Error(firstLine(head.stderr) || 'git rev-parse falhou')
   const headSha = head.stdout.trim()
-  const st = await git(worktreePath, ['status', '--porcelain'])
+  const st = await git(worktreePath, ['status', '--porcelain'], TIMEOUT)
   if (!st.ok) throw new Error(firstLine(st.stderr) || 'git status falhou')
   if (!st.stdout.trim()) return { worktreePath, tip: headSha, dirty: false }
 
   const idx = path.join(os.tmpdir(), `gt-idx-${process.pid}-${++counter}`)
   const env = { ...WIP_ENV, GIT_INDEX_FILE: idx }
   try {
-    for (const args of [['read-tree', 'HEAD'], ['add', '-A']]) {
-      const r = await git(worktreePath, args, TIMEOUT, env)
-      if (!r.ok) throw new Error(`git ${args[0]}: ${firstLine(r.stderr)}`)
+    // parte de uma cópia do índice real: mantém o cache de stat (add rápido) e os bits de sparse/skip-worktree
+    const real = await git(worktreePath, ['rev-parse', '--git-path', 'index'], TIMEOUT)
+    const realIndex = real.ok ? path.resolve(worktreePath, real.stdout.trim()) : ''
+    if (realIndex && fs.existsSync(realIndex)) fs.copyFileSync(realIndex, idx)
+    else {
+      const r = await git(worktreePath, ['read-tree', 'HEAD'], TIMEOUT, env)
+      if (!r.ok) throw new Error(`git read-tree: ${firstLine(r.stderr)}`)
     }
+    const add = await git(worktreePath, ['add', '-A'], TIMEOUT, env)
+    if (!add.ok) throw new Error(`git add: ${firstLine(add.stderr)}`)
     const tree = await git(worktreePath, ['write-tree'], TIMEOUT, env)
     if (!tree.ok) throw new Error(`git write-tree: ${firstLine(tree.stderr)}`)
     const commit = await git(worktreePath, ['commit-tree', tree.stdout.trim(), '-p', headSha, '-m', 'gerenciador-terminal: alterações locais'], TIMEOUT, env)
@@ -76,7 +85,13 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>): Prom
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-export async function analyzeConflicts(mainPath: string, worktrees: WorktreeInfo[], concurrency = 4): Promise<Omit<ConflictReport, 'running'>> {
+/** cache: chave `tipA|tipB` → arquivos em conflito (tips são imutáveis, então o resultado também) */
+export async function analyzeConflicts(
+  mainPath: string,
+  worktrees: WorktreeInfo[],
+  concurrency = 4,
+  cache: Map<string, string[]> = new Map(),
+): Promise<Omit<ConflictReport, 'running'>> {
   const live = worktrees.filter((w) => !w.prunable)
   const errors: ConflictReport['errors'] = []
   const tips = new Map<string, Tip>()
@@ -110,14 +125,22 @@ export async function analyzeConflicts(mainPath: string, worktrees: WorktreeInfo
 
   const pairs: ConflictReport['pairs'] = []
   let comparisons = 0
-  await pool(jobs, concurrency, async (job) => {
+  const cached = async (a: string, b: string): Promise<string[]> => {
+    const key = `${a}|${b}`
+    const hit = cache.get(key)
+    if (hit) return hit
     comparisons++
+    const files = await mergeTree(mainPath, a, b)
+    cache.set(key, files)
+    return files
+  }
+  await pool(jobs, concurrency, async (job) => {
     try {
       if (job.kind === 'main') {
-        const files = await mergeTree(mainPath, base.tip, job.t.tip)
+        const files = await cached(base.tip, job.t.tip)
         vsMain.find((v) => v.worktreePath === job.t.worktreePath)!.files = files
       } else {
-        const files = await mergeTree(mainPath, job.x.tip, job.y.tip)
+        const files = await cached(job.x.tip, job.y.tip)
         if (files.length) pairs.push({ a: job.x.worktreePath, b: job.y.worktreePath, files, dirty: job.x.dirty || job.y.dirty })
       }
     } catch (e) {

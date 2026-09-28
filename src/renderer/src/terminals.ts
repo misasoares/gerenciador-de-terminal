@@ -6,6 +6,7 @@ import { decideKey, SHIFT_ENTER_SEQUENCE } from './keys'
 import { setUi } from './store'
 import { DEFAULT_SETTINGS, type TerminalSettings } from '../../shared/settings'
 import { THEMES } from './themes'
+import { acceptData } from './seq'
 
 interface Entry {
   term: Terminal
@@ -18,7 +19,8 @@ interface Entry {
   seq: number
 }
 
-let nextSeq = 0
+// começa num valor único por carga do renderer: depois de ⌘R não colide com assinaturas antigas
+let nextSeq = Date.now()
 
 const BASE_OPTIONS = {
   scrollback: 10_000,
@@ -81,9 +83,9 @@ class TerminalRegistry {
     this.entries.get(paneId)?.term.focus()
   }
 
-  onData(paneId: string, data: string, seq: number): void {
+  onData(paneId: string, data: string, seq?: number): void {
     const e = this.entries.get(paneId)
-    if (!e || seq !== e.seq) return
+    if (!e || !acceptData(e.seq, seq)) return
     if (e.state === 'live') e.term.write(data)
     else if (e.state === 'attaching') e.pending.push(data)
   }
@@ -137,7 +139,7 @@ class TerminalRegistry {
       e.lastSize = `${e.term.cols}x${e.term.rows}`
       this.fit(paneId)
     } catch {
-      e.state = 'idle' // painel morreu ou daemon caiu; tenta de novo no próximo mount/reconnect
+      if (e.seq === seq) e.state = 'idle' // painel morreu ou daemon caiu; tenta de novo no próximo mount/reconnect
     }
   }
 }

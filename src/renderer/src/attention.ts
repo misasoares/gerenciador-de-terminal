@@ -64,3 +64,14 @@ export function noticesFor(prev: PaneView[] | null, next: PaneView[], ctx: { win
   }
   return out
 }
+
+/** no máximo uma notificação por painel e tipo a cada `windowMs` (sessão que alterna rápido não enche a tela) */
+export function throttleNotices(notices: Notice[], sent: Map<string, number>, now: number, windowMs = 30_000): Notice[] {
+  return notices.filter((n) => {
+    const key = `${n.paneId}:${n.kind}`
+    const last = sent.get(key)
+    if (last !== undefined && now - last < windowMs) return false
+    sent.set(key, now)
+    return true
+  })
+}

@@ -80,3 +80,25 @@ describe('analyzeConflicts', () => {
     expect(rep.pairs.length).toBeGreaterThanOrEqual(1)
   })
 })
+
+describe('I6: custo da análise', () => {
+  it('retrato de worktree com alterações é determinístico (mesmo conteúdo → mesmo sha)', async () => {
+    const { d } = setup()
+    const one = await snapshotTip(d)
+    await new Promise((r) => setTimeout(r, 1100)) // outro segundo: com a hora atual o sha mudaria
+    const two = await snapshotTip(d)
+    expect(two.tip).toBe(one.tip)
+  })
+
+  it('cache por par: reanalisar sem mudança não roda merge-tree de novo', async () => {
+    setup()
+    const r = await listWorktrees(repo!.dir)
+    if (!r.ok) throw new Error(r.error)
+    const cache = new Map<string, string[]>()
+    const first = await analyzeConflicts(repo!.dir, r.worktrees, 4, cache)
+    expect(first.comparisons).toBe(10)
+    const second = await analyzeConflicts(repo!.dir, r.worktrees, 4, cache)
+    expect(second.comparisons).toBe(0)
+    expect(second.pairs.map((p) => p.files)).toEqual(first.pairs.map((p) => p.files))
+  })
+})

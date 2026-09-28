@@ -5,6 +5,9 @@ import type { ClientRequest } from '../shared/protocol'
 import type { ConfirmOptions, MenuItemSpec } from '../shared/bridge'
 import { DaemonLink } from './daemon-link'
 import { buildMenu } from './menu'
+import { NotifyKeeper } from './notify-keeper'
+
+const notifications = new NotifyKeeper()
 
 let win: BrowserWindow | null = null
 const home = process.env.GT_HOME ?? path.join(os.homedir(), '.gerenciador-terminal')
@@ -25,6 +28,7 @@ function createWindow(): void {
   })
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void win.loadFile(path.join(__dirname, '../renderer/index.html'))
+  win.webContents.on('did-finish-load', () => notifications.loaded((id) => win?.webContents.send('gt:reveal', id)))
   win.on('closed', () => {
     win = null
   })
@@ -81,11 +85,14 @@ ipcMain.handle('gt:restartDaemon', () => link.shutdownDaemon(true))
 ipcMain.on('gt:notify', (_e, o: { paneId: string; title: string; body: string }) => {
   if (!Notification.isSupported()) return
   const n = new Notification({ title: o.title, body: o.body, silent: false })
+  notifications.keep(n)
   n.on('click', () => {
+    const existed = !!win
     if (!win) createWindow()
     win?.show()
     win?.focus()
-    win?.webContents.send('gt:reveal', o.paneId)
+    const ready = existed && !!win && !win.webContents.isLoading()
+    notifications.reveal(o.paneId, ready, (id) => win?.webContents.send('gt:reveal', id))
   })
   n.show()
 })

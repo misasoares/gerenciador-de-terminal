@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client'
 import type { AppState, PaneView } from '../../shared/types'
 import { markSeenIfLooking, revealPane, runMenuAction } from './actions'
 import { App } from './App'
-import { dockBadge, noticesFor } from './attention'
+import { dockBadge, noticesFor, throttleNotices } from './attention'
 import { headerView } from './header'
 import { leaves } from './layout'
 import { getUi, setUi, showError } from './store'
@@ -10,6 +10,7 @@ import { terminals } from './terminals'
 import './styles.css'
 
 let seenFirstState = false
+const sentNotices = new Map<string, number>()
 
 function visiblePaneIds(): Set<string> {
   const app = getUi().app
@@ -21,7 +22,11 @@ function onStateArrived(prevPanes: PaneView[] | null): void {
   const app = getUi().app
   if (!app) return
   window.gt.setBadge(dockBadge(app.panes))
-  const notices = noticesFor(seenFirstState ? prevPanes : null, app.panes, { windowFocused: document.hasFocus(), visible: visiblePaneIds() })
+  const notices = throttleNotices(
+    noticesFor(seenFirstState ? prevPanes : null, app.panes, { windowFocused: document.hasFocus(), visible: visiblePaneIds() }),
+    sentNotices,
+    Date.now(),
+  )
   seenFirstState = true
   for (const n of notices) {
     const p = app.panes.find((x) => x.id === n.paneId)

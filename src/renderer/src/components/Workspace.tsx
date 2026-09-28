@@ -4,7 +4,7 @@ import type React from 'react'
 import { useMemo, useState } from 'react'
 import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
-import { addTab, closeTab, renameTab, saveSizes } from '../actions'
+import { activateTab, addTab, closeTab, renameTab, saveSizes } from '../actions'
 import { leaves } from '../layout'
 import { updateLayout, useUi } from '../store'
 import { PaneFrame } from './PaneFrame'
@@ -38,7 +38,7 @@ function TabBar({ layout }: { layout: Layout }) {
         <div
           key={t.id}
           className={`tab${t.id === layout.activeTabId ? ' active' : ''}`}
-          onClick={() => updateLayout((l) => ({ ...l, activeTabId: t.id }))}
+          onClick={() => activateTab(t.id)}
           onDoubleClick={() => setEditing(t.id)}
         >
           {editing === t.id ? (

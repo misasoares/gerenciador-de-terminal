@@ -16,3 +16,16 @@ export function focusAfterHide(layout: Layout, hiddenId: string): string | null 
   const rest = leaves(tab?.root ?? null).filter((id) => id !== hiddenId)
   return rest.at(-1) ?? null
 }
+
+/** o usuário está olhando para este painel 🔵? janela focada + painel na aba ativa + status your-turn */
+export function lookingAt(app: Pick<AppState, 'layout' | 'panes'> | null, paneId: string | null, windowFocused: boolean): string | null {
+  if (!app || !paneId || !windowFocused) return null
+  const active = app.layout.tabs.find((t) => t.id === app.layout.activeTabId)
+  if (!leaves(active?.root ?? null).includes(paneId)) return null
+  return app.panes.find((p) => p.id === paneId)?.claude?.status === 'your-turn' ? paneId : null
+}
+
+/** o campo de renomear está aberto neste painel: não roubar o foco para o terminal */
+export function shouldFocusTerminal(ui: { renamingPaneId: string | null }, paneId: string): boolean {
+  return ui.renamingPaneId !== paneId
+}

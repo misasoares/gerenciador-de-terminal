@@ -143,6 +143,8 @@ export class PaneManager {
   }
 
   write(id: string, data: string): void {
+    // o usuário começou a digitar antes do prompt: manda o comando da conta primeiro, para não grudar
+    if (this.pendingCommands.has(id)) this.flushCommand(id)
     this.host.write(id, data)
   }
 

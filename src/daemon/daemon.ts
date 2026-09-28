@@ -45,6 +45,7 @@ export class Daemon {
   private conflicts = new Map<string, ConflictReport>()
   private conflictTimers = new Map<string, NodeJS.Timeout>()
   private conflictRerun = new Set<string>()
+  private conflictCache = new Map<string, Map<string, string[]>>()
 
   private constructor(private o: DaemonOptions) {}
 
@@ -98,7 +99,10 @@ export class Daemon {
         }
       },
       onChange: () => this.changed(),
-      onGitHint: (wt) => this.monitor.refresh(wt),
+      onGitHint: (wt) => {
+        this.monitor.refresh(wt)
+        this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
+      },
     })
     this.hookWarnings = checkProfiles(this.o.userHome, this.hookCmd)
     this.server = await startServer(this.o.socketPath, (req, conn) => this.handle(req, conn))
@@ -244,7 +248,9 @@ export class Daemon {
     this.conflicts.set(projectPath, { ...(prev ?? { analyzedAt: 0, comparisons: 0, vsMain: [], pairs: [], cleanPairs: 0, errors: [] }), running: true })
     this.changed(false)
     try {
-      const report = await analyzeConflicts(projectPath, this.registry.worktrees(projectPath))
+      let cache = this.conflictCache.get(projectPath)
+      if (!cache) this.conflictCache.set(projectPath, (cache = new Map()))
+      const report = await analyzeConflicts(projectPath, this.registry.worktrees(projectPath), 4, cache)
       if (this.stopping) return
       this.conflicts.set(projectPath, { ...report, running: false })
     } catch (e) {
@@ -298,7 +304,7 @@ export class Daemon {
       case 'pane.meta': {
         const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
         const next = { ...cur }
-        if (req.name !== undefined) next.name = req.name === null ? null : req.name.trim().slice(0, 60) || null
+        if (req.name !== undefined) next.name = req.name === null ? null : Array.from(req.name.trim()).slice(0, 60).join('') || null
         if (req.color !== undefined) {
           if (req.color !== null && !/^#[0-9a-fA-F]{6}$/.test(req.color)) throw new Error(`cor inválida: ${req.color}`)
           next.color = req.color

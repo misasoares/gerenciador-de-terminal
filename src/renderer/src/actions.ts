@@ -1,7 +1,7 @@
 import type { Layout, Tab } from '../../shared/types'
 import { findTab, insertBeside, leaves, neighbor, removeLeaf, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone } from './layout'
 import { attentionQueue, nextInQueue } from './attention'
-import { focusAfterHide, splitCwd } from './focus'
+import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
 import { terminals } from './terminals'
 
@@ -34,7 +34,9 @@ export function placePane(paneId: string, dir: 'row' | 'column'): void {
 export function focusPane(paneId: string): void {
   setUi({ focusedPaneId: paneId })
   markSeenIfLooking(paneId)
-  requestAnimationFrame(() => terminals.focus(paneId))
+  requestAnimationFrame(() => {
+    if (shouldFocusTerminal(getUi(), paneId)) terminals.focus(paneId)
+  })
 }
 
 function flash(paneId: string): void {
@@ -139,6 +141,9 @@ export function closeTab(tabId: string): void {
     const activeTabId = l.activeTabId === tabId ? (tabs[tabs.length - 1]?.id ?? null) : l.activeTabId
     return { tabs, activeTabId }
   })
+  const active = getUi().app?.layout.activeTabId
+  if (active) activateTab(active)
+  else setUi({ focusedPaneId: null })
 }
 
 export function renameTab(tabId: string, name: string): void {
@@ -176,9 +181,17 @@ export function moveFocus(dir: Dir): void {
 
 /** o usuário está olhando para o painel: janela focada e painel em foco → 🔵 vira ⚪ no daemon */
 export function markSeenIfLooking(paneId: string | null): void {
-  if (!paneId || !document.hasFocus()) return
-  const p = getUi().app?.panes.find((x) => x.id === paneId)
-  if (p?.claude?.status === 'your-turn') window.gt.send({ t: 'pane.seen', paneId })
+  const id = lookingAt(getUi().app, paneId, document.hasFocus())
+  if (id) window.gt.send({ t: 'pane.seen', paneId: id })
+}
+
+/** trocar de aba leva o foco para um painel dela (o foco antigo ficaria numa aba escondida) */
+export function activateTab(tabId: string): void {
+  updateLayout((l) => (l.activeTabId === tabId || !l.tabs.some((t) => t.id === tabId) ? l : { ...l, activeTabId: tabId }))
+  const tab = getUi().app?.layout.tabs.find((t) => t.id === tabId)
+  const last = leaves(tab?.root ?? null).at(-1)
+  if (last) focusPane(last)
+  else setUi({ focusedPaneId: null })
 }
 
 export function revealNextAttention(): void {
@@ -201,6 +214,7 @@ export function runMenuAction(action: string): void {
   else if (action === 'toggle-sidebar') setUi((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }))
   else if (action.startsWith('tab-')) {
     const n = Number(action.slice(4))
-    updateLayout((l) => (l.tabs[n - 1] ? { ...l, activeTabId: l.tabs[n - 1].id } : l))
+    const tab = getUi().app?.layout.tabs[n - 1]
+    if (tab) activateTab(tab.id)
   } else if (action.startsWith('focus-')) moveFocus(action.slice(6) as Dir)
 }
