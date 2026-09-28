@@ -3,7 +3,7 @@ import { Menu, type MenuItemConstructorOptions } from 'electron'
 export function buildMenu(o: { send(action: string): void; quitAll(): void }): Menu {
   const item = (label: string, accelerator: string, action: string): MenuItemConstructorOptions => ({
     label,
-    accelerator,
+    accelerator: accelerator || undefined,
     click: () => o.send(action),
   })
   const template: MenuItemConstructorOptions[] = [
@@ -13,6 +13,7 @@ export function buildMenu(o: { send(action: string): void; quitAll(): void }): M
         { role: 'about', label: 'Sobre' },
         { type: 'separator' },
         item('Preferências…', 'CmdOrCtrl+,', 'preferences'),
+        item('Configurar agentes…', '', 'setup'),
         { type: 'separator' },
         { role: 'hide', label: 'Ocultar' },
         { role: 'hideOthers', label: 'Ocultar outros' },

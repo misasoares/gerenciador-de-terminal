@@ -210,6 +210,7 @@ export function runMenuAction(action: string): void {
   } else if (action === 'next-attention') revealNextAttention()
   else if (action === 'preferences') setUi({ modal: { kind: 'preferences' } })
   else if (action === 'palette') setUi({ modal: { kind: 'palette' } })
+  else if (action === 'setup') setUi({ modal: { kind: 'setup' } })
   else if (action === 'new-tab') addTab()
   else if (action === 'toggle-sidebar') setUi((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }))
   else if (action.startsWith('tab-')) {

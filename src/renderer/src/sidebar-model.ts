@@ -93,7 +93,8 @@ export function railLabel(name: string): string {
 export function accountsWithoutHooks(app: Pick<AppState, 'hookWarnings' | 'accounts' | 'userHome'>): Set<string> {
   const out = new Set<string>()
   for (const w of app.hookWarnings) {
-    if (w === `${app.userHome}/.claude/settings.json`) app.accounts.forEach((a) => out.add(a.id))
+    if (w === `${app.userHome}/.claude/settings.json`) app.accounts.filter((a) => a.agent === 'claude').forEach((a) => out.add(a.id))
+    else if (w.endsWith('/hooks.json')) app.accounts.filter((a) => a.agent === 'codex').forEach((a) => out.add(a.id))
     else app.accounts.filter((a) => a.configDirMatch.some((m) => w.includes(m))).forEach((a) => out.add(a.id))
   }
   return out

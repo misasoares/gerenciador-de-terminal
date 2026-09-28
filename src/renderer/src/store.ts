@@ -23,6 +23,7 @@ export type Modal =
   | { kind: 'conflicts'; projectPath: string }
   | { kind: 'preferences' }
   | { kind: 'palette' }
+  | { kind: 'setup' }
 
 let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null }
 const subs = new Set<() => void>()

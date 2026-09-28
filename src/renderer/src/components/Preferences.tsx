@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { normalizeSettings, THEME_IDS, type TerminalSettings } from '../../../shared/settings'
 import { THEMES } from '../themes'
+import { AgentsPanel } from './AgentsPanel'
 import { setUi, showError, useUi } from '../store'
 
 export function Preferences() {
   const saved = useUi((s) => s.app?.settings)
   const [draft, setDraft] = useState<TerminalSettings | null>(saved ?? null)
+  const [tab, setTab] = useState<'terminal' | 'agents'>('terminal')
   if (!saved || !draft) return null
   const update = (patch: Partial<TerminalSettings>) => {
     const next = normalizeSettings({ ...draft, ...patch })
@@ -15,8 +17,20 @@ export function Preferences() {
   const close = () => setUi({ modal: null })
   return (
     <div className="modal-backdrop" onMouseDown={close}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && close()}>
+      <div className="modal prefs" onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && close()}>
         <h3>Preferências</h3>
+        <div className="pref-tabs">
+          <button className={tab === 'terminal' ? 'active' : ''} onClick={() => setTab('terminal')}>
+            Terminal
+          </button>
+          <button className={tab === 'agents' ? 'active' : ''} onClick={() => setTab('agents')}>
+            Agentes
+          </button>
+        </div>
+        {tab === 'agents' ? (
+          <AgentsPanel />
+        ) : (
+          <>
         <div className="field">
           <div className="field-label">TEMA DO TERMINAL</div>
           <select value={draft.theme} onChange={(e) => update({ theme: e.target.value as TerminalSettings['theme'] })}>
@@ -39,6 +53,8 @@ export function Preferences() {
           <div className="field-label">ALTURA DE LINHA · {draft.lineHeight.toFixed(1)}</div>
           <input type="range" min={1} max={1.6} step={0.1} value={draft.lineHeight} onChange={(e) => update({ lineHeight: Number(e.target.value) })} />
         </div>
+          </>
+        )}
         <div className="modal-actions">
           <button className="primary" autoFocus onClick={close}>
             Fechar
