@@ -4,6 +4,8 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 import { decideKey, SHIFT_ENTER_SEQUENCE } from './keys'
 import { setUi } from './store'
+import { DEFAULT_SETTINGS, type TerminalSettings } from '../../shared/settings'
+import { THEMES } from './themes'
 
 interface Entry {
   term: Terminal
@@ -14,19 +16,29 @@ interface Entry {
   lastSize: string
 }
 
-const OPTIONS = {
-  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-  fontSize: 13,
-  lineHeight: 1.2,
+const BASE_OPTIONS = {
   scrollback: 10_000,
   cursorBlink: true,
   macOptionIsMeta: false, // ⌥ digita caracteres do layout (teclas mortas, ç, etc.)
   allowProposedApi: true,
-  theme: { background: '#1e1e1e', foreground: '#cccccc', cursor: '#aeafad', selectionBackground: '#264f78' },
+}
+let current: TerminalSettings = DEFAULT_SETTINGS
+
+function optionsFor(s: TerminalSettings) {
+  return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme: THEMES[s.theme].xterm }
 }
 
 class TerminalRegistry {
   private entries = new Map<string, Entry>()
+
+  applySettings(s: TerminalSettings): void {
+    current = s
+    document.documentElement.style.setProperty('--term-bg', THEMES[s.theme].xterm.background ?? '#1e1e1e')
+    for (const [id, e] of this.entries) {
+      Object.assign(e.term.options, optionsFor(s))
+      this.fit(id)
+    }
+  }
 
   mount(paneId: string, container: HTMLElement): void {
     const e = this.ensure(paneId)
@@ -72,7 +84,7 @@ class TerminalRegistry {
     if (found) return found
     const el = document.createElement('div')
     el.className = 'term-host'
-    const term = new Terminal(OPTIONS)
+    const term = new Terminal({ ...BASE_OPTIONS, ...optionsFor(current) })
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.loadAddon(new WebLinksAddon((_ev, uri) => void window.gt.openExternal(uri)))

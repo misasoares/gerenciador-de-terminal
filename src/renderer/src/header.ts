@@ -12,6 +12,7 @@ export interface HeaderView {
   status: SessionStatus | 'shell'
   account: { label: string; color: string } | null
   warning: string | null
+  label: string
 }
 
 export function worktreeLabel(w: { path: string; isMain: boolean }): string {
@@ -39,5 +40,6 @@ export function headerView(pane: PaneView, app: Pick<AppState, 'projects' | 'acc
     status: pane.claude?.status ?? 'shell',
     account: account ? { label: account.label, color: account.color } : null,
     warning: git?.error ?? project?.fetchError ?? null,
+    label: pane.name ?? pane.claude?.title ?? (pane.claude ? `sessão ${pane.seq}` : `terminal ${pane.seq}`),
   }
 }

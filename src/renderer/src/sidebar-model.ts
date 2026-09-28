@@ -12,6 +12,7 @@ export interface SessionItem {
   tab: number | null
   /** vivo mas fora de qualquer aba */
   hidden: boolean
+  color: string | null
 }
 
 export interface WorktreeItem {
@@ -37,6 +38,7 @@ export interface ProjectItem {
 
 export function sessionLabel(p: PaneView): string {
   if (!p.alive) return `encerrado ${p.seq}`
+  if (p.name) return p.name
   if (p.claude) return p.claude.title ?? `sessão ${p.seq}`
   return `terminal ${p.seq}`
 }
@@ -47,7 +49,7 @@ export function buildSidebar(app: AppState): { projects: ProjectItem[]; outside:
   app.layout.tabs.forEach((t, i) => leaves(t.root).forEach((id) => tabOf.set(id, i + 1)))
   const toItem = (p: PaneView): SessionItem => {
     const tab = tabOf.get(p.id) ?? null
-    return { paneId: p.id, label: sessionLabel(p), status: p.claude?.status ?? 'shell', alive: p.alive, cwd: p.cwd, tab, hidden: p.alive && tab === null }
+    return { paneId: p.id, label: sessionLabel(p), status: p.claude?.status ?? 'shell', alive: p.alive, cwd: p.cwd, tab, hidden: p.alive && tab === null, color: p.color }
   }
   const used = new Set<string>()
   const projects = app.projects.map((p): ProjectItem => {

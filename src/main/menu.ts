@@ -12,6 +12,8 @@ export function buildMenu(o: { send(action: string): void; quitAll(): void }): M
       submenu: [
         { role: 'about', label: 'Sobre' },
         { type: 'separator' },
+        item('Preferências…', 'CmdOrCtrl+,', 'preferences'),
+        { type: 'separator' },
         { role: 'hide', label: 'Ocultar' },
         { role: 'hideOthers', label: 'Ocultar outros' },
         { type: 'separator' },

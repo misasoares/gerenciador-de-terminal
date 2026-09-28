@@ -1,4 +1,5 @@
 import type { RemoveCheck } from '../../shared/types'
+import { SESSION_COLORS } from '../../shared/settings'
 import { closeDeadPane, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane } from './actions'
 import type { ProjectItem, SessionItem, WorktreeItem } from './sidebar-model'
 import { getUi, setUi, showError } from './store'
@@ -87,6 +88,10 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
           { id: '-', label: '' },
           ...tabs.map((t, i) => ({ id: `tab:${t.id}`, label: `Mover para aba ${i + 1} · ${t.name}`, enabled: s.tab !== i + 1 })),
           { id: '-', label: '' },
+          { id: 'rename', label: 'Renomear…' },
+          { id: 'color:', label: 'Cor: nenhuma' },
+          ...SESSION_COLORS.map((c) => ({ id: `color:${c.hex}`, label: `Cor: ${c.label}` })),
+          { id: '-', label: '' },
           { id: 'kill', label: 'Encerrar sessão…' },
         ]
       : [{ id: 'forget', label: 'Remover da lista' }],
@@ -95,6 +100,10 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
   else if (choice === 'toggle') togglePane(s.paneId)
   else if (choice === 'forget') closeDeadPane(s.paneId)
   else if (choice === 'kill') requestKill(s.paneId)
+  else if (choice === 'rename') {
+    revealPane(s.paneId)
+    setUi({ renamingPaneId: s.paneId })
+  } else if (choice?.startsWith('color:')) window.gt.request({ t: 'pane.meta', paneId: s.paneId, color: choice.slice(6) || null }).catch(showError)
   else if (choice?.startsWith('tab:')) moveToTab(s.paneId, choice.slice(4))
 }
 

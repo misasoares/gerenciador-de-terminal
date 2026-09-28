@@ -27,7 +27,7 @@ function onStateArrived(prevPanes: PaneView[] | null): void {
     const p = app.panes.find((x) => x.id === n.paneId)
     if (!p) continue
     const h = headerView(p, app)
-    const who = p.claude?.title ?? `sessão ${p.seq}`
+    const who = p.name ?? p.claude?.title ?? `sessão ${p.seq}`
     window.gt.notify({
       paneId: p.id,
       title: `${h.project.toUpperCase()} · ⎇ ${h.worktree}`,
@@ -44,6 +44,7 @@ window.gt.onEvent((e) => {
       const prev = getUi().app
       // depois do primeiro carregamento o layout é do renderer (evita "voltar" com broadcast atrasado)
       setUi((s) => ({ app: s.app ? { ...e.state, layout: s.app.layout } : e.state, connected: true }))
+      if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) terminals.applySettings(e.state.settings)
       onStateArrived(prev?.panes ?? null)
       break
     }
@@ -67,7 +68,10 @@ window.addEventListener('focus', () => markSeenIfLooking(getUi().focusedPaneId))
 window.gt.onReveal((paneId) => revealPane(paneId))
 window.gt
   .request<AppState>({ t: 'state.get' })
-  .then((app) => setUi((s) => ({ app: s.app ?? app, connected: true })))
+  .then((app) => {
+    setUi((s) => ({ app: s.app ?? app, connected: true }))
+    terminals.applySettings(getUi().app?.settings ?? app.settings)
+  })
   .catch(showError)
 
 createRoot(document.getElementById('root')!).render(<App />)

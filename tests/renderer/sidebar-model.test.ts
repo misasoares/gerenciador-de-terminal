@@ -40,4 +40,7 @@ describe('buildSidebar', () => {
   it('rótulo de painel encerrado', () => {
     expect(sessionLabel(pane('p7', { alive: false }))).toBe('encerrado 7')
   })
+  it('nome dado pelo usuário vence o título', () => {
+    expect(sessionLabel(pane('p8', { name: 'revisão', claude: claude('idle', 'Título') }))).toBe('revisão')
+  })
 })

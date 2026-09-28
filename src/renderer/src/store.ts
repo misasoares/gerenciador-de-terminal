@@ -13,6 +13,7 @@ export interface UiState {
   /** painel cujo contorno pisca (foi revelado por clique na sidebar) */
   flashPaneId: string | null
   modal: Modal | null
+  renamingPaneId: string | null
 }
 
 export type Modal =
@@ -20,8 +21,9 @@ export type Modal =
   | { kind: 'remove'; check: RemoveCheck }
   | { kind: 'blocked'; check: RemoveCheck }
   | { kind: 'conflicts'; projectPath: string }
+  | { kind: 'preferences' }
 
-let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null }
+let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null }
 const subs = new Set<() => void>()
 
 const subscribe = (cb: () => void) => {

@@ -33,6 +33,7 @@ function SessionRow({ s, outside }: { s: SessionItem; outside?: boolean }) {
       title={s.cwd}
     >
       <span className="dot">{STATUS_DOT[s.status] || '›'}</span>
+      {s.color && <span className="sb-color" style={{ background: s.color }} />}
       <span className="sb-label">{s.label}</span>
       {s.hidden && <span className="sb-tag">oculta</span>}
       {s.tab !== null && <span className="sb-tab">{s.tab}</span>}

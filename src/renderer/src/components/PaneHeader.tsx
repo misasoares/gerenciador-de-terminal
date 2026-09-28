@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PaneView } from '../../../shared/types'
 import { hidePane, PANE_MIME } from '../actions'
 import { headerView } from '../header'
-import { useUi } from '../store'
+import { getUi, setUi, useUi } from '../store'
 
 export const STATUS_DOT = { working: '🟢', 'needs-you': '🟡', 'your-turn': '🔵', idle: '⚪', shell: '' } as const
 
@@ -24,8 +24,14 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
   }, [pane.worktreePath])
 
   const outside = pane.projectPath === null
+  const renaming = useUi((s) => s.renamingPaneId === pane.id)
   return (
-    <div className={`pane-header${flash ? ' flash' : ''}`} draggable onDragStart={(e) => e.dataTransfer.setData(PANE_MIME, pane.id)}>
+    <div
+      className={`pane-header${flash ? ' flash' : ''}`}
+      style={pane.color ? { boxShadow: `inset 0 3px 0 ${pane.color}` } : undefined}
+      draggable={!renaming}
+      onDragStart={(e) => e.dataTransfer.setData(PANE_MIME, pane.id)}
+    >
       {outside ? (
         <>
           <span className="ph-block ph-unknown">?</span>
@@ -55,6 +61,26 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
             </span>
           )}
         </>
+      )}
+      {renaming ? (
+        <input
+          className="ph-rename"
+          autoFocus
+          defaultValue={pane.name ?? ''}
+          placeholder={h.label}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+            if (e.key === 'Escape') setUi({ renamingPaneId: null })
+          }}
+          onBlur={(e) => {
+            if (getUi().renamingPaneId === pane.id) window.gt.send({ t: 'pane.meta', paneId: pane.id, name: e.target.value })
+            setUi({ renamingPaneId: null })
+          }}
+        />
+      ) : (
+        <span className="ph-label" title="Duplo clique para renomear" onDoubleClick={() => setUi({ renamingPaneId: pane.id })}>
+          {h.label}
+        </span>
       )}
       <span className="ph-spacer" />
       {h.status !== 'shell' && <span className="ph-status">{STATUS_DOT[h.status]}</span>}
