@@ -29,8 +29,8 @@ describe('zonas de soltar', () => {
   })
 })
 
-const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
-const claude = (status: 'working' | 'needs-you' | 'idle') => ({ sessionId: 's', status, statusSince: 0, title: null, transcriptPath: null })
+const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
+const claude = (status: 'working' | 'needs-you' | 'idle') => ({ sessionId: 's', agent: 'claude' as const, status, statusSince: 0, title: null, transcriptPath: null })
 
 const app = (over: Partial<AppState> = {}): AppState => ({
   protocolVersion: 1, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS,

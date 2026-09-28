@@ -5,6 +5,8 @@ export type SessionStatus = 'working' | 'needs-you' | 'your-turn' | 'idle'
 
 export interface ClaudeSession {
   sessionId: string
+  /** qual CLI gerou esta sessão */
+  agent: AgentKind
   status: SessionStatus
   /** epoch ms da última mudança de status */
   statusSince: number
@@ -80,6 +82,8 @@ export interface PaneView {
   worktreePath: string | null
   name: string | null
   color: string | null
+  /** processo Codex rodando há um tempo sem mandar hooks (não aprovados no /hooks) */
+  agentHooksMissing: boolean
 }
 
 export type LayoutNode =

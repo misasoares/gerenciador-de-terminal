@@ -10,12 +10,12 @@ const project: ProjectView = {
     { path: '/r/api/.claude/worktrees/auth', head: 'b', branch: 'feat/auth', isMain: false, locked: false, prunable: false, git: { branch: 'feat/auth', upstream: null, ahead: 2, behind: 0, changed: 5, error: null } },
   ],
 }
-const pane = (over: Partial<PaneView>): PaneView => ({ id: 'p', seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
+const pane = (over: Partial<PaneView>): PaneView => ({ id: 'p', seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
 const app = { projects: [project], accounts: DEFAULT_ACCOUNTS, userHome: '/Users/u' }
 
 describe('headerView', () => {
   it('worktree secundária com sessão e conta', () => {
-    const h = headerView(pane({ worktreePath: '/r/api/.claude/worktrees/auth', accountId: 'mslabs', claude: { sessionId: 's', status: 'needs-you', statusSince: 0, title: null, transcriptPath: null } }), app)
+    const h = headerView(pane({ worktreePath: '/r/api/.claude/worktrees/auth', accountId: 'mslabs', claude: { sessionId: 's', agent: 'claude' as const, status: 'needs-you', statusSince: 0, title: null, transcriptPath: null } }), app)
     expect(h).toEqual({
       project: 'api', worktree: 'auth', isMainWorktree: false, branch: 'feat/auth', changed: 5, ahead: 2, behind: 0,
       hasUpstream: false, status: 'needs-you', account: { label: 'mslabs', color: '#c586c0' }, warning: null, label: 'sessão 1',
@@ -34,7 +34,7 @@ describe('headerView', () => {
     expect(tildify('/Users/uu', '/Users/u')).toBe('/Users/uu')
   })
   it('nome vence o título, que vence o rótulo padrão', () => {
-    const base = pane({ claude: { sessionId: 's', status: 'idle', statusSince: 0, title: 'Refatorar auth', transcriptPath: null } })
+    const base = pane({ claude: { sessionId: 's', agent: 'claude' as const, status: 'idle', statusSince: 0, title: 'Refatorar auth', transcriptPath: null } })
     expect(headerView(base, app).label).toBe('Refatorar auth')
     expect(headerView({ ...base, name: 'backend' }, app).label).toBe('backend')
     expect(headerView(pane({}), app).label).toBe('terminal 1')

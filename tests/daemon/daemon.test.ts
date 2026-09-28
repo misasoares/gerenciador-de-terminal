@@ -374,6 +374,31 @@ describe('Daemon', () => {
     await expect(app.client.request({ t: 'agents.detect' })).resolves.toEqual({ claude: true, codex: false })
   })
 
+  it('Codex: eventos pelo gt-hook viram estados e a sessão registra o tipo', async () => {
+    repo = makeRepo()
+    const { o, app } = await boot()
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    const codex = (payload: Record<string, unknown>) =>
+      runWithInput('/bin/sh', [o.hookScriptPath, 'codex'], JSON.stringify(payload), { PATH: '/usr/bin:/bin', GT_PANE_ID: paneId, GT_SOCKET: o.socketPath })
+    const r = await codex({ hook_event_name: 'SessionStart', session_id: 'cx', cwd: repo.dir, source: 'startup' })
+    expect(r.stdout).toBe('{}')
+    await app.waitState((s) => s.panes[0]?.claude?.agent === 'codex')
+    await codex({ hook_event_name: 'UserPromptSubmit', session_id: 'cx', cwd: repo.dir })
+    await codex({ hook_event_name: 'Interrupt', session_id: 'cx', cwd: repo.dir })
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'your-turn')
+  })
+
+  it('Codex rodando sem mandar hooks → agentHooksMissing', async () => {
+    repo = makeRepo()
+    const bin = path.join(repo.root, 'bin')
+    fs.mkdirSync(bin)
+    fs.writeFileSync(path.join(bin, 'codex'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 })
+    const { app } = await boot({ pollMs: 200, codexHookGraceMs: 600 })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    app.client.send({ t: 'pane.input', paneId, data: `"${path.join(bin, 'codex')}" --yolo\r` })
+    await app.waitState((s) => s.panes[0]?.agentHooksMissing === true, 8000)
+  })
+
   it('erros de requisição voltam como mensagem', async () => {
     const { app } = await boot()
     await expect(app.client.request({ t: 'pane.create', cwd: '/', accountId: 'nao-existe', cols: 80, rows: 24 })).rejects.toThrow('conta desconhecida')

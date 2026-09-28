@@ -5,8 +5,8 @@ import { throttleNotices } from '../../src/renderer/src/attention'
 import type { Layout, PaneView } from '../../src/shared/types'
 
 const pane = (id: string, status: 'your-turn' | 'working'): PaneView => ({
-  id, seq: 1, cwd: '/p', alive: true, exitCode: null, name: null, color: null, accountId: null, projectPath: null, worktreePath: null,
-  claude: { sessionId: id, status, statusSince: 0, title: null, transcriptPath: null },
+  id, seq: 1, cwd: '/p', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, projectPath: null, worktreePath: null,
+  claude: { sessionId: id, agent: 'claude' as const, status, statusSince: 0, title: null, transcriptPath: null },
 })
 const layout: Layout = { tabs: [{ id: 't1', name: 'A', root: { type: 'leaf', paneId: 'a' } }, { id: 't2', name: 'B', root: { type: 'leaf', paneId: 'b' } }], activeTabId: 't2' }
 

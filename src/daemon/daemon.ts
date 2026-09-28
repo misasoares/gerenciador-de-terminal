@@ -30,6 +30,8 @@ export interface DaemonOptions {
   conflictsDebounceMs?: number
   /** shell usado para detectar claude/codex (testes injetam um falso) */
   detectShell?: string
+  /** tempo sem hooks até avisar que o Codex não aprovou o hook (padrão 20 s) */
+  codexHookGraceMs?: number
   onShutdown?: () => void
 }
 
@@ -112,6 +114,7 @@ export class Daemon {
         }
       },
       onChange: () => this.changed(),
+      codexHookGraceMs: this.o.codexHookGraceMs ?? 20_000,
       onGitHint: (wt) => {
         this.monitor.refresh(wt)
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
@@ -196,6 +199,7 @@ export class Daemon {
         claude: r.claude,
         projectPath: r.projectPath,
         worktreePath: r.worktreePath,
+        agentHooksMissing: r.agentHooksMissing,
         name: this.persisted.paneMeta[r.id]?.name ?? null,
         color: this.persisted.paneMeta[r.id]?.color ?? null,
       })),
@@ -295,7 +299,7 @@ export class Daemon {
       case 'hook':
         conn.role = 'hook'
         conn.end() // libera o Claude antes de processar (ler título pode demorar)
-        await this.panes.applyHook(req.paneId, req.configDir || null, req.payload)
+        await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
         return null
       case 'pane.create': {
         const rec = this.panes.create(req)

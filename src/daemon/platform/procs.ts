@@ -1,3 +1,4 @@
+import type { AgentKind } from '../../shared/types'
 import { execFile } from 'node:child_process'
 import fs from 'node:fs'
 
@@ -46,6 +47,18 @@ export function foregroundOf(procs: Proc[], rootPid: number): Proc | null {
 }
 
 const CLAUDE_RE = /(^|\/)claude(\s|$)|claude-code\/cli\.js|\/claude\/versions\//
+
+/** codex como programa: 1º token, script rodado por node/sh/bash/zsh, ou o binário nativo do pacote @openai/codex */
+// o caminho do script pode ter espaço (ex.: /Volumes/SSD MISA/…): depois do interpretador, qualquer coisa até '/codex'
+const CODEX_RE = /^(\S*\/)?codex(\s|$)|^\S*\b(node|sh|bash|zsh)\s+(.*\/)?codex(\s|$)|@openai\/codex\//
+
+export function findAgent(procs: Proc[], rootPid: number): { proc: Proc; agent: AgentKind } | null {
+  for (const p of descendants(procs, rootPid)) {
+    if (CLAUDE_RE.test(p.args)) return { proc: p, agent: 'claude' }
+    if (CODEX_RE.test(p.args)) return { proc: p, agent: 'codex' }
+  }
+  return null
+}
 
 export function findClaude(procs: Proc[], rootPid: number): Proc | null {
   return descendants(procs, rootPid).find((p) => CLAUDE_RE.test(p.args)) ?? null
