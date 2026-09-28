@@ -5,6 +5,8 @@ export type SessionStatus = 'working' | 'needs-you' | 'your-turn' | 'idle'
 
 export interface ClaudeSession {
   sessionId: string
+  /** qual CLI gerou esta sessão */
+  agent: AgentKind
   status: SessionStatus
   /** epoch ms da última mudança de status */
   statusSince: number
@@ -12,12 +14,16 @@ export interface ClaudeSession {
   transcriptPath: string | null
 }
 
+export type AgentKind = 'claude' | 'codex'
+
 export interface Account {
   id: string
   label: string
   /** comando digitado no shell, ex.: "claude-mslabs" */
   command: string
   color: string
+  /** qual CLI este agente abre: define hooks, detecção e tipo mostrado na interface */
+  agent: AgentKind
   /** trechos de CLAUDE_CONFIG_DIR que identificam a conta */
   configDirMatch: string[]
   /** conta usada quando CLAUDE_CONFIG_DIR não está definido */
@@ -76,6 +82,8 @@ export interface PaneView {
   worktreePath: string | null
   name: string | null
   color: string | null
+  /** processo Codex rodando há um tempo sem mandar hooks (não aprovados no /hooks) */
+  agentHooksMissing: boolean
 }
 
 export type LayoutNode =
@@ -98,6 +106,8 @@ export interface ResumeEntry {
   cwd: string
   accountId: string | null
   sessionId: string | null
+  /** ausente em entradas antigas = claude */
+  agent?: AgentKind
 }
 
 export interface AppState {

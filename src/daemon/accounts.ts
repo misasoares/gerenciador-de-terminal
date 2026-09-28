@@ -1,17 +1,16 @@
 import path from 'node:path'
-import type { Account } from '../shared/types'
+import type { Account, AgentKind } from '../shared/types'
 
 export const DEFAULT_ACCOUNTS: Account[] = [
-  { id: 'misa', label: 'misa', command: 'claude', color: '#4fc1ff', configDirMatch: ['1-misasoaresms2'], isDefault: true, settingsMatch: null, pathPrefix: null },
-  { id: 'mslabs', label: 'mslabs', command: 'claude-mslabs', color: '#c586c0', configDirMatch: ['3-misael_mslabs-dev.com'], isDefault: false, settingsMatch: null, pathPrefix: null },
-  { id: 'weboption', label: 'weboption', command: 'claude-weboption', color: '#dcdcaa', configDirMatch: ['2-weboption2011_gmail.com'], isDefault: false, settingsMatch: 'weboption-gateway', pathPrefix: '~/Documents/weboption' },
-  { id: 'weboption-max', label: 'weboption-max', command: 'claude-weboption-max', color: '#ce9178', configDirMatch: ['2-weboption2011_gmail.com'], isDefault: false, settingsMatch: 'weboption-max', pathPrefix: null },
+  { agent: 'claude', id: 'misa', label: 'misa', command: 'claude', color: '#4fc1ff', configDirMatch: ['1-misasoaresms2'], isDefault: true, settingsMatch: null, pathPrefix: null },
+  { agent: 'claude', id: 'mslabs', label: 'mslabs', command: 'claude-mslabs', color: '#c586c0', configDirMatch: ['3-misael_mslabs-dev.com'], isDefault: false, settingsMatch: null, pathPrefix: null },
+  { agent: 'claude', id: 'weboption', label: 'weboption', command: 'claude-weboption', color: '#dcdcaa', configDirMatch: ['2-weboption2011_gmail.com'], isDefault: false, settingsMatch: 'weboption-gateway', pathPrefix: '~/Documents/weboption' },
+  { agent: 'claude', id: 'weboption-max', label: 'weboption-max', command: 'claude-weboption-max', color: '#ce9178', configDirMatch: ['2-weboption2011_gmail.com'], isDefault: false, settingsMatch: 'weboption-max', pathPrefix: null },
 ]
 
-export function detectAccount(accounts: Account[], configDir: string | null, argv: string | null): string | null {
-  const candidates = configDir
-    ? accounts.filter((a) => a.configDirMatch.some((m) => configDir.includes(m)))
-    : accounts.filter((a) => a.isDefault)
+export function detectAccount(accounts: Account[], agent: AgentKind, configDir: string | null, argv: string | null): string | null {
+  const own = accounts.filter((a) => a.agent === agent)
+  const candidates = configDir ? own.filter((a) => a.configDirMatch.some((m) => configDir.includes(m))) : own.filter((a) => a.isDefault)
   if (candidates.length <= 1) return candidates[0]?.id ?? null
   const bySettings = candidates.find((a) => a.settingsMatch && argv?.includes(a.settingsMatch))
   return (bySettings ?? candidates.find((a) => !a.settingsMatch) ?? candidates[0]).id
@@ -22,7 +21,13 @@ const SESSION_ID_RE = /^[0-9a-f-]{8,64}$/i
 export function buildCommand(account: Account, resumeSessionId?: string): string {
   if (!resumeSessionId) return account.command
   if (!SESSION_ID_RE.test(resumeSessionId)) throw new Error(`session id inválido: ${resumeSessionId}`)
-  return `${account.command} --resume ${resumeSessionId}`
+  // Claude: --resume <id>; Codex: subcomando (codex --yolo resume <id>)
+  return account.agent === 'codex' ? `${account.command} resume ${resumeSessionId}` : `${account.command} --resume ${resumeSessionId}`
+}
+
+/** agente usado para retomar sem conta: o padrão daquele tipo, ou o CLI puro */
+export function resumeAccount(accounts: Account[], agent: AgentKind): Account {
+  return accounts.find((a) => a.agent === agent && a.isDefault) ?? accounts.find((a) => a.agent === agent) ?? { id: agent, label: agent, command: agent, color: '#888888', agent, configDirMatch: [], isDefault: false, settingsMatch: null, pathPrefix: null }
 }
 
 export function suggestAccount(accounts: Account[], projectPath: string, userHome: string): string | null {
@@ -32,4 +37,42 @@ export function suggestAccount(accounts: Account[], projectPath: string, userHom
     if (projectPath === prefix || projectPath.startsWith(prefix + '/')) return a.id
   }
   return null
+}
+
+export function suggestAgents(_detected: { claude: boolean; codex: boolean }): Account[] {
+  return [
+    { id: 'claude', label: 'Claude', command: 'claude --dangerously-skip-permissions', color: '#d97757', agent: 'claude', configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null },
+    { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex', configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null },
+  ]
+}
+
+export function validateAccounts(list: Account[]): string | null {
+  const seen = new Set<string>()
+  for (const a of list) {
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(a.id)) return `id inválido: "${a.id}" (use letras minúsculas, números e -)`
+    if (seen.has(a.id)) return `id repetido: ${a.id}`
+    seen.add(a.id)
+    if (!a.label?.trim()) return `agente ${a.id}: nome vazio`
+    if (!a.command?.trim()) return `agente ${a.id}: comando vazio`
+    if (!/^#[0-9a-fA-F]{6}$/.test(a.color)) return `agente ${a.id}: cor inválida (${a.color})`
+    if (a.agent !== 'claude' && a.agent !== 'codex') return `agente ${a.id}: tipo inválido (${String(a.agent)})`
+  }
+  return null
+}
+
+export function migrateAccounts(list: unknown[]): Account[] {
+  return list.map((raw) => {
+    const a = raw as Partial<Account>
+    return {
+      id: String(a.id ?? ''),
+      label: String(a.label ?? a.id ?? ''),
+      command: String(a.command ?? ''),
+      color: a.color ?? '#888888',
+      agent: a.agent === 'codex' ? 'codex' : 'claude',
+      configDirMatch: Array.isArray(a.configDirMatch) ? a.configDirMatch : [],
+      isDefault: Boolean(a.isDefault),
+      settingsMatch: a.settingsMatch ?? null,
+      pathPrefix: a.pathPrefix ?? null,
+    }
+  })
 }

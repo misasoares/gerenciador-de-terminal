@@ -1,7 +1,8 @@
+import type { AgentKind } from '../shared/types'
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const HOOK_EVENTS = [
+export const CLAUDE_HOOK_EVENTS = [
   'SessionStart',
   'UserPromptSubmit',
   'PreToolUse',
@@ -15,26 +16,35 @@ export const HOOK_EVENTS = [
   'SessionEnd',
 ] as const
 
+export const HOOK_EVENTS = CLAUDE_HOOK_EVENTS
+
+export const CODEX_HOOK_EVENTS = ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'Stop', 'Interrupt', 'SessionEnd'] as const
+
 export const HOOK_MARKER = 'gt-hook'
 
 export const GT_HOOK_SCRIPT = `#!/bin/sh
-# gerenciador-terminal: repassa o evento do Claude Code ao daemon do app.
-# Fora do app (sem GT_PANE_ID) ou sem daemon, sai sem fazer nada.
+# gerenciador-terminal: repassa o evento do agente (Claude Code ou Codex) ao daemon do app.
+# Uso: gt-hook [claude|codex]. Fora do app (sem GT_PANE_ID) ou sem daemon, não faz nada.
+# O Codex exige JSON no stdout do Stop: para ele, sempre responde {}.
+agent="\${1:-claude}"
+done_() { [ "$agent" = codex ] && printf '{}'; exit 0; }
 if [ -z "$GT_PANE_ID" ] || [ ! -S "$GT_SOCKET" ]; then
   cat >/dev/null
-  exit 0
+  done_
 fi
-cfg=$(printf '%s' "\${CLAUDE_CONFIG_DIR:-}" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
+if [ "$agent" = codex ]; then dir="\${CODEX_HOME:-}"; else dir="\${CLAUDE_CONFIG_DIR:-}"; fi
+cfg=$(printf '%s' "$dir" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
 {
-  printf '{"id":0,"req":{"t":"hook","paneId":"%s","configDir":"%s","payload":' "$GT_PANE_ID" "$cfg"
+  printf '{"id":0,"req":{"t":"hook","paneId":"%s","configDir":"%s","agent":"%s","payload":' "$GT_PANE_ID" "$cfg" "$agent"
   tr -d '\\n\\r'
   printf '}}\\n'
 } | nc -U -w 1 "$GT_SOCKET" >/dev/null 2>&1
-exit 0
+done_
 `
 
 /** tolera o script ausente (app desinstalado, GT_HOME temporário apagado): sai 0 sem quebrar o Claude */
-export function hookCommand(scriptPath: string): string {
+export function hookCommand(scriptPath: string, agent: AgentKind = 'claude'): string {
+  if (agent === 'codex') return `sh -c '[ -x "$0" ] && exec "$0" codex; cat >/dev/null; printf "{}"' "${scriptPath}"`
   return `sh -c '[ -x "$0" ] && exec "$0"; cat >/dev/null' "${scriptPath}"`
 }
 
@@ -56,9 +66,9 @@ interface HookGroup {
 const isOurs = (g: HookGroup): boolean =>
   Array.isArray(g.hooks) && g.hooks.length > 0 && g.hooks.every((h) => typeof h.command === 'string' && h.command.includes(HOOK_MARKER))
 
-export function mergeHooks(settings: Record<string, unknown>, command: string): Record<string, unknown> {
+export function mergeHooks(settings: Record<string, unknown>, command: string, events: readonly string[] = CLAUDE_HOOK_EVENTS): Record<string, unknown> {
   const hooks = { ...((settings.hooks as Record<string, HookGroup[]> | undefined) ?? {}) }
-  for (const ev of HOOK_EVENTS) {
+  for (const ev of events) {
     const groups = (hooks[ev] ?? []).filter((g) => !isOurs(g))
     groups.push({ hooks: [{ type: 'command', command, timeout: 5 } as HookHandler] })
     hooks[ev] = groups
@@ -66,12 +76,12 @@ export function mergeHooks(settings: Record<string, unknown>, command: string): 
   return { ...settings, hooks }
 }
 
-export function hasHooks(settings: unknown, command: string): boolean {
+export function hasHooks(settings: unknown, command: string, events: readonly string[] = CLAUDE_HOOK_EVENTS): boolean {
   const hooks = ((settings as { hooks?: Record<string, HookGroup[]> } | null)?.hooks ?? {}) as Record<string, HookGroup[]>
-  return HOOK_EVENTS.every((ev) => (hooks[ev] ?? []).some((g) => g.hooks?.some((h) => h.command === command)))
+  return events.every((ev) => (hooks[ev] ?? []).some((g) => g.hooks?.some((h) => h.command === command)))
 }
 
-export function installHooks(settingsPath: string, command: string): { backup: string | null } {
+export function installHooks(settingsPath: string, command: string, events: readonly string[] = CLAUDE_HOOK_EVENTS): { backup: string | null } {
   // escreve no alvo real: trocar o symlink por arquivo desligaria os perfis do cswap
   const real = fs.existsSync(settingsPath) ? fs.realpathSync(settingsPath) : settingsPath
   let current: Record<string, unknown> = {}
@@ -88,7 +98,7 @@ export function installHooks(settingsPath: string, command: string): { backup: s
   } else {
     fs.mkdirSync(path.dirname(real), { recursive: true })
   }
-  const next = mergeHooks(current, command)
+  const next = mergeHooks(current, command, events)
   const tmp = `${real}.tmp-gt-${process.pid}`
   fs.writeFileSync(tmp, JSON.stringify(next, null, 2) + '\n')
   fs.renameSync(tmp, real)
@@ -109,24 +119,46 @@ export function settingsFiles(userHome: string): string[] {
 }
 
 export function checkProfiles(userHome: string, command: string): string[] {
+  return checkTargets(hookTargets(userHome, new Set<AgentKind>(['claude'])), () => command)
+}
+
+export function codexHooksFile(userHome: string, env: NodeJS.ProcessEnv = process.env): string {
+  return path.join(env.CODEX_HOME || path.join(userHome, '.codex'), 'hooks.json')
+}
+
+export interface HookTarget {
+  file: string
+  agent: AgentKind
+}
+
+export function hookTargets(userHome: string, agents: Set<AgentKind>, env: NodeJS.ProcessEnv = process.env): HookTarget[] {
+  const out: HookTarget[] = []
+  if (agents.has('claude')) for (const f of settingsFiles(userHome)) out.push({ file: f, agent: 'claude' })
+  if (agents.has('codex')) out.push({ file: codexHooksFile(userHome, env), agent: 'codex' })
+  return out
+}
+
+/** arquivos (reais, sem duplicar symlinks) que ainda não têm o hook do app */
+export function checkTargets(targets: HookTarget[], commandFor: (a: AgentKind) => string): string[] {
   const seen = new Set<string>()
   const missing: string[] = []
-  for (const f of settingsFiles(userHome)) {
-    let real = f
+  for (const t of targets) {
+    let real = t.file
     try {
-      real = fs.realpathSync(f)
+      real = fs.realpathSync(t.file)
     } catch {
       // ainda não existe
     }
     if (seen.has(real)) continue
     seen.add(real)
+    const events = t.agent === 'codex' ? CODEX_HOOK_EVENTS : CLAUDE_HOOK_EVENTS
     let ok = false
     try {
-      ok = hasHooks(JSON.parse(fs.readFileSync(real, 'utf8')), command)
+      ok = hasHooks(JSON.parse(fs.readFileSync(real, 'utf8')), commandFor(t.agent), events)
     } catch {
       ok = false
     }
-    if (!ok) missing.push(f)
+    if (!ok) missing.push(t.file)
   }
   return missing
 }

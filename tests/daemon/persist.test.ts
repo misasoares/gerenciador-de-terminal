@@ -3,7 +3,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { defaultPersisted, loadPersisted, savePersisted } from '../../src/daemon/persist'
-import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'gt-p-'))
 
@@ -11,7 +10,7 @@ describe('persistência', () => {
   it('arquivo ausente → padrão com as contas conhecidas', () => {
     const p = loadPersisted(path.join(tmp(), 'state.json'))
     expect(p).toEqual(defaultPersisted())
-    expect(p.accounts).toEqual(DEFAULT_ACCOUNTS)
+    expect(p.accounts).toEqual([])
     expect(p.fetchIntervalMin).toBe(5)
   })
 

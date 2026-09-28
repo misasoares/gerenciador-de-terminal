@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper 2>/dev/null || true",
-    "pack": "electron-vite build && electron-builder --mac --dir && codesign --force --deep --sign - \"dist/mac-arm64/Gerenciador de Terminal.app\""
+    "pack": "electron-vite build && electron-builder --mac --dir && codesign --force --deep --sign - \"dist/mac-arm64/Gerenciador de Terminal.app\"",
+    "pack:linux": "sh scripts/build-linux.sh"
   },
   "dependencies": {
     "@xterm/addon-serialize": "^0.14.0",
@@ -53,6 +54,19 @@
       "extendInfo": {
         "NSMicrophoneUsageDescription": "O Claude Code usa o microfone para o ditado por voz (/voice) nas sessões abertas nos terminais."
       }
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Development",
+      "artifactName": "gerenciador-de-terminal-${version}-x64.AppImage"
     }
-  }
+  },
+  "author": "misasoares"
 }

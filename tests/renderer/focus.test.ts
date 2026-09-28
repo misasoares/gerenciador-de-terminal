@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { focusAfterHide, splitCwd } from '../../src/renderer/src/focus'
 import type { Layout, PaneView } from '../../src/shared/types'
 
-const pane = (id: string, cwd: string, worktreePath: string | null = null): PaneView => ({ id, seq: 1, cwd, alive: true, exitCode: null, name: null, color: null, accountId: null, claude: null, projectPath: null, worktreePath })
+const pane = (id: string, cwd: string, worktreePath: string | null = null): PaneView => ({ id, seq: 1, cwd, alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: null, worktreePath })
 const layout: Layout = {
   tabs: [
     { id: 't1', name: 'A', root: { type: 'split', dir: 'row', sizes: [], children: [{ type: 'leaf', paneId: 'a' }, { type: 'leaf', paneId: 'b' }] } },

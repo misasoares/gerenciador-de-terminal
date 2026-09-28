@@ -29,8 +29,8 @@ describe('zonas de soltar', () => {
   })
 })
 
-const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
-const claude = (status: 'working' | 'needs-you' | 'idle') => ({ sessionId: 's', status, statusSince: 0, title: null, transcriptPath: null })
+const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
+const claude = (status: 'working' | 'needs-you' | 'idle') => ({ sessionId: 's', agent: 'claude' as const, status, statusSince: 0, title: null, transcriptPath: null })
 
 const app = (over: Partial<AppState> = {}): AppState => ({
   protocolVersion: 1, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS,
@@ -65,6 +65,10 @@ describe('sidebar', () => {
 })
 
 describe('contas sem hooks', () => {
+  it('hooks.json do Codex sem hooks marca os agentes Codex', () => {
+    const accounts = [{ ...DEFAULT_ACCOUNTS[0] }, { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }]
+    expect(accountsWithoutHooks({ userHome: '/Users/u', accounts, hookWarnings: ['/Users/u/.codex/hooks.json'] })).toEqual(new Set(['codex']))
+  })
   it('settings principal sem hooks afeta todas; perfil próprio afeta só a conta dele', () => {
     expect(accountsWithoutHooks(app({ hookWarnings: ['/Users/u/.claude/settings.json'] }))).toEqual(new Set(DEFAULT_ACCOUNTS.map((a) => a.id)))
     expect(accountsWithoutHooks(app({ hookWarnings: ['/Users/u/.claude-swap-backup/sessions/3-misael_mslabs-dev.com/settings.json'] }))).toEqual(new Set(['mslabs']))

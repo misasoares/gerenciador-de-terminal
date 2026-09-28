@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
+import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import { buildPaneEnv } from '../../src/daemon/panes'
 import { connectApp } from '../helpers/app-client'
 import { RpcClient } from '../../src/shared/rpc-client'
@@ -44,6 +45,10 @@ async function boot(extra: Partial<DaemonOptions> = {}, home = fs.realpathSync(f
   const d = await Daemon.start(o)
   daemons.push(d)
   const app = await connectApp(o.socketPath)
+  // instalação nova começa sem agentes; os testes usam as contas de exemplo (misa, mslabs, weboption…)
+  if (d && (await app.client.request<{ accounts: unknown[] }>({ t: 'state.get' })).accounts.length === 0) {
+    await app.client.request({ t: 'accounts.save', accounts: DEFAULT_ACCOUNTS })
+  }
   return { o, d, app, home }
 }
 
@@ -155,13 +160,32 @@ describe('Daemon', () => {
 
     const second = await boot({}, first.home)
     const st = await second.app.waitState((s) => s.resumable.length === 1)
-    expect(st.resumable[0]).toEqual({ paneId, cwd: repo.dir, accountId: 'misa', sessionId: 'abcd-1234' })
+    expect(st.resumable[0]).toEqual({ paneId, cwd: repo.dir, accountId: 'misa', sessionId: 'abcd-1234', agent: 'claude' })
     expect(st.panes).toEqual([])
 
     await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: 'misa', resumeSessionId: 'abcd-1234', cols: 80, rows: 24 })
     const { snapshot } = await second.app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
     await second.app.waitState((s) => s.resumable.length === 0 && s.panes[0]?.id === paneId)
     await second.app.waitState(() => (snapshot + second.app.output(paneId)).includes('claude --resume abcd-1234'))
+  })
+
+  it('reinício do daemon: sessão Codex sem agente Codex retoma com codex, não com o Claude padrão', async () => {
+    repo = makeRepo()
+    const first = await boot()
+    const { paneId } = await first.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await runWithInput('/bin/sh', [first.o.hookScriptPath, 'codex'], JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'abcd-1234', cwd: repo.dir, source: 'startup' }), { PATH: '/usr/bin:/bin', GT_PANE_ID: paneId, GT_SOCKET: first.o.socketPath })
+    await first.app.waitState((s) => s.panes[0]?.claude?.sessionId === 'abcd-1234')
+    first.app.client.close()
+    await first.d.stop(true)
+    daemons = []
+
+    const second = await boot({}, first.home)
+    const st = await second.app.waitState((s) => s.resumable.length === 1)
+    expect(st.resumable[0]).toMatchObject({ accountId: null, sessionId: 'abcd-1234', agent: 'codex' })
+    await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: null, resumeSessionId: 'abcd-1234', resumeAgent: 'codex', cols: 80, rows: 24 })
+    const { snapshot } = await second.app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
+    await second.app.waitState(() => (snapshot + second.app.output(paneId)).includes('codex resume abcd-1234'))
+    expect(snapshot + second.app.output(paneId)).not.toContain('claude --resume')
   })
 
   it('layout é salvo e volta após reinício; avisos de hooks e instalação', async () => {
@@ -355,6 +379,60 @@ describe('Daemon', () => {
     await app.waitState(() => (snap.snapshot + app.output(paneId)).includes('digitado') && (snap.snapshot + app.output(paneId)).includes('claude-mslabs'), 8000)
     const all = snap.snapshot + app.output(paneId)
     expect(all.indexOf('claude-mslabs')).toBeLessThan(all.indexOf('digitado'))
+  })
+
+  it('agentes: salva válidos, recusa inválidos sem mexer no estado, detecta CLIs pelo shell', async () => {
+    const shell = path.join(fs.realpathSync(os.tmpdir()), `gt-fake-shell-${process.pid}.sh`)
+    fs.writeFileSync(shell, '#!/bin/sh\necho claude\n', { mode: 0o755 })
+    const { app } = await boot({ detectShell: shell })
+    const claude = { id: 'claude', label: 'Claude', command: 'claude --dangerously-skip-permissions', color: '#d97757', agent: 'claude' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
+    await app.client.request({ t: 'accounts.save', accounts: [claude] })
+    await app.waitState((s) => s.accounts.length === 1 && s.accounts[0].agent === 'claude')
+    await expect(app.client.request({ t: 'accounts.save', accounts: [claude, claude] })).rejects.toThrow('repetido')
+    expect(app.state()!.accounts).toHaveLength(1)
+    await expect(app.client.request({ t: 'agents.detect' })).resolves.toEqual({ claude: true, codex: false })
+  })
+
+  it('Codex: eventos pelo gt-hook viram estados e a sessão registra o tipo', async () => {
+    repo = makeRepo()
+    const { o, app } = await boot()
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    const codex = (payload: Record<string, unknown>) =>
+      runWithInput('/bin/sh', [o.hookScriptPath, 'codex'], JSON.stringify(payload), { PATH: '/usr/bin:/bin', GT_PANE_ID: paneId, GT_SOCKET: o.socketPath })
+    const r = await codex({ hook_event_name: 'SessionStart', session_id: 'cx', cwd: repo.dir, source: 'startup' })
+    expect(r.stdout).toBe('{}')
+    await app.waitState((s) => s.panes[0]?.claude?.agent === 'codex')
+    await codex({ hook_event_name: 'UserPromptSubmit', session_id: 'cx', cwd: repo.dir })
+    await codex({ hook_event_name: 'Interrupt', session_id: 'cx', cwd: repo.dir })
+    await app.waitState((s) => s.panes[0]?.claude?.status === 'your-turn')
+  })
+
+  it('Codex rodando sem mandar hooks → agentHooksMissing', async () => {
+    repo = makeRepo()
+    const bin = path.join(repo.root, 'bin')
+    fs.mkdirSync(bin)
+    fs.writeFileSync(path.join(bin, 'codex'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 })
+    const { app } = await boot({ pollMs: 200, codexHookGraceMs: 600 })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    app.client.send({ t: 'pane.input', paneId, data: `"${path.join(bin, 'codex')}" --yolo\r` })
+    await app.waitState((s) => s.panes[0]?.agentHooksMissing === true, 8000)
+  })
+
+  it('Codex que manda SessionStart antes do primeiro poll não dispara aviso falso', async () => {
+    repo = makeRepo()
+    const bin = path.join(repo.root, 'bin')
+    fs.mkdirSync(bin)
+    const { o, app } = await boot({ pollMs: 1500, codexHookGraceMs: 300 })
+    fs.writeFileSync(
+      path.join(bin, 'codex'),
+      `#!/bin/sh\necho '{"hook_event_name":"SessionStart","session_id":"cx","source":"startup"}' | /bin/sh "${o.hookScriptPath}" codex >/dev/null\nsleep 30\n`,
+      { mode: 0o755 },
+    )
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    app.client.send({ t: 'pane.input', paneId, data: `"${path.join(bin, 'codex')}" --yolo\r` })
+    await app.waitState((s) => s.panes[0]?.claude?.agent === 'codex', 8000)
+    await new Promise((r) => setTimeout(r, 4000)) // 2+ polls depois do grace
+    expect(app.state()!.panes[0].agentHooksMissing).toBe(false)
   })
 
   it('erros de requisição voltam como mensagem', async () => {

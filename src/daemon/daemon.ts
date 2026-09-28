@@ -1,13 +1,14 @@
+import { execFile } from 'node:child_process'
 import path from 'node:path'
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
-import type { AppState, ConflictReport } from '../shared/types'
+import type { AgentKind, AppState, ConflictReport } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
-import { suggestAccount } from './accounts'
+import { suggestAccount, validateAccounts } from './accounts'
 import { GitMonitor } from './git/monitor'
-import { checkProfiles, hookCommand, installHooks, writeHookScript } from './hooks'
+import { checkTargets, CLAUDE_HOOK_EVENTS, CODEX_HOOK_EVENTS, hookCommand, hookTargets, installHooks, writeHookScript } from './hooks'
 import { PaneManager, buildPaneEnv } from './panes'
 import { loadPersisted, savePersisted, type Persisted } from './persist'
 import { ProjectRegistry } from './projects'
@@ -27,6 +28,10 @@ export interface DaemonOptions {
   gitPollMs?: number
   fetchIntervalMs?: number
   conflictsDebounceMs?: number
+  /** shell usado para detectar claude/codex (testes injetam um falso) */
+  detectShell?: string
+  /** tempo sem hooks até avisar que o Codex não aprovou o hook (padrão 20 s) */
+  codexHookGraceMs?: number
   onShutdown?: () => void
 }
 
@@ -64,8 +69,18 @@ export class Daemon {
     return path.join(this.o.userHome, '.gerenciador-terminal', 'bin', 'gt-hook')
   }
 
-  private get hookCmd(): string {
-    return hookCommand(this.canonicalHookScript)
+  private agentsInUse(): Set<AgentKind> {
+    const set = new Set<AgentKind>(this.persisted.accounts.map((a) => a.agent))
+    if (set.size === 0) set.add('claude') // sem agentes ainda: continua cuidando do Claude, como antes
+    return set
+  }
+
+  private checkHookTargets(): string[] {
+    return checkTargets(hookTargets(this.o.userHome, this.agentsInUse(), this.o.env ?? process.env), (a) => this.hookCmdFor(a))
+  }
+
+  private hookCmdFor(agent: AgentKind): string {
+    return hookCommand(this.canonicalHookScript, agent)
   }
 
   private async init(): Promise<void> {
@@ -74,7 +89,7 @@ export class Daemon {
     const p = loadPersisted(this.o.stateFile)
     // o que estava vivo no daemon anterior vira retomável (mesmo id → o layout continua valendo)
     const byId = new Map(p.resumable.map((r) => [r.paneId, r]))
-    for (const pane of p.panes) byId.set(pane.id, { paneId: pane.id, cwd: pane.cwd, accountId: pane.accountId, sessionId: pane.sessionId })
+    for (const pane of p.panes) byId.set(pane.id, { paneId: pane.id, cwd: pane.cwd, accountId: pane.accountId, sessionId: pane.sessionId, agent: pane.agent ?? 'claude' })
     p.resumable = [...byId.values()]
     p.panes = []
     this.persisted = p
@@ -99,12 +114,13 @@ export class Daemon {
         }
       },
       onChange: () => this.changed(),
+      codexHookGraceMs: this.o.codexHookGraceMs ?? 20_000,
       onGitHint: (wt) => {
         this.monitor.refresh(wt)
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
       },
     })
-    this.hookWarnings = checkProfiles(this.o.userHome, this.hookCmd)
+    this.hookWarnings = this.checkHookTargets()
     this.server = await startServer(this.o.socketPath, (req, conn) => this.handle(req, conn))
     await this.registry.refreshAll()
     this.monitor.startFetch(() => this.registry.list().map((c) => c.path), this.o.fetchIntervalMs ?? p.fetchIntervalMin * 60_000)
@@ -158,7 +174,7 @@ export class Daemon {
       panes: this.panes
         .records()
         .filter((r) => r.alive)
-        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null })),
+        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude' })),
     })
   }
 
@@ -183,6 +199,7 @@ export class Daemon {
         claude: r.claude,
         projectPath: r.projectPath,
         worktreePath: r.worktreePath,
+        agentHooksMissing: r.agentHooksMissing,
         name: this.persisted.paneMeta[r.id]?.name ?? null,
         color: this.persisted.paneMeta[r.id]?.color ?? null,
       })),
@@ -260,6 +277,17 @@ export class Daemon {
     if (this.conflictRerun.delete(projectPath)) void this.analyzeConflicts(projectPath)
   }
 
+  private detectAgents(): Promise<{ claude: boolean; codex: boolean }> {
+    const shell = this.o.detectShell ?? this.o.shell
+    const script = 'command -v claude >/dev/null 2>&1 && echo claude; command -v codex >/dev/null 2>&1 && echo codex; true'
+    return new Promise((resolve) => {
+      execFile(shell, ['-ilc', script], { timeout: 15_000, env: buildPaneEnv(this.o.env ?? process.env) }, (_err, stdout) => {
+        const found = new Set(String(stdout ?? '').split(/\s+/))
+        resolve({ claude: found.has('claude'), codex: found.has('codex') })
+      })
+    })
+  }
+
   private async handle(req: ClientRequest, conn: Conn): Promise<unknown> {
     switch (req.t) {
       case 'hello':
@@ -271,7 +299,7 @@ export class Daemon {
       case 'hook':
         conn.role = 'hook'
         conn.end() // libera o Claude antes de processar (ler título pode demorar)
-        await this.panes.applyHook(req.paneId, req.configDir || null, req.payload)
+        await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
         return null
       case 'pane.create': {
         const rec = this.panes.create(req)
@@ -313,6 +341,16 @@ export class Daemon {
         this.changed()
         return null
       }
+      case 'accounts.save': {
+        const err = validateAccounts(req.accounts)
+        if (err) throw new Error(err)
+        this.persisted.accounts = req.accounts.map((a) => ({ ...a, configDirMatch: [...a.configDirMatch] }))
+        this.hookWarnings = this.checkHookTargets()
+        this.changed()
+        return null
+      }
+      case 'agents.detect':
+        return this.detectAgents()
       case 'settings.save':
         this.persisted.settings = normalizeSettings(req.settings)
         this.changed()
@@ -345,11 +383,17 @@ export class Daemon {
       case 'worktree.remove':
         await this.removeWorktree(req.path, req.force, req.deleteBranch)
         return null
-      case 'hooks.install':
-        for (const f of this.hookWarnings) installHooks(f, this.hookCmd)
-        this.hookWarnings = checkProfiles(this.o.userHome, this.hookCmd)
+      case 'hooks.install': {
+        const targets = hookTargets(this.o.userHome, this.agentsInUse(), this.o.env ?? process.env)
+        const missing = new Set(this.checkHookTargets())
+        for (const t of targets) {
+          if (!missing.has(t.file)) continue
+          installHooks(t.file, this.hookCmdFor(t.agent), t.agent === 'codex' ? CODEX_HOOK_EVENTS : CLAUDE_HOOK_EVENTS)
+        }
+        this.hookWarnings = this.checkHookTargets()
         this.changed(false)
         return null
+      }
       case 'resume.dismiss':
         this.persisted.resumable = this.persisted.resumable.filter((r) => r.paneId !== req.paneId)
         delete this.persisted.paneMeta[req.paneId]

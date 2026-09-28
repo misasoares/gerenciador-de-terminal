@@ -137,7 +137,7 @@ describe('script gt-hook', () => {
     expect(r.ms).toBeLessThan(1500)
     await waitFor(() => got.length === 1)
     expect(got[0]).toEqual({
-      t: 'hook', paneId: 'p1', configDir: '/tmp/perfil "estranho"',
+      t: 'hook', paneId: 'p1', configDir: '/tmp/perfil "estranho"', agent: 'claude',
       payload: { hook_event_name: 'SessionStart', session_id: 's1', cwd: '/Volumes/SSD MISA/x' },
     })
   })

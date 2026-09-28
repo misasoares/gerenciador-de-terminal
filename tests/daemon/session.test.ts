@@ -32,7 +32,7 @@ describe('reduceSession', () => {
   })
 
   it('evento sem SessionStart cria a sessão (app aberto no meio)', () => {
-    expect(run([ev('PostToolUse', { transcript_path: '/t.jsonl' })])).toEqual({ sessionId: 's1', status: 'working', statusSince: expect.any(Number), title: null, transcriptPath: '/t.jsonl' })
+    expect(run([ev('PostToolUse', { transcript_path: '/t.jsonl' })])).toEqual({ sessionId: 's1', agent: 'claude', status: 'working', statusSince: expect.any(Number), title: null, transcriptPath: '/t.jsonl' })
   })
 
   it('/clear troca o id e zera o título; SessionEnd encerra', () => {

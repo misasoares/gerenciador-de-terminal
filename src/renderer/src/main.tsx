@@ -76,6 +76,8 @@ window.gt
   .then((app) => {
     setUi((s) => ({ app: s.app ?? app, connected: true }))
     terminals.applySettings(getUi().app?.settings ?? app.settings)
+    // instalação nova: sem agentes, abre o assistente
+    if ((getUi().app?.accounts ?? app.accounts).length === 0) setUi({ modal: { kind: 'setup' } })
   })
   .catch(showError)
 

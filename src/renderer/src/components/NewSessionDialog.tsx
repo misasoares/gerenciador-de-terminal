@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AppState } from '../../../shared/types'
 import { openNewPane } from '../actions'
 import { worktreeLabel } from '../header'
+import { AGENT_LABEL } from '../agents-model'
 import { accountsWithoutHooks } from '../sidebar-model'
 import { getUi, setUi, showError, useUi } from '../store'
 
@@ -99,6 +100,7 @@ export function NewSessionDialog() {
                     onClick={() => setForm({ ...form, accountId: a.id })}
                   >
                     <span style={{ color: a.color }}>{a.label}</span>
+                    <span className="card-note">{AGENT_LABEL[a.agent]}</span>
                     {form.accountId === a.id && ' ✓'}
                     {project?.defaultAccountId === a.id && <span className="card-note">padrão do projeto</span>}
                     {noHooks.has(a.id) && <span className="card-note warn">⚠ sem hooks</span>}
@@ -113,7 +115,7 @@ export function NewSessionDialog() {
             Só abrir terminal
           </button>
           <button className="primary" autoFocus disabled={!form.worktreePath || !form.accountId} onClick={() => open(true)}>
-            Abrir Claude ⌘↵
+            Abrir agente ⌘↵
           </button>
         </div>
       </div>

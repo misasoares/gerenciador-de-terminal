@@ -34,7 +34,7 @@ export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProje
 
   const resume = () => {
     if (!resumable) return
-    openNewPane({ paneId, cwd: resumable.cwd, accountId: resumable.accountId, resumeSessionId: resumable.sessionId ?? undefined }).catch(showError)
+    openNewPane({ paneId, cwd: resumable.cwd, accountId: resumable.accountId, resumeSessionId: resumable.sessionId ?? undefined, resumeAgent: resumable.agent }).catch(showError)
   }
 
   const status = pane?.claude?.status
@@ -75,7 +75,7 @@ export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProje
             <button onClick={() => closeDeadPane(paneId)}>Descartar</button>
           </div>
           <div className="pane-dead-detail">
-            {resumable.sessionId ? 'claude --resume · ' : ''}
+            {resumable.sessionId ? (resumable.agent === 'codex' ? 'codex resume · ' : 'claude --resume · ') : ''}
             {tildify(resumable.cwd, userHome)}
             {resumable.accountId ? ` · ${accounts?.find((a) => a.id === resumable.accountId)?.label ?? resumable.accountId}` : ''}
           </div>

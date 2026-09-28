@@ -193,3 +193,16 @@ kbd { font-family: inherit; background: #3a3d41; border-radius: 3px; padding: 1p
 .ph-row1 .ph-project { max-width: 34%; }
 .ph-row1 .ph-worktree { max-width: 26%; }
 .ph-row1 .ph-label { min-width: 70px; }
+
+.modal.setup, .modal.prefs { width: 640px; }
+.setup-agent { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px solid var(--border); }
+.pref-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.pref-tabs button.active { background: var(--accent); color: #fff; }
+.agents-panel { display: flex; flex-direction: column; gap: 10px; }
+.agent-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-top: 1px solid var(--border); }
+.agent-line { display: flex; gap: 6px; align-items: center; }
+.agent-line .text-input { flex: 1; }
+.agent-adv { display: flex; flex-direction: column; gap: 6px; padding-left: 12px; font-size: 12px; color: var(--fg-dim); }
+.agent-adv label { display: flex; flex-direction: column; gap: 2px; }
+.agent-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mono { font-family: Menlo, monospace; font-size: 12px; }

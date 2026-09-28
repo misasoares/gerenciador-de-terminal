@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
-import type { Account, ClaudeSession, HookPayload } from '../shared/types'
-import { buildCommand, detectAccount } from './accounts'
-import { cwdOf, findClaude, foregroundOf, snapshotProcs } from './platform/procs'
+import type { Account, AgentKind, ClaudeSession, HookPayload } from '../shared/types'
+import { buildCommand, detectAccount, resumeAccount } from './accounts'
+import { cwdOf, findAgent, foregroundOf, snapshotProcs } from './platform/procs'
 import type { ProjectRegistry } from './projects'
 import { PtyHost } from './pty-host'
 import { markSeen, reduceSession } from './session'
@@ -22,6 +22,10 @@ export interface PaneRecord {
   missingPolls: number
   projectPath: string | null
   worktreePath: string | null
+  /** quando o poller viu o processo codex pela 1ª vez (null = sem codex) */
+  agentProcSince: number | null
+  lastHookAt: number
+  agentHooksMissing: boolean
 }
 
 export interface CreatePane {
@@ -29,6 +33,7 @@ export interface CreatePane {
   cwd: string
   accountId: string | null
   resumeSessionId?: string
+  resumeAgent?: AgentKind
   cols: number
   rows: number
 }
@@ -44,6 +49,7 @@ export interface PaneManagerDeps {
   onData(id: string, data: string): void
   onChange(): void
   onGitHint(worktreePath: string): void
+  codexHookGraceMs: number
 }
 
 // o daemon pode ter nascido dentro de uma sessão do Claude, do VS Code ou do npm: nada disso vai para os terminais
@@ -112,7 +118,7 @@ export class PaneManager {
     const accounts = this.d.accounts()
     let account = o.accountId ? accounts.find((a) => a.id === o.accountId) : undefined
     if (o.accountId && !account) throw new Error(`conta desconhecida: ${o.accountId}`)
-    if (!account && o.resumeSessionId) account = accounts.find((a) => a.isDefault)
+    if (!account && o.resumeSessionId) account = resumeAccount(accounts, o.resumeAgent ?? 'claude')
     const command = account ? buildCommand(account, o.resumeSessionId) : null
     const cwd = fs.existsSync(o.cwd) ? o.cwd : this.d.fallbackCwd
     const env = { ...this.d.baseEnv, GT_PANE_ID: id, GT_SOCKET: this.d.socketPath }
@@ -129,6 +135,9 @@ export class PaneManager {
       claudeArgv: null,
       claude: null,
       missingPolls: 0,
+      agentProcSince: null,
+      lastHookAt: 0,
+      agentHooksMissing: false,
       projectPath: null,
       worktreePath: null,
     }
@@ -196,18 +205,20 @@ export class PaneManager {
     this.d.onChange()
   }
 
-  async applyHook(paneId: string, configDir: string | null, p: HookPayload): Promise<void> {
+  async applyHook(paneId: string, configDir: string | null, p: HookPayload, agent: AgentKind = 'claude'): Promise<void> {
     const rec = this.recs.get(paneId)
     if (!rec || !rec.alive) return
+    if (agent === 'codex') rec.lastHookAt = Date.now()
+    if (rec.agentHooksMissing) rec.agentHooksMissing = false
     const hadSession = rec.claude !== null
     rec.configDir = configDir
-    rec.claude = reduceSession(rec.claude, p)
+    rec.claude = reduceSession(rec.claude, p, Date.now(), agent)
     rec.missingPolls = 0
     if (!rec.claude) {
       rec.launchedAccountId = null
       rec.accountId = null
     } else if (!hadSession && !rec.launchedAccountId) {
-      rec.accountId = detectAccount(this.d.accounts(), configDir, rec.claudeArgv)
+      rec.accountId = detectAccount(this.d.accounts(), agent, configDir, rec.claudeArgv)
     }
     this.d.onChange()
 
@@ -218,7 +229,7 @@ export class PaneManager {
     }
     const ev = p.hook_event_name
     if (rec.worktreePath && GIT_HINT_EVENTS.has(ev)) this.d.onGitHint(rec.worktreePath)
-    if (rec.claude?.transcriptPath && TITLE_EVENTS.has(ev)) {
+    if (agent === 'claude' && rec.claude?.transcriptPath && TITLE_EVENTS.has(ev)) {
       const sessionId = rec.claude.sessionId
       const title = await this.readTitle(rec.claude.transcriptPath)
       if (rec.claude && rec.claude.sessionId === sessionId && title !== rec.claude.title) {
@@ -231,6 +242,7 @@ export class PaneManager {
   async poll(): Promise<void> {
     const live = this.records().filter((r) => r.alive)
     if (live.length === 0) return
+    const snapAt = Date.now()
     const procs = await snapshotProcs()
     if (procs.length === 0) return // ps falhou: não dá para concluir nada
     const want = new Map<number, PaneRecord>()
@@ -238,12 +250,31 @@ export class PaneManager {
     for (const rec of live) {
       const pid = this.host.pid(rec.id)
       if (!pid) continue
-      const claudeProc = findClaude(procs, pid)
+      const found = findAgent(procs, pid)
+      const claudeProc = found?.proc ?? null
+      if (found?.agent === 'codex') {
+        if (rec.agentProcSince === null) rec.agentProcSince = Date.now()
+        // hook do Codex pode chegar antes do 1º poll que vê o processo: vale qualquer hook desde que ele sumiu
+        const missing = rec.lastHookAt === 0 && Date.now() - rec.agentProcSince > this.d.codexHookGraceMs
+        if (missing !== rec.agentHooksMissing) {
+          rec.agentHooksMissing = missing
+          changed = true
+        }
+      } else {
+        if (rec.lastHookAt < snapAt) rec.lastHookAt = 0
+      }
+      if (found?.agent !== 'codex' && (rec.agentProcSince !== null || rec.agentHooksMissing)) {
+        rec.agentProcSince = null
+        if (rec.agentHooksMissing) {
+          rec.agentHooksMissing = false
+          changed = true
+        }
+      }
       const argv = claudeProc?.args ?? null
       if (argv !== rec.claudeArgv) {
         rec.claudeArgv = argv
         if (rec.claude && argv && !rec.launchedAccountId) {
-          rec.accountId = detectAccount(this.d.accounts(), rec.configDir, argv)
+          rec.accountId = detectAccount(this.d.accounts(), found?.agent ?? 'claude', rec.configDir, argv)
           changed = true
         }
       }

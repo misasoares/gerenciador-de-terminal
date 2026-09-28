@@ -12,9 +12,9 @@ const app: AppState = {
     { path: '/r/tcheerp/.claude/worktrees/custo-hora', head: null, branch: 'docs/custo', isMain: false, locked: false, prunable: false, git: null },
   ] }],
   panes: [
-    { id: 'p1', seq: 1, cwd: '/r/tcheerp', alive: true, exitCode: null, accountId: 'weboption', name: null, color: null, projectPath: '/r/tcheerp', worktreePath: '/r/tcheerp/.claude/worktrees/custo-hora',
-      claude: { sessionId: 's', status: 'idle', statusSince: 0, title: 'Revisão da ação de custo', transcriptPath: null } },
-    { id: 'p2', seq: 2, cwd: '/r', alive: false, exitCode: 0, accountId: null, name: null, color: null, projectPath: null, worktreePath: null, claude: null },
+    { id: 'p1', seq: 1, cwd: '/r/tcheerp', alive: true, exitCode: null, accountId: 'weboption', name: null, color: null, agentHooksMissing: false, projectPath: '/r/tcheerp', worktreePath: '/r/tcheerp/.claude/worktrees/custo-hora',
+      claude: { sessionId: 's', agent: 'claude' as const, status: 'idle', statusSince: 0, title: 'Revisão da ação de custo', transcriptPath: null } },
+    { id: 'p2', seq: 2, cwd: '/r', alive: false, exitCode: 0, accountId: null, name: null, color: null, agentHooksMissing: false, projectPath: null, worktreePath: null, claude: null },
   ],
 }
 
