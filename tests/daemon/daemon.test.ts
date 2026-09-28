@@ -263,6 +263,17 @@ describe('Daemon', () => {
     await second.app.waitState((s) => s.panes[0]?.name === name && s.panes[0]?.color === '#3b82f6')
   })
 
+  it('instância com GT_HOME próprio instala o hook no caminho canônico, sem repontar o global', async () => {
+    const { app, o } = await boot()
+    await app.client.request({ t: 'hooks.install' })
+    const canonical = path.join(o.userHome, '.gerenciador-terminal', 'bin', 'gt-hook')
+    const settings = JSON.parse(fs.readFileSync(path.join(o.userHome, '.claude', 'settings.json'), 'utf8'))
+    const cmds = settings.hooks.Stop.flatMap((g: { hooks: { command: string }[] }) => g.hooks.map((h) => h.command))
+    expect(cmds).toEqual([`sh -c '[ -x "$0" ] && exec "$0"; cat >/dev/null' "${canonical}"`])
+    expect(fs.statSync(canonical).mode & 0o111).not.toBe(0)
+    expect(o.hookScriptPath).not.toBe(canonical)
+  })
+
   it('erros de requisição voltam como mensagem', async () => {
     const { app } = await boot()
     await expect(app.client.request({ t: 'pane.create', cwd: '/', accountId: 'nao-existe', cols: 80, rows: 24 })).rejects.toThrow('conta desconhecida')

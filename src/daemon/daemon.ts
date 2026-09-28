@@ -1,3 +1,4 @@
+import path from 'node:path'
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
 import type { AppState, ConflictReport } from '../shared/types'
@@ -52,12 +53,22 @@ export class Daemon {
     return d
   }
 
+  /**
+   * O comando registrado no settings.json global aponta SEMPRE para o script canônico do usuário,
+   * independente do GT_HOME desta instância: o script é igual e lê o socket do ambiente de cada terminal,
+   * então uma instância de teste não reponta os hooks de verdade.
+   */
+  private get canonicalHookScript(): string {
+    return path.join(this.o.userHome, '.gerenciador-terminal', 'bin', 'gt-hook')
+  }
+
   private get hookCmd(): string {
-    return hookCommand(this.o.hookScriptPath)
+    return hookCommand(this.canonicalHookScript)
   }
 
   private async init(): Promise<void> {
     writeHookScript(this.o.hookScriptPath)
+    if (this.canonicalHookScript !== this.o.hookScriptPath) writeHookScript(this.canonicalHookScript)
     const p = loadPersisted(this.o.stateFile)
     // o que estava vivo no daemon anterior vira retomável (mesmo id → o layout continua valendo)
     const byId = new Map(p.resumable.map((r) => [r.paneId, r]))
