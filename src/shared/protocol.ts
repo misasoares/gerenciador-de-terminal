@@ -1,4 +1,4 @@
-import type { Account, AppState, HookPayload, Layout } from './types'
+import type { Account, AgentKind, AppState, HookPayload, Layout } from './types'
 import type { TerminalSettings } from './settings'
 
 export const PROTOCOL_VERSION = 2
@@ -6,7 +6,7 @@ export const PROTOCOL_VERSION = 2
 export type ClientRequest =
   | { t: 'hello'; role: 'app' | 'hook'; version: number }
   | { t: 'state.get' }
-  | { t: 'hook'; paneId: string; configDir: string; payload: HookPayload }
+  | { t: 'hook'; paneId: string; configDir: string; agent?: AgentKind; payload: HookPayload }
   | { t: 'pane.create'; paneId?: string; cwd: string; accountId: string | null; resumeSessionId?: string; cols: number; rows: number }
   | { t: 'pane.attach'; paneId: string; cols?: number; rows?: number; seq?: number }
   | { t: 'pane.detach'; paneId: string }

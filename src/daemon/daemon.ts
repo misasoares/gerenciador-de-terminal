@@ -2,13 +2,13 @@ import { execFile } from 'node:child_process'
 import path from 'node:path'
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
-import type { AppState, ConflictReport } from '../shared/types'
+import type { AgentKind, AppState, ConflictReport } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
 import { suggestAccount, validateAccounts } from './accounts'
 import { GitMonitor } from './git/monitor'
-import { checkProfiles, hookCommand, installHooks, writeHookScript } from './hooks'
+import { checkTargets, CLAUDE_HOOK_EVENTS, CODEX_HOOK_EVENTS, hookCommand, hookTargets, installHooks, writeHookScript } from './hooks'
 import { PaneManager, buildPaneEnv } from './panes'
 import { loadPersisted, savePersisted, type Persisted } from './persist'
 import { ProjectRegistry } from './projects'
@@ -67,12 +67,18 @@ export class Daemon {
     return path.join(this.o.userHome, '.gerenciador-terminal', 'bin', 'gt-hook')
   }
 
-  private checkHookTargets(): string[] {
-    return checkProfiles(this.o.userHome, this.hookCmd)
+  private agentsInUse(): Set<AgentKind> {
+    const set = new Set<AgentKind>(this.persisted.accounts.map((a) => a.agent))
+    if (set.size === 0) set.add('claude') // sem agentes ainda: continua cuidando do Claude, como antes
+    return set
   }
 
-  private get hookCmd(): string {
-    return hookCommand(this.canonicalHookScript)
+  private checkHookTargets(): string[] {
+    return checkTargets(hookTargets(this.o.userHome, this.agentsInUse(), this.o.env ?? process.env), (a) => this.hookCmdFor(a))
+  }
+
+  private hookCmdFor(agent: AgentKind): string {
+    return hookCommand(this.canonicalHookScript, agent)
   }
 
   private async init(): Promise<void> {
@@ -373,11 +379,17 @@ export class Daemon {
       case 'worktree.remove':
         await this.removeWorktree(req.path, req.force, req.deleteBranch)
         return null
-      case 'hooks.install':
-        for (const f of this.hookWarnings) installHooks(f, this.hookCmd)
+      case 'hooks.install': {
+        const targets = hookTargets(this.o.userHome, this.agentsInUse(), this.o.env ?? process.env)
+        const missing = new Set(this.checkHookTargets())
+        for (const t of targets) {
+          if (!missing.has(t.file)) continue
+          installHooks(t.file, this.hookCmdFor(t.agent), t.agent === 'codex' ? CODEX_HOOK_EVENTS : CLAUDE_HOOK_EVENTS)
+        }
         this.hookWarnings = this.checkHookTargets()
         this.changed(false)
         return null
+      }
       case 'resume.dismiss':
         this.persisted.resumable = this.persisted.resumable.filter((r) => r.paneId !== req.paneId)
         delete this.persisted.paneMeta[req.paneId]
