@@ -33,6 +33,7 @@ function opts(home: string, extra: Partial<DaemonOptions> = {}): DaemonOptions {
     pollMs: 60_000,
     gitPollMs: 500,
     fetchIntervalMs: 3_600_000,
+    conflictsDebounceMs: 5000,
     ...extra,
   }
 }
@@ -217,6 +218,24 @@ describe('Daemon', () => {
     await app.waitState((s) => s.panes[0]?.claude?.status === 'your-turn')
     await app.client.request({ t: 'pane.seen', paneId })
     await app.waitState((s) => s.panes[0]?.claude?.status === 'idle')
+  })
+
+  it('conflitos: analisa sob demanda e reanalisa sozinho quando uma worktree muda', async () => {
+    repo = makeRepo()
+    repo.write('f.txt', 'x\n'); repo.git('add', '.'); repo.git('commit', '-m', 'f')
+    const a = path.join(repo.root, 'wt a'), b = path.join(repo.root, 'wt b')
+    repo.git('worktree', 'add', '-b', 'a', a)
+    repo.git('worktree', 'add', '-b', 'b', b)
+    fs.writeFileSync(path.join(a, 'f.txt'), 'A\n')
+    const { app } = await boot({ gitPollMs: 300, conflictsDebounceMs: 200 })
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    await app.client.request({ t: 'conflicts.analyze', projectPath: repo.dir })
+    let st = await app.waitState((s) => !!s.projects[0]?.conflicts && !s.projects[0].conflicts.running)
+    expect(st.projects[0].conflicts!.pairs).toEqual([])
+    // b passa a mexer na mesma linha, sem commitar: a reanálise automática precisa pegar
+    fs.writeFileSync(path.join(b, 'f.txt'), 'B\n')
+    st = await app.waitState((s) => (s.projects[0]?.conflicts?.pairs.length ?? 0) === 1, 15_000)
+    expect(st.projects[0].conflicts!.pairs[0]).toMatchObject({ files: ['f.txt'], dirty: true })
   })
 
   it('erros de requisição voltam como mensagem', async () => {

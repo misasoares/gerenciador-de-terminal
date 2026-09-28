@@ -13,6 +13,7 @@ export type ClientRequest =
   | { t: 'pane.kill'; paneId: string }
   | { t: 'pane.forget'; paneId: string }
   | { t: 'pane.seen'; paneId: string }
+  | { t: 'conflicts.analyze'; projectPath: string }
   | { t: 'project.add'; path: string }
   | { t: 'project.remove'; path: string }
   | { t: 'project.setAccount'; path: string; accountId: string | null }

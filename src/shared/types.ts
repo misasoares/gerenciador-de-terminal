@@ -58,6 +58,7 @@ export interface ProjectView extends ProjectConfig {
   worktrees: WorktreeView[]
   error: string | null
   fetchError: string | null
+  conflicts: ConflictReport | null
 }
 
 export interface PaneView {

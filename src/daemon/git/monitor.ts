@@ -13,7 +13,7 @@ export class GitMonitor {
   private fetchTimer: NodeJS.Timeout | null = null
 
   constructor(
-    private onChange: () => void,
+    private onChange: (path?: string) => void,
     private opts: { pollMs: number; debounceMs: number } = { pollMs: 10_000, debounceMs: 300 },
   ) {}
 
@@ -77,7 +77,7 @@ export class GitMonitor {
         }
     if (JSON.stringify(prev) === JSON.stringify(next)) return
     this.status.set(p, next)
-    this.onChange()
+    this.onChange(p)
   }
 
   startFetch(projects: () => string[], intervalMs: number): void {

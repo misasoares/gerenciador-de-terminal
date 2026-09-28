@@ -1,6 +1,7 @@
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
-import type { AppState } from '../shared/types'
+import type { AppState, ConflictReport } from '../shared/types'
+import { analyzeConflicts } from './conflicts'
 import { suggestAccount } from './accounts'
 import { GitMonitor } from './git/monitor'
 import { checkProfiles, hookCommand, installHooks, writeHookScript } from './hooks'
@@ -22,6 +23,7 @@ export interface DaemonOptions {
   pollMs?: number
   gitPollMs?: number
   fetchIntervalMs?: number
+  conflictsDebounceMs?: number
   onShutdown?: () => void
 }
 
@@ -37,6 +39,9 @@ export class Daemon {
   private pollTimer: NodeJS.Timeout | null = null
   private worktreeTimer: NodeJS.Timeout | null = null
   private stopping = false
+  private conflicts = new Map<string, ConflictReport>()
+  private conflictTimers = new Map<string, NodeJS.Timeout>()
+  private conflictRerun = new Set<string>()
 
   private constructor(private o: DaemonOptions) {}
 
@@ -60,7 +65,10 @@ export class Daemon {
     p.panes = []
     this.persisted = p
 
-    this.monitor = new GitMonitor(() => this.changed(false), { pollMs: this.o.gitPollMs ?? 10_000, debounceMs: 300 })
+    this.monitor = new GitMonitor((p) => {
+      if (p) this.onWorktreeChanged(p)
+      this.changed(false)
+    }, { pollMs: this.o.gitPollMs ?? 10_000, debounceMs: 300 })
     this.registry = new ProjectRegistry(p.projects, () => this.changed())
     this.panes = new PaneManager({
       accounts: () => this.persisted.accounts,
@@ -99,6 +107,7 @@ export class Daemon {
     if (this.broadcastTimer) clearTimeout(this.broadcastTimer)
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.monitor.stop()
+    for (const t of this.conflictTimers.values()) clearTimeout(t)
     if (killPtys) this.panes.host.killAll()
     await this.server?.close()
   }
@@ -142,6 +151,7 @@ export class Daemon {
         worktrees: this.registry.worktrees(c.path).map((w) => ({ ...w, git: this.monitor.get(w.path) })),
         error: this.registry.error(c.path),
         fetchError: this.monitor.fetchError(c.path),
+        conflicts: this.conflicts.get(c.path) ?? null,
       })),
       panes: this.panes.records().map((r) => ({
         id: r.id,
@@ -192,6 +202,39 @@ export class Daemon {
     await this.registry.refresh(project.path)
   }
 
+  private onWorktreeChanged(worktreePath: string): void {
+    const project = this.registry.list().find((c) => this.registry.worktrees(c.path).some((w) => w.path === worktreePath))
+    if (!project || !this.conflicts.has(project.path)) return // só reanalisa o que já foi analisado
+    clearTimeout(this.conflictTimers.get(project.path))
+    this.conflictTimers.set(
+      project.path,
+      setTimeout(() => {
+        this.conflictTimers.delete(project.path)
+        void this.analyzeConflicts(project.path)
+      }, this.o.conflictsDebounceMs ?? 5000),
+    )
+  }
+
+  private async analyzeConflicts(projectPath: string): Promise<void> {
+    if (!this.registry.get(projectPath)) throw new Error(`projeto não encontrado: ${projectPath}`)
+    const prev = this.conflicts.get(projectPath)
+    if (prev?.running) {
+      this.conflictRerun.add(projectPath)
+      return
+    }
+    this.conflicts.set(projectPath, { ...(prev ?? { analyzedAt: 0, comparisons: 0, vsMain: [], pairs: [], cleanPairs: 0, errors: [] }), running: true })
+    this.changed(false)
+    try {
+      const report = await analyzeConflicts(projectPath, this.registry.worktrees(projectPath))
+      if (this.stopping) return
+      this.conflicts.set(projectPath, { ...report, running: false })
+    } catch (e) {
+      this.conflicts.set(projectPath, { ...(prev ?? { analyzedAt: Date.now(), comparisons: 0, vsMain: [], pairs: [], cleanPairs: 0 }), running: false, errors: [{ worktreePath: projectPath, message: e instanceof Error ? e.message : String(e) }] })
+    }
+    this.changed(false)
+    if (this.conflictRerun.delete(projectPath)) void this.analyzeConflicts(projectPath)
+  }
+
   private async handle(req: ClientRequest, conn: Conn): Promise<unknown> {
     switch (req.t) {
       case 'hello':
@@ -229,6 +272,9 @@ export class Daemon {
       case 'pane.forget':
         this.panes.forget(req.paneId)
         return null
+      case 'conflicts.analyze':
+        void this.analyzeConflicts(req.projectPath).catch((e) => console.error('análise de conflitos falhou', e))
+        return null
       case 'pane.seen':
         this.panes.markSeen(req.paneId)
         return null
@@ -239,6 +285,7 @@ export class Daemon {
       }
       case 'project.remove':
         this.registry.remove(req.path)
+        this.conflicts.delete(req.path)
         await this.panes.relocateAll()
         return null
       case 'project.setAccount':

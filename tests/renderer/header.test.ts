@@ -4,7 +4,7 @@ import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import type { PaneView, ProjectView } from '../../src/shared/types'
 
 const project: ProjectView = {
-  path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null,
+  path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null,
   worktrees: [
     { path: '/r/api', head: 'a', branch: 'main', isMain: true, locked: false, prunable: false, git: { branch: 'main', upstream: 'origin/main', ahead: 0, behind: 3, changed: 0, error: null } },
     { path: '/r/api/.claude/worktrees/auth', head: 'b', branch: 'feat/auth', isMain: false, locked: false, prunable: false, git: { branch: 'feat/auth', upstream: null, ahead: 2, behind: 0, changed: 5, error: null } },

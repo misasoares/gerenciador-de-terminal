@@ -8,7 +8,7 @@ const claude = (status: 'working' | 'needs-you' | 'idle', title: string | null =
 const app: AppState = {
   protocolVersion: 1, userHome: '/u', accounts: [], resumable: [], hookWarnings: [], layout: { tabs: [], activeTabId: null },
   projects: [{
-    path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null,
+    path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null,
     worktrees: [
       { path: '/r/api', head: null, branch: 'main', isMain: true, locked: false, prunable: false, git: null },
       { path: '/r/api/wt/x', head: null, branch: 'x', isMain: false, locked: false, prunable: false, git: null },

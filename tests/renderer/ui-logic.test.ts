@@ -34,7 +34,7 @@ const claude = (status: 'working' | 'needs-you' | 'idle') => ({ sessionId: 's', 
 const app = (over: Partial<AppState> = {}): AppState => ({
   protocolVersion: 1, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [],
   layout: { tabs: [{ id: 't1', name: 'A', root: leaf('p1') }, { id: 't2', name: 'B', root: leaf('p2') }], activeTabId: 't1' },
-  projects: [{ path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, worktrees: [{ path: '/r/api', head: null, branch: 'main', isMain: true, locked: false, prunable: false, git: null }] }],
+  projects: [{ path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null, worktrees: [{ path: '/r/api', head: null, branch: 'main', isMain: true, locked: false, prunable: false, git: null }] }],
   panes: [pane('p1', { claude: claude('working') }), pane('p2', { claude: claude('needs-you') }), pane('p3', { claude: claude('idle') })],
   ...over,
 })
