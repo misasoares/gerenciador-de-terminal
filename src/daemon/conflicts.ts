@@ -42,7 +42,13 @@ export async function snapshotTip(worktreePath: string): Promise<Tip> {
     // parte de uma cópia do índice real: mantém o cache de stat (add rápido) e os bits de sparse/skip-worktree
     const real = await git(worktreePath, ['rev-parse', '--git-path', 'index'], TIMEOUT)
     const realIndex = real.ok ? path.resolve(worktreePath, real.stdout.trim()) : ''
-    if (realIndex && fs.existsSync(realIndex)) fs.copyFileSync(realIndex, idx)
+    if (realIndex && fs.existsSync(realIndex)) {
+      fs.copyFileSync(realIndex, idx)
+      // mantém a data do índice real: é ela que faz o git reler arquivos alterados no mesmo segundo
+      // do último write do índice ("racy git"); com data nova, a cópia confiaria em stat velho
+      const st = fs.statSync(realIndex)
+      fs.utimesSync(idx, st.atime, st.mtime)
+    }
     else {
       const r = await git(worktreePath, ['read-tree', 'HEAD'], TIMEOUT, env)
       if (!r.ok) throw new Error(`git read-tree: ${firstLine(r.stderr)}`)

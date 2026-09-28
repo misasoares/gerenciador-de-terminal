@@ -102,3 +102,4 @@ describe('I6: custo da análise', () => {
     expect(second.pairs.map((p) => p.files)).toEqual(first.pairs.map((p) => p.files))
   })
 })
+
