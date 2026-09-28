@@ -32,7 +32,7 @@ describe('buildSidebar', () => {
       ['p3', 'terminal 3', 'shell'],
     ])
     expect(x).toMatchObject({ label: 'x', sessions: [] })
-    expect(m.projects[0].summary).toEqual({ working: 1, needsYou: 1, idle: 0 })
+    expect(m.projects[0].summary).toEqual({ working: 1, needsYou: 1, yourTurn: 0, idle: 0 })
     expect(m.outside.map((s) => s.paneId)).toEqual(['p4'])
   })
 

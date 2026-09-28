@@ -31,7 +31,7 @@ export interface ProjectItem {
   error: string | null
   fetchError: string | null
   worktrees: WorktreeItem[]
-  summary: { working: number; needsYou: number; idle: number }
+  summary: { working: number; needsYou: number; yourTurn: number; idle: number }
   worst: SessionStatus | null
 }
 
@@ -69,8 +69,8 @@ export function buildSidebar(app: AppState): { projects: ProjectItem[]; outside:
       error: p.error,
       fetchError: p.fetchError,
       worktrees,
-      summary: { working: count('working'), needsYou: count('needs-you'), idle: count('idle') },
-      worst: count('needs-you') ? 'needs-you' : count('working') ? 'working' : count('idle') ? 'idle' : null,
+      summary: { working: count('working'), needsYou: count('needs-you'), yourTurn: count('your-turn'), idle: count('idle') },
+      worst: count('needs-you') ? 'needs-you' : count('your-turn') ? 'your-turn' : count('working') ? 'working' : count('idle') ? 'idle' : null,
     }
   })
   const outside = app.panes.filter((x) => !used.has(x.id)).map(toItem)
