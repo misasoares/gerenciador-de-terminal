@@ -15,3 +15,9 @@ export function newAgentDraft(existing: Account[], agent: AgentKind): Account {
 export function hooksMissingPanes(panes: PaneView[]): PaneView[] {
   return panes.filter((p) => p.alive && p.agentHooksMissing)
 }
+
+/** qual faixa mostrar: instalar hooks vem antes do /hooks do Codex (sem hook instalado não há o que aprovar) */
+export function hooksBanner(warnings: string[] | undefined, panes: PaneView[]): 'install' | 'codex-trust' | null {
+  if (warnings && warnings.length > 0) return 'install'
+  return hooksMissingPanes(panes).length > 0 ? 'codex-trust' : null
+}

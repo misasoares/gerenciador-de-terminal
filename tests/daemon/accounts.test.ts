@@ -28,6 +28,10 @@ describe('buildCommand', () => {
     expect(buildCommand(mslabs)).toBe('claude-mslabs')
     expect(buildCommand(mslabs, '6f574752-bb4d-4ff2-8ed1-bb685dce78ed')).toBe('claude-mslabs --resume 6f574752-bb4d-4ff2-8ed1-bb685dce78ed')
   })
+  it('Codex retoma com o subcomando resume', () => {
+    const codex = { ...DEFAULT_ACCOUNTS[0], id: 'codex', agent: 'codex' as const, command: 'codex --yolo' }
+    expect(buildCommand(codex, 'abcd-1234')).toBe('codex --yolo resume abcd-1234')
+  })
   it('recusa session id que não parece um id', () => {
     expect(() => buildCommand(DEFAULT_ACCOUNTS[0], 'x; rm -rf ~')).toThrow('session id inválido')
   })

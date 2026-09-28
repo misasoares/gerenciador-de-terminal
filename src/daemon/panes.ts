@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import type { Account, AgentKind, ClaudeSession, HookPayload } from '../shared/types'
-import { buildCommand, detectAccount } from './accounts'
+import { buildCommand, detectAccount, resumeAccount } from './accounts'
 import { cwdOf, findAgent, foregroundOf, snapshotProcs } from './platform/procs'
 import type { ProjectRegistry } from './projects'
 import { PtyHost } from './pty-host'
@@ -33,6 +33,7 @@ export interface CreatePane {
   cwd: string
   accountId: string | null
   resumeSessionId?: string
+  resumeAgent?: AgentKind
   cols: number
   rows: number
 }
@@ -117,7 +118,7 @@ export class PaneManager {
     const accounts = this.d.accounts()
     let account = o.accountId ? accounts.find((a) => a.id === o.accountId) : undefined
     if (o.accountId && !account) throw new Error(`conta desconhecida: ${o.accountId}`)
-    if (!account && o.resumeSessionId) account = accounts.find((a) => a.isDefault)
+    if (!account && o.resumeSessionId) account = resumeAccount(accounts, o.resumeAgent ?? 'claude')
     const command = account ? buildCommand(account, o.resumeSessionId) : null
     const cwd = fs.existsSync(o.cwd) ? o.cwd : this.d.fallbackCwd
     const env = { ...this.d.baseEnv, GT_PANE_ID: id, GT_SOCKET: this.d.socketPath }
@@ -207,7 +208,7 @@ export class PaneManager {
   async applyHook(paneId: string, configDir: string | null, p: HookPayload, agent: AgentKind = 'claude'): Promise<void> {
     const rec = this.recs.get(paneId)
     if (!rec || !rec.alive) return
-    rec.lastHookAt = Date.now()
+    if (agent === 'codex') rec.lastHookAt = Date.now()
     if (rec.agentHooksMissing) rec.agentHooksMissing = false
     const hadSession = rec.claude !== null
     rec.configDir = configDir
@@ -241,6 +242,7 @@ export class PaneManager {
   async poll(): Promise<void> {
     const live = this.records().filter((r) => r.alive)
     if (live.length === 0) return
+    const snapAt = Date.now()
     const procs = await snapshotProcs()
     if (procs.length === 0) return // ps falhou: não dá para concluir nada
     const want = new Map<number, PaneRecord>()
@@ -252,12 +254,16 @@ export class PaneManager {
       const claudeProc = found?.proc ?? null
       if (found?.agent === 'codex') {
         if (rec.agentProcSince === null) rec.agentProcSince = Date.now()
-        const missing = rec.lastHookAt < rec.agentProcSince && Date.now() - rec.agentProcSince > this.d.codexHookGraceMs
+        // hook do Codex pode chegar antes do 1º poll que vê o processo: vale qualquer hook desde que ele sumiu
+        const missing = rec.lastHookAt === 0 && Date.now() - rec.agentProcSince > this.d.codexHookGraceMs
         if (missing !== rec.agentHooksMissing) {
           rec.agentHooksMissing = missing
           changed = true
         }
-      } else if (rec.agentProcSince !== null || rec.agentHooksMissing) {
+      } else {
+        if (rec.lastHookAt < snapAt) rec.lastHookAt = 0
+      }
+      if (found?.agent !== 'codex' && (rec.agentProcSince !== null || rec.agentHooksMissing)) {
         rec.agentProcSince = null
         if (rec.agentHooksMissing) {
           rec.agentHooksMissing = false

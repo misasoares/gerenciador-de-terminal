@@ -7,7 +7,7 @@ export type ClientRequest =
   | { t: 'hello'; role: 'app' | 'hook'; version: number }
   | { t: 'state.get' }
   | { t: 'hook'; paneId: string; configDir: string; agent?: AgentKind; payload: HookPayload }
-  | { t: 'pane.create'; paneId?: string; cwd: string; accountId: string | null; resumeSessionId?: string; cols: number; rows: number }
+  | { t: 'pane.create'; paneId?: string; cwd: string; accountId: string | null; resumeSessionId?: string; resumeAgent?: AgentKind; cols: number; rows: number }
   | { t: 'pane.attach'; paneId: string; cols?: number; rows?: number; seq?: number }
   | { t: 'pane.detach'; paneId: string }
   | { t: 'pane.input'; paneId: string; data: string }

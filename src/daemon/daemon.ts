@@ -89,7 +89,7 @@ export class Daemon {
     const p = loadPersisted(this.o.stateFile)
     // o que estava vivo no daemon anterior vira retomável (mesmo id → o layout continua valendo)
     const byId = new Map(p.resumable.map((r) => [r.paneId, r]))
-    for (const pane of p.panes) byId.set(pane.id, { paneId: pane.id, cwd: pane.cwd, accountId: pane.accountId, sessionId: pane.sessionId })
+    for (const pane of p.panes) byId.set(pane.id, { paneId: pane.id, cwd: pane.cwd, accountId: pane.accountId, sessionId: pane.sessionId, agent: pane.agent ?? 'claude' })
     p.resumable = [...byId.values()]
     p.panes = []
     this.persisted = p
@@ -174,7 +174,7 @@ export class Daemon {
       panes: this.panes
         .records()
         .filter((r) => r.alive)
-        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null })),
+        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude' })),
     })
   }
 

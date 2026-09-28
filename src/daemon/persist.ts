@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Account, Layout, ProjectConfig, ResumeEntry } from '../shared/types'
+import type { Account, AgentKind, Layout, ProjectConfig, ResumeEntry } from '../shared/types'
 import { migrateAccounts } from './accounts'
 import { DEFAULT_SETTINGS, normalizeSettings, type TerminalSettings } from '../shared/settings'
 
@@ -9,6 +9,7 @@ export interface PersistedPane {
   cwd: string
   accountId: string | null
   sessionId: string | null
+  agent?: AgentKind
 }
 
 export interface Persisted {

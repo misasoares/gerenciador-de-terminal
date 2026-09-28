@@ -106,6 +106,8 @@ export interface ResumeEntry {
   cwd: string
   accountId: string | null
   sessionId: string | null
+  /** ausente em entradas antigas = claude */
+  agent?: AgentKind
 }
 
 export interface AppState {

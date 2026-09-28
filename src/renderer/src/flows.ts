@@ -110,7 +110,7 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
 export async function resumeAll(): Promise<void> {
   for (const r of getUi().app?.resumable ?? []) {
     try {
-      await openNewPane({ paneId: r.paneId, cwd: r.cwd, accountId: r.accountId, resumeSessionId: r.sessionId ?? undefined })
+      await openNewPane({ paneId: r.paneId, cwd: r.cwd, accountId: r.accountId, resumeSessionId: r.sessionId ?? undefined, resumeAgent: r.agent })
     } catch (e) {
       showError(e)
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hooksMissingPanes, newAgentDraft } from '../../src/renderer/src/agents-model'
+import { hooksBanner, hooksMissingPanes, newAgentDraft } from '../../src/renderer/src/agents-model'
 import type { Account, PaneView } from '../../src/shared/types'
 
 const acc = (id: string, agent: 'claude' | 'codex'): Account => ({ id, label: id, command: id, color: '#111111', agent, configDirMatch: [], isDefault: false, settingsMatch: null, pathPrefix: null })
@@ -13,5 +13,11 @@ describe('agents-model', () => {
   it('painéis com Codex sem hooks', () => {
     const p = (id: string, missing: boolean) => ({ id, agentHooksMissing: missing, alive: true }) as PaneView
     expect(hooksMissingPanes([p('a', false), p('b', true)]).map((x) => x.id)).toEqual(['b'])
+  })
+  it('faixa: hooks não instalados vencem o aviso do /hooks do Codex', () => {
+    const p = (missing: boolean) => ({ id: 'p', agentHooksMissing: missing, alive: true }) as PaneView
+    expect(hooksBanner(['~/.codex/hooks.json'], [p(true)])).toBe('install')
+    expect(hooksBanner([], [p(true)])).toBe('codex-trust')
+    expect(hooksBanner(undefined, [p(false)])).toBe(null)
   })
 })

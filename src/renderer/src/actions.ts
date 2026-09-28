@@ -1,4 +1,4 @@
-import type { Layout, Tab } from '../../shared/types'
+import type { AgentKind, Layout, Tab } from '../../shared/types'
 import { findTab, insertBeside, leaves, neighbor, removeLeaf, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone } from './layout'
 import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
@@ -50,11 +50,12 @@ export async function openNewPane(o: {
   cwd: string
   accountId: string | null
   resumeSessionId?: string
+  resumeAgent?: AgentKind
   paneId?: string
   dir?: 'row' | 'column'
 }): Promise<string> {
   const paneId = o.paneId ?? crypto.randomUUID()
-  await window.gt.request({ t: 'pane.create', paneId, cwd: o.cwd, accountId: o.accountId, resumeSessionId: o.resumeSessionId, cols: 100, rows: 30 })
+  await window.gt.request({ t: 'pane.create', paneId, cwd: o.cwd, accountId: o.accountId, resumeSessionId: o.resumeSessionId, resumeAgent: o.resumeAgent, cols: 100, rows: 30 })
   placePane(paneId, o.dir ?? 'row')
   focusPane(paneId)
   return paneId

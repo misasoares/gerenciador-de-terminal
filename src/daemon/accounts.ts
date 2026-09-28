@@ -21,7 +21,13 @@ const SESSION_ID_RE = /^[0-9a-f-]{8,64}$/i
 export function buildCommand(account: Account, resumeSessionId?: string): string {
   if (!resumeSessionId) return account.command
   if (!SESSION_ID_RE.test(resumeSessionId)) throw new Error(`session id inválido: ${resumeSessionId}`)
-  return `${account.command} --resume ${resumeSessionId}`
+  // Claude: --resume <id>; Codex: subcomando (codex --yolo resume <id>)
+  return account.agent === 'codex' ? `${account.command} resume ${resumeSessionId}` : `${account.command} --resume ${resumeSessionId}`
+}
+
+/** agente usado para retomar sem conta: o padrão daquele tipo, ou o CLI puro */
+export function resumeAccount(accounts: Account[], agent: AgentKind): Account {
+  return accounts.find((a) => a.agent === agent && a.isDefault) ?? accounts.find((a) => a.agent === agent) ?? { id: agent, label: agent, command: agent, color: '#888888', agent, configDirMatch: [], isDefault: false, settingsMatch: null, pathPrefix: null }
 }
 
 export function suggestAccount(accounts: Account[], projectPath: string, userHome: string): string | null {
