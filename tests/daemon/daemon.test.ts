@@ -10,6 +10,7 @@ import { connectApp } from '../helpers/app-client'
 import { RpcClient } from '../../src/shared/rpc-client'
 import { makeRepo, type TestRepo } from '../helpers/repo'
 import { runWithInput } from '../helpers/run'
+import { waitFor } from '../helpers/wait'
 
 let daemons: Daemon[] = []
 let repo: TestRepo | null = null
@@ -121,6 +122,32 @@ describe('Daemon', () => {
     await hook(o, paneId, { ...base, cwd: nova, hook_event_name: 'SessionEnd' }, mslabs)
     st = await app.waitState((s) => s.panes[0]?.claude === null)
     expect(st.panes[0].accountId).toBeNull()
+  })
+
+  it('uso do plano: login aprendido pelo hook, agrupado, sem gateway e com aviso', async () => {
+    repo = makeRepo()
+    const reads: string[] = []
+    const { o, app } = await boot({
+      usageRead: async (l) => {
+        reads.push(l.key)
+        return { kind: 'ok', plan: 'max', windows: [{ kind: 'week', percent: 85, resetsAt: null }] }
+      },
+    })
+    // misa é o padrão: começa lendo o diretório padrão
+    await app.waitState((s) => s.usage.some((u) => u.loginKey === 'claude:'))
+    let st = app.state()!
+    expect(st.usageHints['weboption-max']).toBeTruthy() // ainda sem login descoberto
+    expect(st.usageHints.weboption).toBeUndefined() // gateway: nem aparece
+
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    const mslabs = '/Users/u/.claude-swap-backup/sessions/3-misael_mslabs-dev.com'
+    await hook(o, paneId, { session_id: 's1', cwd: repo.dir, hook_event_name: 'SessionStart', source: 'startup' }, mslabs)
+    st = await app.waitState((s) => s.usage.some((u) => u.loginKey === `claude:${mslabs}`))
+    expect(st.usage.find((u) => u.loginKey === `claude:${mslabs}`)).toMatchObject({ accountIds: ['mslabs'], status: 'ok' })
+    expect(reads).toContain(`claude:${mslabs}`)
+    await app.waitState(() => app.alerts().includes('mslabs: 80% da janela semanal'))
+    await waitFor(() => JSON.parse(fs.readFileSync(o.stateFile, 'utf8')).loginDirs?.mslabs === mslabs)
   })
 
   it('poller: cd no shell muda a worktree; sessão sem processo claude é encerrada', async () => {

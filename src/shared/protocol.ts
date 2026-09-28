@@ -41,6 +41,7 @@ export type ServerMessage =
   | { t: 'reply'; id: number; ok: false; error: string }
   | { t: 'state'; state: AppState }
   | { t: 'pane.data'; paneId: string; data: string; seq: number }
+  | { t: 'usage.alert'; text: string }
 
 /** eventos que o processo principal do Electron entrega ao renderer */
 export type BridgeEvent =
