@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { openNewSessionDialog, PANE_MIME, revealPane } from '../actions'
-import { addProjectFlow, projectMenu, sessionMenu, worktreeMenu } from '../flows'
+import { conflictPartners } from '../conflicts-model'
+import { addProjectFlow, analyzeConflictsFlow, projectMenu, sessionMenu, worktreeMenu } from '../flows'
 import { buildSidebar, isExpanded, railLabel, type ProjectItem, type SessionItem } from '../sidebar-model'
-import { useUi } from '../store'
+import { setUi, useUi } from '../store'
 import { STATUS_DOT } from './PaneHeader'
 
 function Summary({ s }: { s: ProjectItem['summary'] }) {
@@ -81,6 +82,16 @@ function Tree() {
             >
               <span className="sb-caret">{open ? '▾' : '▸'}</span>
               <span className="sb-name">{p.name.toUpperCase()}</span>
+              <button
+                className="sb-mini sb-conflicts"
+                title="Analisar conflitos entre worktrees"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  analyzeConflictsFlow(p.path)
+                }}
+              >
+                ⇄
+              </button>
               {(p.error || p.fetchError) && (
                 <span className="ph-warn" title={p.error ?? p.fetchError ?? ''}>
                   ⚠
@@ -101,6 +112,25 @@ function Tree() {
                     }}
                   >
                     <span className={w.isMain ? 'sb-wt-name' : 'sb-wt-name extra'}>⎇ {w.label}</span>
+                    {(() => {
+                      const view = app.projects.find((x) => x.path === p.path)
+                      const partners = conflictPartners(view?.conflicts ?? null, w.path, (path) => {
+                        const other = view?.worktrees.find((x) => x.path === path)
+                        return other?.isMain ? 'principal' : (path.split('/').pop() ?? path)
+                      })
+                      return partners.length > 0 ? (
+                        <span
+                          className="sb-conflict"
+                          title={`conflita com: ${partners.join(', ')}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setUi({ modal: { kind: 'conflicts', projectPath: p.path } })
+                          }}
+                        >
+                          ⚠
+                        </span>
+                      ) : null
+                    })()}
                     {w.prunable && <span className="sb-dim">pasta apagada</span>}
                     {!w.prunable && w.sessions.length === 0 && <span className="sb-dim">(sem sessão)</span>}
                     {w.git && (w.git.changed > 0 || w.git.ahead > 0 || w.git.behind > 0) && (

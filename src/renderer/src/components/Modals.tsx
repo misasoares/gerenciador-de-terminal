@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ConflictsModal } from './ConflictsModal'
 import { revealPane } from '../actions'
 import { confirmRemove } from '../flows'
 import { headerView } from '../header'
@@ -21,6 +22,7 @@ export function Modals() {
   const app = useUi((s) => s.app)
   const [deleteBranch, setDeleteBranch] = useState(false)
   if (!modal || !app) return null
+  if (modal.kind === 'conflicts') return <ConflictsModal projectPath={modal.projectPath} />
   const close = () => {
     setDeleteBranch(false)
     setUi({ modal: null })

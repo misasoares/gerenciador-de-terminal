@@ -34,6 +34,11 @@ export async function confirmRemove(check: RemoveCheck, deleteBranch: boolean): 
   }
 }
 
+export function analyzeConflictsFlow(projectPath: string): void {
+  setUi({ modal: { kind: 'conflicts', projectPath } })
+  window.gt.request({ t: 'conflicts.analyze', projectPath }).catch(showError)
+}
+
 export async function worktreeMenu(p: ProjectItem, w: WorktreeItem): Promise<void> {
   const choice = await window.gt.contextMenu([
     { id: 'new', label: 'Nova sessão…  ⌘T' },
@@ -55,11 +60,13 @@ export async function projectMenu(p: ProjectItem): Promise<void> {
     ...accounts.map((a) => ({ id: `acct:${a.id}`, label: `${mark(p.defaultAccountId === a.id)}Conta padrão: ${a.label}` })),
     { id: 'acct:', label: `${mark(p.defaultAccountId === null)}Sem conta padrão` },
     { id: '-', label: '' },
+    { id: 'conflicts', label: 'Analisar conflitos entre worktrees…' },
     { id: 'remove', label: 'Remover projeto da lista' },
   ])
   if (!choice) return
   try {
-    if (choice.startsWith('acct:')) {
+    if (choice === 'conflicts') analyzeConflictsFlow(p.path)
+    else if (choice.startsWith('acct:')) {
       await window.gt.request({ t: 'project.setAccount', path: p.path, accountId: choice.slice(5) || null })
     } else if (choice === 'remove') {
       const r = await window.gt.confirm({ message: `Remover ${p.name} da lista?`, detail: 'Nada é apagado do disco; as sessões abertas continuam.', confirmLabel: 'Remover' })

@@ -19,6 +19,7 @@ export type Modal =
   | { kind: 'kill'; paneId: string }
   | { kind: 'remove'; check: RemoveCheck }
   | { kind: 'blocked'; check: RemoveCheck }
+  | { kind: 'conflicts'; projectPath: string }
 
 let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null }
 const subs = new Set<() => void>()
