@@ -5,20 +5,20 @@ const S = '/Users/u/.claude-swap-backup/sessions'
 
 describe('detectAccount', () => {
   it('sem CLAUDE_CONFIG_DIR é a conta padrão', () => {
-    expect(detectAccount(DEFAULT_ACCOUNTS, null, '/Users/u/.local/bin/claude')).toBe('misa')
+    expect(detectAccount(DEFAULT_ACCOUNTS, 'claude', null, '/Users/u/.local/bin/claude')).toBe('misa')
   })
   it('pelo perfil do cswap', () => {
-    expect(detectAccount(DEFAULT_ACCOUNTS, `${S}/3-misael_mslabs-dev.com`, null)).toBe('mslabs')
-    expect(detectAccount(DEFAULT_ACCOUNTS, `${S}/1-misasoaresms2_gmail.com`, null)).toBe('misa')
+    expect(detectAccount(DEFAULT_ACCOUNTS, 'claude', `${S}/3-misael_mslabs-dev.com`, null)).toBe('mslabs')
+    expect(detectAccount(DEFAULT_ACCOUNTS, 'claude', `${S}/1-misasoaresms2_gmail.com`, null)).toBe('misa')
   })
   it('weboption x weboption-max pelo --settings', () => {
     const dir = `${S}/2-weboption2011_gmail.com`
-    expect(detectAccount(DEFAULT_ACCOUNTS, dir, 'claude --settings /Users/u/.config/claude/weboption-gateway.proj.json')).toBe('weboption')
-    expect(detectAccount(DEFAULT_ACCOUNTS, dir, 'claude --settings /Users/u/.config/claude/weboption-max.json')).toBe('weboption-max')
-    expect(detectAccount(DEFAULT_ACCOUNTS, dir, null)).toBe('weboption')
+    expect(detectAccount(DEFAULT_ACCOUNTS, 'claude', dir, 'claude --settings /Users/u/.config/claude/weboption-gateway.proj.json')).toBe('weboption')
+    expect(detectAccount(DEFAULT_ACCOUNTS, 'claude', dir, 'claude --settings /Users/u/.config/claude/weboption-max.json')).toBe('weboption-max')
+    expect(detectAccount(DEFAULT_ACCOUNTS, 'claude', dir, null)).toBe('weboption')
   })
   it('perfil desconhecido não chuta', () => {
-    expect(detectAccount(DEFAULT_ACCOUNTS, `${S}/9-outro`, null)).toBeNull()
+    expect(detectAccount(DEFAULT_ACCOUNTS, 'claude', `${S}/9-outro`, null)).toBeNull()
   })
 })
 

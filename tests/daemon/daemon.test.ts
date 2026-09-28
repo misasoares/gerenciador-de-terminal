@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
+import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import { buildPaneEnv } from '../../src/daemon/panes'
 import { connectApp } from '../helpers/app-client'
 import { RpcClient } from '../../src/shared/rpc-client'
@@ -44,6 +45,10 @@ async function boot(extra: Partial<DaemonOptions> = {}, home = fs.realpathSync(f
   const d = await Daemon.start(o)
   daemons.push(d)
   const app = await connectApp(o.socketPath)
+  // instalação nova começa sem agentes; os testes usam as contas de exemplo (misa, mslabs, weboption…)
+  if (d && (await app.client.request<{ accounts: unknown[] }>({ t: 'state.get' })).accounts.length === 0) {
+    await app.client.request({ t: 'accounts.save', accounts: DEFAULT_ACCOUNTS })
+  }
   return { o, d, app, home }
 }
 
@@ -355,6 +360,18 @@ describe('Daemon', () => {
     await app.waitState(() => (snap.snapshot + app.output(paneId)).includes('digitado') && (snap.snapshot + app.output(paneId)).includes('claude-mslabs'), 8000)
     const all = snap.snapshot + app.output(paneId)
     expect(all.indexOf('claude-mslabs')).toBeLessThan(all.indexOf('digitado'))
+  })
+
+  it('agentes: salva válidos, recusa inválidos sem mexer no estado, detecta CLIs pelo shell', async () => {
+    const shell = path.join(fs.realpathSync(os.tmpdir()), `gt-fake-shell-${process.pid}.sh`)
+    fs.writeFileSync(shell, '#!/bin/sh\necho claude\n', { mode: 0o755 })
+    const { app } = await boot({ detectShell: shell })
+    const claude = { id: 'claude', label: 'Claude', command: 'claude --dangerously-skip-permissions', color: '#d97757', agent: 'claude' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
+    await app.client.request({ t: 'accounts.save', accounts: [claude] })
+    await app.waitState((s) => s.accounts.length === 1 && s.accounts[0].agent === 'claude')
+    await expect(app.client.request({ t: 'accounts.save', accounts: [claude, claude] })).rejects.toThrow('repetido')
+    expect(app.state()!.accounts).toHaveLength(1)
+    await expect(app.client.request({ t: 'agents.detect' })).resolves.toEqual({ claude: true, codex: false })
   })
 
   it('erros de requisição voltam como mensagem', async () => {

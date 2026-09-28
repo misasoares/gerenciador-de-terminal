@@ -12,12 +12,16 @@ export interface ClaudeSession {
   transcriptPath: string | null
 }
 
+export type AgentKind = 'claude' | 'codex'
+
 export interface Account {
   id: string
   label: string
   /** comando digitado no shell, ex.: "claude-mslabs" */
   command: string
   color: string
+  /** qual CLI este agente abre: define hooks, detecção e tipo mostrado na interface */
+  agent: AgentKind
   /** trechos de CLAUDE_CONFIG_DIR que identificam a conta */
   configDirMatch: string[]
   /** conta usada quando CLAUDE_CONFIG_DIR não está definido */

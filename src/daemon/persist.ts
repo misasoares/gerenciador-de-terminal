@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Account, Layout, ProjectConfig, ResumeEntry } from '../shared/types'
-import { DEFAULT_ACCOUNTS } from './accounts'
+import { migrateAccounts } from './accounts'
 import { DEFAULT_SETTINGS, normalizeSettings, type TerminalSettings } from '../shared/settings'
 
 export interface PersistedPane {
@@ -28,7 +28,7 @@ export function defaultPersisted(): Persisted {
     version: 1,
     projects: [],
     layout: { tabs: [], activeTabId: null },
-    accounts: DEFAULT_ACCOUNTS.map((a) => ({ ...a, configDirMatch: [...a.configDirMatch] })),
+    accounts: [],
     panes: [],
     resumable: [],
     fetchIntervalMin: 5,
@@ -51,7 +51,7 @@ export function loadPersisted(file: string): Persisted {
       ...base,
       ...parsed,
       version: 1,
-      accounts: parsed.accounts?.length ? parsed.accounts : base.accounts,
+      accounts: Array.isArray(parsed.accounts) ? migrateAccounts(parsed.accounts) : base.accounts,
       paneMeta: parsed.paneMeta ?? {},
       settings: normalizeSettings(parsed.settings),
     }

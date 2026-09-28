@@ -207,7 +207,7 @@ export class PaneManager {
       rec.launchedAccountId = null
       rec.accountId = null
     } else if (!hadSession && !rec.launchedAccountId) {
-      rec.accountId = detectAccount(this.d.accounts(), configDir, rec.claudeArgv)
+      rec.accountId = detectAccount(this.d.accounts(), 'claude', configDir, rec.claudeArgv)
     }
     this.d.onChange()
 
@@ -243,7 +243,7 @@ export class PaneManager {
       if (argv !== rec.claudeArgv) {
         rec.claudeArgv = argv
         if (rec.claude && argv && !rec.launchedAccountId) {
-          rec.accountId = detectAccount(this.d.accounts(), rec.configDir, argv)
+          rec.accountId = detectAccount(this.d.accounts(), 'claude', rec.configDir, argv)
           changed = true
         }
       }

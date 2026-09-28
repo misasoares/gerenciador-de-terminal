@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process'
 import path from 'node:path'
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
@@ -5,7 +6,7 @@ import type { AppState, ConflictReport } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
-import { suggestAccount } from './accounts'
+import { suggestAccount, validateAccounts } from './accounts'
 import { GitMonitor } from './git/monitor'
 import { checkProfiles, hookCommand, installHooks, writeHookScript } from './hooks'
 import { PaneManager, buildPaneEnv } from './panes'
@@ -27,6 +28,8 @@ export interface DaemonOptions {
   gitPollMs?: number
   fetchIntervalMs?: number
   conflictsDebounceMs?: number
+  /** shell usado para detectar claude/codex (testes injetam um falso) */
+  detectShell?: string
   onShutdown?: () => void
 }
 
@@ -62,6 +65,10 @@ export class Daemon {
    */
   private get canonicalHookScript(): string {
     return path.join(this.o.userHome, '.gerenciador-terminal', 'bin', 'gt-hook')
+  }
+
+  private checkHookTargets(): string[] {
+    return checkProfiles(this.o.userHome, this.hookCmd)
   }
 
   private get hookCmd(): string {
@@ -104,7 +111,7 @@ export class Daemon {
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
       },
     })
-    this.hookWarnings = checkProfiles(this.o.userHome, this.hookCmd)
+    this.hookWarnings = this.checkHookTargets()
     this.server = await startServer(this.o.socketPath, (req, conn) => this.handle(req, conn))
     await this.registry.refreshAll()
     this.monitor.startFetch(() => this.registry.list().map((c) => c.path), this.o.fetchIntervalMs ?? p.fetchIntervalMin * 60_000)
@@ -260,6 +267,17 @@ export class Daemon {
     if (this.conflictRerun.delete(projectPath)) void this.analyzeConflicts(projectPath)
   }
 
+  private detectAgents(): Promise<{ claude: boolean; codex: boolean }> {
+    const shell = this.o.detectShell ?? this.o.shell
+    const script = 'command -v claude >/dev/null 2>&1 && echo claude; command -v codex >/dev/null 2>&1 && echo codex; true'
+    return new Promise((resolve) => {
+      execFile(shell, ['-ilc', script], { timeout: 15_000, env: buildPaneEnv(this.o.env ?? process.env) }, (_err, stdout) => {
+        const found = new Set(String(stdout ?? '').split(/\s+/))
+        resolve({ claude: found.has('claude'), codex: found.has('codex') })
+      })
+    })
+  }
+
   private async handle(req: ClientRequest, conn: Conn): Promise<unknown> {
     switch (req.t) {
       case 'hello':
@@ -313,6 +331,16 @@ export class Daemon {
         this.changed()
         return null
       }
+      case 'accounts.save': {
+        const err = validateAccounts(req.accounts)
+        if (err) throw new Error(err)
+        this.persisted.accounts = req.accounts.map((a) => ({ ...a, configDirMatch: [...a.configDirMatch] }))
+        this.hookWarnings = this.checkHookTargets()
+        this.changed()
+        return null
+      }
+      case 'agents.detect':
+        return this.detectAgents()
       case 'settings.save':
         this.persisted.settings = normalizeSettings(req.settings)
         this.changed()
@@ -347,7 +375,7 @@ export class Daemon {
         return null
       case 'hooks.install':
         for (const f of this.hookWarnings) installHooks(f, this.hookCmd)
-        this.hookWarnings = checkProfiles(this.o.userHome, this.hookCmd)
+        this.hookWarnings = this.checkHookTargets()
         this.changed(false)
         return null
       case 'resume.dismiss':
