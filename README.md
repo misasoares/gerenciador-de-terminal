@@ -1,6 +1,6 @@
 # Gerenciador de Terminal
 
-App para macOS que hospeda várias sessões do Claude Code em splits livres e mostra, por painel,
+App para macOS e Linux que hospeda várias sessões do Claude Code e do Codex em splits livres e mostra, por painel,
 projeto, worktree, branch, alterações, commits para push/pull, estado da sessão e conta.
 
 ## Como funciona
@@ -23,6 +23,14 @@ Abas não ativas ganham uma bolinha quando algo nelas espera você; o Dock mostr
 
 ## Conflitos entre worktrees
 Botão ⇄ no projeto: compara cada worktree com a main e com cada outra (inclui alterações não commitadas), sem mexer em nada.
+
+## Linux (AppImage x64)
+    chmod +x gerenciador-de-terminal-*-x64.AppImage
+    ./gerenciador-de-terminal-*-x64.AppImage
+Na primeira abertura o assistente configura Claude e/ou Codex (padrão: `claude --dangerously-skip-permissions` e `codex --yolo`) e instala os hooks.
+Os hooks usam `nc -U`: se a distro não tiver, instale `netcat-openbsd` (Debian/Ubuntu já vêm com ele).
+No Codex, confie no hook uma vez: abra o Codex, digite `/hooks` e aprove o hook do Gerenciador de Terminal.
+Build: `npm run pack:linux` (precisa de Docker; compila e roda os testes num container linux/amd64).
 
 ## Encerrar de verdade
 Menu do app → "Encerrar tudo" (as sessões ficam disponíveis para retomar na próxima abertura).
