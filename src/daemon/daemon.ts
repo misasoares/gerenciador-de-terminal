@@ -4,6 +4,7 @@ import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
 import type { AppState, ConflictReport } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
+import { BUILD_ID } from '../shared/build'
 import { suggestAccount } from './accounts'
 import { GitMonitor } from './git/monitor'
 import { checkProfiles, hookCommand, installHooks, writeHookScript } from './hooks'
@@ -91,7 +92,10 @@ export class Daemon {
       baseEnv: buildPaneEnv(this.o.env ?? process.env),
       fallbackCwd: this.o.userHome,
       onData: (id, data) => {
-        for (const c of this.server?.conns ?? []) if (c.subscriptions.has(id)) c.send({ t: 'pane.data', paneId: id, data })
+        for (const c of this.server?.conns ?? []) {
+          const seq = c.subscriptions.get(id)
+          if (seq !== undefined) c.send({ t: 'pane.data', paneId: id, data, seq })
+        }
       },
       onChange: () => this.changed(),
       onGitHint: (wt) => this.monitor.refresh(wt),
@@ -255,7 +259,7 @@ export class Daemon {
       case 'hello':
         conn.role = req.role
         if (req.role === 'app') setImmediate(() => conn.send({ t: 'state', state: this.buildState() }))
-        return { protocolVersion: PROTOCOL_VERSION }
+        return { protocolVersion: PROTOCOL_VERSION, buildId: BUILD_ID }
       case 'state.get':
         return this.buildState()
       case 'hook':
@@ -272,9 +276,12 @@ export class Daemon {
       case 'pane.attach': {
         if (req.cols && req.rows) this.panes.resize(req.paneId, req.cols, req.rows)
         const snapshot = this.panes.host.serialize(req.paneId)
-        conn.subscriptions.add(req.paneId)
+        conn.subscriptions.set(req.paneId, req.seq ?? 0)
         return { snapshot }
       }
+      case 'pane.detach':
+        conn.subscriptions.delete(req.paneId)
+        return null
       case 'pane.input':
         this.panes.write(req.paneId, req.data)
         return null

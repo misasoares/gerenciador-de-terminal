@@ -5,7 +5,7 @@ import { errorMessage } from './api'
 export interface UiState {
   app: AppState | null
   connected: boolean
-  versionMismatch: { daemon: number; app: number } | null
+  versionMismatch: { daemon: string; app: string } | null
   focusedPaneId: string | null
   newSession: { projectPath: string | null; worktreePath: string | null } | null
   error: string | null

@@ -43,7 +43,7 @@ describe('I5: DaemonLink reconecta com um cliente só', () => {
     const p = sock()
     server = await startServer(p, (req, conn) => {
       if (req.t === 'hello') conn.role = 'app'
-      return { protocolVersion: 1 }
+      return { protocolVersion: 2, buildId: 'test' }
     })
     const events: string[] = []
     const link = new DaemonLink({ socketPath: p, daemonScript: '/nao/usado', onEvent: (e) => events.push(e.t), spawnDaemon: () => {} })
@@ -61,13 +61,26 @@ describe('I5: DaemonLink reconecta com um cliente só', () => {
         }
         conn.role = 'app'
       }
-      return { protocolVersion: 1 }
+      return { protocolVersion: 2, buildId: 'test' }
     })
     await new Promise((r) => setTimeout(r, 3500))
     const apps = [...server.conns].filter((c) => c.role === 'app')
     expect(apps).toHaveLength(1)
     expect(events.filter((e) => e === 'reconnected')).toHaveLength(1)
-    await expect(link.request({ t: 'state.get' })).resolves.toEqual({ protocolVersion: 1 })
+    await expect(link.request({ t: 'state.get' })).resolves.toEqual({ protocolVersion: 2, buildId: 'test' })
+    await link.shutdownDaemon(false)
+  })
+})
+
+describe('aviso de versão', () => {
+  it('buildId diferente dispara version-mismatch', async () => {
+    const { DaemonLink } = await import('../../src/main/daemon-link')
+    const p = sock()
+    server = await startServer(p, () => ({ protocolVersion: 2, buildId: 'outro-build' }))
+    const events: { t: string }[] = []
+    const link = new DaemonLink({ socketPath: p, daemonScript: '/nao/usado', onEvent: (e) => events.push(e), spawnDaemon: () => {} })
+    await link.start()
+    expect(events).toContainEqual({ t: 'version-mismatch', daemon: 'v2 · outro-build', app: 'v2 · test' })
     await link.shutdownDaemon(false)
   })
 })

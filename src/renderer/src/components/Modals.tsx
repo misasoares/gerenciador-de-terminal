@@ -126,6 +126,13 @@ export function Modals() {
       ) : (
         <p className="ok">✓ Tudo commitado e enviado</p>
       )}
+      {c.ignoredFiles.length > 0 && (
+        <div className="modal-warn">
+          ⚠ {c.ignoredFiles.length} {c.ignoredFiles.length === 1 ? 'arquivo ignorado pelo git será apagado' : 'arquivos ignorados pelo git serão apagados'}:{' '}
+          {c.ignoredFiles.slice(0, 8).join(', ')}
+          {c.ignoredFiles.length > 8 ? '…' : ''}
+        </div>
+      )}
       {c.branch && (
         <label className="check">
           <input type="checkbox" checked={deleteBranch} onChange={(e) => setDeleteBranch(e.target.checked)} /> Apagar a branch {c.branch} também
@@ -143,7 +150,7 @@ export function Modals() {
             void confirmRemove(c, d)
           }}
         >
-          {risky ? 'Remover mesmo assim' : 'Remover'}
+          {risky || c.ignoredFiles.length > 0 ? 'Remover mesmo assim' : 'Remover'}
         </button>
       </div>
     </Backdrop>

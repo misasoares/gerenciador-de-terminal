@@ -25,7 +25,7 @@ describe('checkRemove', () => {
   it('worktree limpa e sem commits próprios', async () => {
     const { wt } = await setup()
     const c = await checkRemove({ mainPath: repo!.dir, worktree: wt, mainBranch: 'main', hasOpenSession: false })
-    expect(c).toEqual({ path: wt.path, branch: 'feat-x', isMain: false, hasOpenSession: false, dirtyFiles: [], unpushedCommits: [] })
+    expect(c).toEqual({ path: wt.path, branch: 'feat-x', isMain: false, hasOpenSession: false, dirtyFiles: [], unpushedCommits: [], ignoredFiles: [] })
   })
 
   it('lista arquivos alterados e commits fora do remoto e da main', async () => {
@@ -102,5 +102,39 @@ describe('pelo daemon', () => {
     await app.client.request({ t: 'worktree.remove', path: wt.path, force: true, deleteBranch: true })
     await app.waitState((s) => s.projects[0].worktrees.length === 1)
     app.client.close()
+  })
+})
+
+describe('ajustes da remoção', () => {
+  it('lista ignorados relevantes (sem node_modules/dist)', async () => {
+    const { wt } = await setup()
+    fs.writeFileSync(path.join(wt.path, '.gitignore'), '.env\nnode_modules/\ndist/\n')
+    repo!.git('-C', wt.path, 'add', '.gitignore'); repo!.git('-C', wt.path, 'commit', '-qm', 'ignore')
+    fs.writeFileSync(path.join(wt.path, '.env'), 'SEGREDO=1\n')
+    fs.mkdirSync(path.join(wt.path, 'node_modules', 'x'), { recursive: true }); fs.writeFileSync(path.join(wt.path, 'node_modules', 'x', 'i.js'), '')
+    fs.mkdirSync(path.join(wt.path, 'dist')); fs.writeFileSync(path.join(wt.path, 'dist', 'b.js'), '')
+    const c = await checkRemove({ mainPath: repo!.dir, worktree: wt, mainBranch: 'main', hasOpenSession: false })
+    expect(c.ignoredFiles).toEqual(['.env'])
+  })
+
+  it('arquivo com o nome da branch principal não quebra a checagem', async () => {
+    const { wt } = await setup()
+    repo!.write('main', 'arquivo chamado main\n'); repo!.git('add', 'main'); repo!.git('commit', '-qm', 'arquivo main')
+    fs.writeFileSync(path.join(wt.path, 'a.txt'), '1'); repo!.git('-C', wt.path, 'add', '.'); repo!.git('-C', wt.path, 'commit', '-qm', 'a')
+    const c = await checkRemove({ mainPath: repo!.dir, worktree: wt, mainBranch: 'main', hasOpenSession: false })
+    expect(c.unpushedCommits).toHaveLength(1)
+  })
+
+  it('prunable: remove só a escolhida', async () => {
+    const { wt } = await setup('wt um')
+    const outra = path.join(repo!.root, 'wt dois')
+    repo!.git('worktree', 'add', '-b', 'dois', outra)
+    fs.rmSync(wt.path, { recursive: true, force: true })
+    fs.rmSync(outra, { recursive: true, force: true })
+    const r = await listWorktrees(repo!.dir)
+    const alvo = r.ok ? r.worktrees.find((w) => w.path === wt.path)! : wt
+    await removeWorktree({ mainPath: repo!.dir, worktree: alvo, force: false, deleteBranch: false })
+    const depois = await listWorktrees(repo!.dir)
+    expect(depois.ok && depois.worktrees.map((w) => w.path)).toEqual([repo!.dir, outra])
   })
 })

@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { RpcClient } from '../shared/rpc-client'
+import { BUILD_ID } from '../shared/build'
 import { PROTOCOL_VERSION, type BridgeEvent, type ClientRequest } from '../shared/protocol'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -62,9 +63,9 @@ export class DaemonLink {
 
   private async connectOnce(isReconnect: boolean): Promise<void> {
     const client = await ensureDaemon(this.o.socketPath, this.o.spawnDaemon ?? (() => spawnDetached(this.o.daemonScript, process.env)))
-    let hello: { protocolVersion: number }
+    let hello: { protocolVersion: number; buildId?: string }
     try {
-      hello = await client.request<{ protocolVersion: number }>({ t: 'hello', role: 'app', version: PROTOCOL_VERSION })
+      hello = await client.request<{ protocolVersion: number; buildId?: string }>({ t: 'hello', role: 'app', version: PROTOCOL_VERSION })
     } catch (e) {
       client.close()
       throw e
@@ -81,8 +82,8 @@ export class DaemonLink {
       this.o.onEvent({ t: 'disconnected' })
       void this.reconnectLoop()
     })
-    if (hello.protocolVersion !== PROTOCOL_VERSION) {
-      this.o.onEvent({ t: 'version-mismatch', daemon: hello.protocolVersion, app: PROTOCOL_VERSION })
+    if (hello.protocolVersion !== PROTOCOL_VERSION || hello.buildId !== BUILD_ID) {
+      this.o.onEvent({ t: 'version-mismatch', daemon: `v${hello.protocolVersion} · ${hello.buildId ?? '?'}`, app: `v${PROTOCOL_VERSION} · ${BUILD_ID}` })
     }
     if (isReconnect) this.o.onEvent({ t: 'reconnected' })
   }

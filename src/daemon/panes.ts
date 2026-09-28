@@ -6,7 +6,7 @@ import { cwdOf, findClaude, foregroundOf, snapshotProcs } from './platform/procs
 import type { ProjectRegistry } from './projects'
 import { PtyHost } from './pty-host'
 import { markSeen, reduceSession } from './session'
-import { readTitle } from './title'
+import { createTitleReader } from './title'
 
 export interface PaneRecord {
   id: string
@@ -76,11 +76,17 @@ export class PaneManager {
   readonly host: PtyHost
   private recs = new Map<string, PaneRecord>()
   private seq = 0
+  private readTitle = createTitleReader()
+  private pendingCommands = new Map<string, { command: string; quiet: NodeJS.Timeout | null; max: NodeJS.Timeout }>()
 
   constructor(private d: PaneManagerDeps) {
     this.host = new PtyHost({
-      data: (id, data) => d.onData(id, data),
+      data: (id, data) => {
+        this.onPtyOutput(id)
+        d.onData(id, data)
+      },
       exit: (id, code) => {
+        this.dropPending(id)
         const r = this.recs.get(id)
         if (!r) return
         r.alive = false
@@ -127,7 +133,10 @@ export class PaneManager {
       worktreePath: null,
     }
     this.recs.set(id, rec)
-    if (command) this.host.write(id, command + '\r')
+    if (command) {
+      // espera o shell mostrar o prompt (primeira saída + 300ms de silêncio), no máximo 5s
+      this.pendingCommands.set(id, { command, quiet: null, max: setTimeout(() => this.flushCommand(id), 5000) })
+    }
     void this.relocate(rec)
     this.d.onChange()
     return rec
@@ -145,7 +154,30 @@ export class PaneManager {
     this.host.kill(id)
   }
 
+  private onPtyOutput(id: string): void {
+    const p = this.pendingCommands.get(id)
+    if (!p) return
+    if (p.quiet) clearTimeout(p.quiet)
+    p.quiet = setTimeout(() => this.flushCommand(id), 300)
+  }
+
+  private flushCommand(id: string): void {
+    const p = this.pendingCommands.get(id)
+    if (!p) return
+    this.dropPending(id)
+    this.host.write(id, p.command + '\r')
+  }
+
+  private dropPending(id: string): void {
+    const p = this.pendingCommands.get(id)
+    if (!p) return
+    this.pendingCommands.delete(id)
+    if (p.quiet) clearTimeout(p.quiet)
+    clearTimeout(p.max)
+  }
+
   forget(id: string): void {
+    this.dropPending(id)
     const r = this.recs.get(id)
     if (!r) return
     if (r.alive) this.host.kill(id)
@@ -186,7 +218,7 @@ export class PaneManager {
     if (rec.worktreePath && GIT_HINT_EVENTS.has(ev)) this.d.onGitHint(rec.worktreePath)
     if (rec.claude?.transcriptPath && TITLE_EVENTS.has(ev)) {
       const sessionId = rec.claude.sessionId
-      const title = await readTitle(rec.claude.transcriptPath)
+      const title = await this.readTitle(rec.claude.transcriptPath)
       if (rec.claude && rec.claude.sessionId === sessionId && title !== rec.claude.title) {
         rec.claude = { ...rec.claude, title }
         this.d.onChange()

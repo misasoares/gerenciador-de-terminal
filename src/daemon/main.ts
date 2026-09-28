@@ -3,6 +3,7 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { Daemon, defaultShell } from './daemon'
+import { acquireLock, releaseLock } from './lock'
 
 function alreadyRunning(sock: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -35,6 +36,12 @@ async function main(): Promise<void> {
     console.log('já existe um daemon rodando; saindo')
     process.exit(0)
   }
+  const lockPath = path.join(home, 'daemon.lock')
+  if (!acquireLock(lockPath)) {
+    console.log('outro daemon está iniciando; saindo')
+    process.exit(0)
+  }
+  process.on('exit', () => releaseLock(lockPath))
   const daemon = await Daemon.start({
     home,
     socketPath,

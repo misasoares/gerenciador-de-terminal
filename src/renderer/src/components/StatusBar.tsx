@@ -39,7 +39,7 @@ export function StatusBar() {
       )}
       {vm && !dismissed.vm && (
         <span className="st-item">
-          ⓘ daemon v{vm.daemon} · app v{vm.app}{' '}
+          ⓘ daemon {vm.daemon} · app {vm.app}{' '}
           <button className="st-btn" onClick={() => void restartDaemonFlow()}>
             Reiniciar daemon quando eu quiser
           </button>

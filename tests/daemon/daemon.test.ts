@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
 import { buildPaneEnv } from '../../src/daemon/panes'
 import { connectApp } from '../helpers/app-client'
+import { RpcClient } from '../../src/shared/rpc-client'
 import { makeRepo, type TestRepo } from '../helpers/repo'
 import { runWithInput } from '../helpers/run'
 
@@ -272,6 +273,48 @@ describe('Daemon', () => {
     expect(cmds).toEqual([`sh -c '[ -x "$0" ] && exec "$0"; cat >/dev/null' "${canonical}"`])
     expect(fs.statSync(canonical).mode & 0o111).not.toBe(0)
     expect(o.hookScriptPath).not.toBe(canonical)
+  })
+
+  it('attach com sequência: dados levam o seq do último attach; detach para o envio', async () => {
+    repo = makeRepo()
+    const { app } = await boot()
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await new Promise((r) => setTimeout(r, 500)) // o prompt inicial do sh sai antes de qualquer assinatura
+    const seqs: number[] = []
+    app.client.onMessage((m) => { if (m.t === 'pane.data' && m.paneId === paneId) seqs.push(m.seq) })
+    await app.client.request({ t: 'pane.attach', paneId, seq: 1 })
+    await app.client.request({ t: 'pane.attach', paneId, seq: 2 })
+    app.client.send({ t: 'pane.input', paneId, data: 'echo um\r' })
+    await app.waitState(() => seqs.length > 0)
+    expect(new Set(seqs)).toEqual(new Set([2]))
+    await app.client.request({ t: 'pane.detach', paneId })
+    const n = seqs.length
+    app.client.send({ t: 'pane.input', paneId, data: 'echo dois\r' })
+    await new Promise((r) => setTimeout(r, 500))
+    expect(seqs.length).toBe(n)
+  })
+
+  it('comando da conta espera o prompt, e sai mesmo se o shell nunca imprimir nada', async () => {
+    repo = makeRepo()
+    const slow = await boot({ shellArgs: ['-c', 'sleep 1; printf "PRONTO\\n"; exec cat'] })
+    const a = await slow.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'mslabs', cols: 80, rows: 24 })
+    const snap = await slow.app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId: a.paneId })
+    await slow.app.waitState(() => (snap.snapshot + slow.app.output(a.paneId)).includes('claude-mslabs'), 8000)
+    const all = snap.snapshot + slow.app.output(a.paneId)
+    expect(all.indexOf('PRONTO')).toBeGreaterThanOrEqual(0)
+    expect(all.indexOf('PRONTO')).toBeLessThan(all.indexOf('claude-mslabs'))
+
+    const mute = await boot({ shellArgs: ['-c', 'exec cat'] })
+    const b = await mute.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'mslabs', cols: 80, rows: 24 })
+    const snapB = await mute.app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId: b.paneId })
+    await mute.app.waitState(() => (snapB.snapshot + mute.app.output(b.paneId)).includes('claude-mslabs'), 8000)
+  }, 20_000)
+
+  it('hello informa a versão do protocolo e o buildId', async () => {
+    const { o } = await boot()
+    const c = await RpcClient.connect(o.socketPath)
+    await expect(c.request({ t: 'hello', role: 'app', version: 2 })).resolves.toEqual({ protocolVersion: 2, buildId: 'test' })
+    c.close()
   })
 
   it('erros de requisição voltam como mensagem', async () => {

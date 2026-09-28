@@ -29,7 +29,7 @@ cfg=$(printf '%s' "\${CLAUDE_CONFIG_DIR:-}" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/
   printf '{"id":0,"req":{"t":"hook","paneId":"%s","configDir":"%s","payload":' "$GT_PANE_ID" "$cfg"
   tr -d '\\n\\r'
   printf '}}\\n'
-} | nc -U -w 2 "$GT_SOCKET" >/dev/null 2>&1
+} | nc -U -w 1 "$GT_SOCKET" >/dev/null 2>&1
 exit 0
 `
 

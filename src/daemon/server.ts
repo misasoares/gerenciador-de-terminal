@@ -5,7 +5,8 @@ import type { ClientRequest, RequestEnvelope, ServerMessage } from '../shared/pr
 
 export interface Conn {
   role: 'app' | 'hook' | null
-  subscriptions: Set<string>
+  /** paneId → seq do último attach desta conexão */
+  subscriptions: Map<string, number>
   send(m: ServerMessage): void
   end(): void
 }
@@ -32,7 +33,7 @@ export async function startServer(socketPath: string, handler: Handler): Promise
     const dec = new LineDecoder()
     const conn: Conn = {
       role: null,
-      subscriptions: new Set(),
+      subscriptions: new Map(),
       send: (m) => {
         if (!sock.destroyed) sock.write(encode(m))
       },

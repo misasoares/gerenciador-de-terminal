@@ -131,6 +131,8 @@ export interface RemoveCheck {
   hasOpenSession: boolean
   dirtyFiles: string[]
   unpushedCommits: string[]
+  /** ignorados pelo git que seriam apagados (sem node_modules/dist/caches) */
+  ignoredFiles: string[]
 }
 
 export interface ConflictReport {

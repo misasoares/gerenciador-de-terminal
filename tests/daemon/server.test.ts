@@ -29,7 +29,7 @@ describe('rpc', () => {
     const seen: string[] = []
     server = await startServer(p, (req, conn) => {
       seen.push(req.t)
-      if (req.t === 'hello') conn.send({ t: 'pane.data', paneId: 'x', data: 'oi' })
+      if (req.t === 'hello') conn.send({ t: 'pane.data', paneId: 'x', data: 'oi', seq: 0 })
       return null
     })
     const c = await RpcClient.connect(p)

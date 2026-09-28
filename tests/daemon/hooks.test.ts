@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -93,6 +94,21 @@ describe('script gt-hook', () => {
     expect(hookCommand(script)).toBe(`sh -c '[ -x "$0" ] && exec "$0"; cat >/dev/null' "${script}"`)
     return { dir, script }
   }
+
+  it('daemon congelado (processo parado): o hook desiste em ~1 s', async () => {
+    const { dir, script } = setup()
+    const sock = path.join(dir, 'd.sock')
+    const frozen = spawn(process.execPath, ['-e', `require('net').createServer(() => {}).listen(${JSON.stringify(sock)}); setInterval(() => {}, 1000)`])
+    try {
+      await waitFor(() => fs.existsSync(sock))
+      process.kill(frozen.pid!, 'SIGSTOP')
+      const r = await runWithInput('/bin/sh', [script], '{}', { PATH: '/usr/bin:/bin', GT_PANE_ID: 'p1', GT_SOCKET: sock })
+      expect(r).toMatchObject({ code: 0, stdout: '' })
+      expect(r.ms).toBeLessThan(1600)
+    } finally {
+      frozen.kill('SIGKILL')
+    }
+  })
 
   it('fora do app: sai 0, rápido e sem stdout', async () => {
     const { script } = setup()
