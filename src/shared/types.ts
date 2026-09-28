@@ -125,3 +125,16 @@ export interface RemoveCheck {
   dirtyFiles: string[]
   unpushedCommits: string[]
 }
+
+export interface ConflictReport {
+  analyzedAt: number
+  running: boolean
+  /** quantos merge-tree foram executados */
+  comparisons: number
+  /** toda worktree não principal analisada; files vazio = sem conflito com a main */
+  vsMain: { worktreePath: string; files: string[]; dirty: boolean }[]
+  /** só os pares em conflito */
+  pairs: { a: string; b: string; files: string[]; dirty: boolean }[]
+  cleanPairs: number
+  errors: { worktreePath: string; message: string }[]
+}
