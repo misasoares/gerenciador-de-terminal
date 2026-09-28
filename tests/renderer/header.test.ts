@@ -40,3 +40,14 @@ describe('headerView', () => {
     expect(headerView(pane({}), app).label).toBe('terminal 1')
   })
 })
+
+describe('texto sobre a cor da sessão', () => {
+  it('usa a cor de texto com mais contraste (WCAG): preto nas 8 cores da paleta, branco em cores escuras', async () => {
+    const { textOn } = await import('../../src/renderer/src/header')
+    const { SESSION_COLORS } = await import('../../src/shared/settings')
+    for (const c of SESSION_COLORS) expect(textOn(c.hex), c.label).toBe('#111111')
+    expect(textOn('#1e3a8a')).toBe('#ffffff') // azul escuro
+    expect(textOn('#000000')).toBe('#ffffff')
+    expect(textOn('#ffffff')).toBe('#111111')
+  })
+})

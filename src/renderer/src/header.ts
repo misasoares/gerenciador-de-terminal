@@ -43,3 +43,14 @@ export function headerView(pane: PaneView, app: Pick<AppState, 'projects' | 'acc
     label: pane.name ?? pane.claude?.title ?? (pane.claude ? `sessão ${pane.seq}` : `terminal ${pane.seq}`),
   }
 }
+
+function channel(hex: string, i: number): number {
+  const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+}
+
+/** cor de texto (preto ou branco) com mais contraste sobre o fundo, pela luminância relativa do WCAG */
+export function textOn(bg: string): string {
+  const l = 0.2126 * channel(bg, 0) + 0.7152 * channel(bg, 1) + 0.0722 * channel(bg, 2)
+  return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? '#111111' : '#ffffff'
+}
