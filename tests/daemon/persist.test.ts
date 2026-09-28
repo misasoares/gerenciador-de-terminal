@@ -29,4 +29,12 @@ describe('persistência', () => {
     expect(loadPersisted(f)).toEqual(defaultPersisted())
     expect(fs.readdirSync(dir).some((n) => n.startsWith('state.json.corrupt-'))).toBe(true)
   })
+
+  it('loginDirs e usageNotified têm padrão e fazem ida e volta', () => {
+    expect(defaultPersisted()).toMatchObject({ loginDirs: {}, usageNotified: [] })
+    const f = path.join(tmp(), 'state.json')
+    const data = { ...defaultPersisted(), loginDirs: { mslabs: '/x/3-m' }, usageNotified: ['claude:/x|week|1|80'] }
+    savePersisted(f, data)
+    expect(loadPersisted(f)).toEqual(data)
+  })
 })

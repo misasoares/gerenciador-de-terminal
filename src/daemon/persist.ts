@@ -22,6 +22,10 @@ export interface Persisted {
   fetchIntervalMin: number
   paneMeta: Record<string, { name: string | null; color: string | null }>
   settings: TerminalSettings
+  /** último CLAUDE_CONFIG_DIR/CODEX_HOME visto por agente ('' = diretório padrão) */
+  loginDirs: Record<string, string>
+  /** chaves de aviso de uso já disparadas (loginKey|janela|resetsAt|limiar) */
+  usageNotified: string[]
 }
 
 export function defaultPersisted(): Persisted {
@@ -35,6 +39,8 @@ export function defaultPersisted(): Persisted {
     fetchIntervalMin: 5,
     paneMeta: {},
     settings: { ...DEFAULT_SETTINGS },
+    loginDirs: {},
+    usageNotified: [],
   }
 }
 
@@ -55,6 +61,8 @@ export function loadPersisted(file: string): Persisted {
       accounts: Array.isArray(parsed.accounts) ? migrateAccounts(parsed.accounts) : base.accounts,
       paneMeta: parsed.paneMeta ?? {},
       settings: normalizeSettings(parsed.settings),
+      loginDirs: parsed.loginDirs && typeof parsed.loginDirs === 'object' ? parsed.loginDirs : {},
+      usageNotified: Array.isArray(parsed.usageNotified) ? parsed.usageNotified.filter((k) => typeof k === 'string') : [],
     }
   } catch {
     fs.renameSync(file, `${file}.corrupt-${Date.now()}`)

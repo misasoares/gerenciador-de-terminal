@@ -4,7 +4,7 @@ import type { Account, AgentKind } from '../shared/types'
 export const DEFAULT_ACCOUNTS: Account[] = [
   { agent: 'claude', id: 'misa', label: 'misa', command: 'claude', color: '#4fc1ff', configDirMatch: ['1-misasoaresms2'], isDefault: true, settingsMatch: null, pathPrefix: null },
   { agent: 'claude', id: 'mslabs', label: 'mslabs', command: 'claude-mslabs', color: '#c586c0', configDirMatch: ['3-misael_mslabs-dev.com'], isDefault: false, settingsMatch: null, pathPrefix: null },
-  { agent: 'claude', id: 'weboption', label: 'weboption', command: 'claude-weboption', color: '#dcdcaa', configDirMatch: ['2-weboption2011_gmail.com'], isDefault: false, settingsMatch: 'weboption-gateway', pathPrefix: '~/Documents/weboption' },
+  { agent: 'claude', id: 'weboption', label: 'weboption', command: 'claude-weboption', color: '#dcdcaa', configDirMatch: ['2-weboption2011_gmail.com'], isDefault: false, settingsMatch: 'weboption-gateway', pathPrefix: '~/Documents/weboption', planUsage: false },
   { agent: 'claude', id: 'weboption-max', label: 'weboption-max', command: 'claude-weboption-max', color: '#ce9178', configDirMatch: ['2-weboption2011_gmail.com'], isDefault: false, settingsMatch: 'weboption-max', pathPrefix: null },
 ]
 
@@ -73,6 +73,7 @@ export function migrateAccounts(list: unknown[]): Account[] {
       isDefault: Boolean(a.isDefault),
       settingsMatch: a.settingsMatch ?? null,
       pathPrefix: a.pathPrefix ?? null,
+      planUsage: typeof a.planUsage === 'boolean' ? a.planUsage : !(a.settingsMatch ?? '').includes('gateway'),
     }
   })
 }

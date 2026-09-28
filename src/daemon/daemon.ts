@@ -208,6 +208,8 @@ export class Daemon {
       resumable: this.persisted.resumable,
       hookWarnings: this.hookWarnings,
       settings: this.persisted.settings,
+      usage: [],
+      usageHints: {},
     }
   }
 
