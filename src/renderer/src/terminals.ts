@@ -7,6 +7,7 @@ import { setUi } from './store'
 import { DEFAULT_SETTINGS, type TerminalSettings } from '../../shared/settings'
 import { THEMES } from './themes'
 import { acceptData } from './seq'
+import { PendingFocus } from './pending-focus'
 
 interface Entry {
   term: Terminal
@@ -36,6 +37,13 @@ function optionsFor(s: TerminalSettings) {
 
 class TerminalRegistry {
   private entries = new Map<string, Entry>()
+  private pendingFocus = new PendingFocus()
+  private tryFocus = (paneId: string): boolean => {
+    const e = this.entries.get(paneId)
+    if (!e || !e.el.isConnected) return false
+    e.term.focus()
+    return true
+  }
 
   applySettings(s: TerminalSettings): void {
     current = s
@@ -49,6 +57,7 @@ class TerminalRegistry {
   mount(paneId: string, container: HTMLElement): void {
     const e = this.ensure(paneId)
     container.appendChild(e.el)
+    this.pendingFocus.ready(paneId, this.tryFocus)
     requestAnimationFrame(() => {
       if (e.state === 'idle') void this.attach(paneId)
       else this.fit(paneId)
@@ -71,6 +80,7 @@ class TerminalRegistry {
   }
 
   dispose(paneId: string): void {
+    this.pendingFocus.clear(paneId)
     const e = this.entries.get(paneId)
     if (!e) return
     this.entries.delete(paneId)
@@ -80,7 +90,7 @@ class TerminalRegistry {
   }
 
   focus(paneId: string): void {
-    this.entries.get(paneId)?.term.focus()
+    this.pendingFocus.request(paneId, this.tryFocus)
   }
 
   onData(paneId: string, data: string, seq?: number): void {
@@ -136,6 +146,7 @@ class TerminalRegistry {
       for (const d of e.pending) e.term.write(d)
       e.pending = []
       e.state = 'live'
+      this.pendingFocus.ready(paneId, this.tryFocus)
       e.lastSize = `${e.term.cols}x${e.term.rows}`
       this.fit(paneId)
     } catch {
