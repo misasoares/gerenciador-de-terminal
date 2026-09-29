@@ -6,6 +6,7 @@ import { dockBadge, noticesFor, throttleNotices } from './attention'
 import { headerView } from './header'
 import { leaves } from './layout'
 import { getUi, setUi, showError } from './store'
+import { syncKeybindings } from './shortcuts'
 import { terminals } from './terminals'
 import './styles.css'
 
@@ -50,6 +51,7 @@ window.gt.onEvent((e) => {
       // depois do primeiro carregamento o layout é do renderer (evita "voltar" com broadcast atrasado)
       setUi((s) => ({ app: s.app ? { ...e.state, layout: s.app.layout } : e.state, connected: true }))
       if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) terminals.applySettings(e.state.settings)
+      if (JSON.stringify(e.state.settings.keybindings) !== JSON.stringify(prev?.settings.keybindings)) syncKeybindings(e.state.settings.keybindings)
       onStateArrived(prev?.panes ?? null)
       break
     }
@@ -76,6 +78,7 @@ window.gt
   .then((app) => {
     setUi((s) => ({ app: s.app ?? app, connected: true }))
     terminals.applySettings(getUi().app?.settings ?? app.settings)
+    syncKeybindings((getUi().app?.settings ?? app.settings).keybindings)
     // instalação nova: sem agentes, abre o assistente
     if ((getUi().app?.accounts ?? app.accounts).length === 0) setUi({ modal: { kind: 'setup' } })
   })
