@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { normalizeSettings, THEME_IDS, type TerminalSettings } from '../../../shared/settings'
 import { THEMES } from '../themes'
 import { AgentsPanel } from './AgentsPanel'
+import { KeybindingsPanel } from './KeybindingsPanel'
 import { setUi, showError, useUi } from '../store'
 
 export function Preferences() {
   const saved = useUi((s) => s.app?.settings)
   const [draft, setDraft] = useState<TerminalSettings | null>(saved ?? null)
-  const [tab, setTab] = useState<'terminal' | 'agents'>('terminal')
+  const [tab, setTab] = useState<'terminal' | 'agents' | 'shortcuts'>('terminal')
   if (!saved || !draft) return null
   const update = (patch: Partial<TerminalSettings>) => {
     const next = normalizeSettings({ ...draft, ...patch })
@@ -26,9 +27,14 @@ export function Preferences() {
           <button className={tab === 'agents' ? 'active' : ''} onClick={() => setTab('agents')}>
             Agentes
           </button>
+          <button className={tab === 'shortcuts' ? 'active' : ''} onClick={() => setTab('shortcuts')}>
+            Atalhos
+          </button>
         </div>
         {tab === 'agents' ? (
           <AgentsPanel />
+        ) : tab === 'shortcuts' ? (
+          <KeybindingsPanel overrides={draft.keybindings} onChange={(keybindings) => update({ keybindings })} />
         ) : (
           <>
         <div className="field">
