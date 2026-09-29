@@ -1,3 +1,5 @@
+import { ACTIONS, parseAccel, type KeyOverrides } from './keybindings'
+
 export const THEME_IDS = ['vscode-dark', 'one-dark', 'dracula', 'solarized-dark', 'github-dark', 'nord'] as const
 export type ThemeId = (typeof THEME_IDS)[number]
 
@@ -6,6 +8,10 @@ export interface TerminalSettings {
   fontFamily: string
   fontSize: number
   lineHeight: number
+  /** mostrar ● alterados e ↑↓ no cabeçalho do painel */
+  showGitStatus: boolean
+  /** só as alterações de atalho; null = sem atalho */
+  keybindings: KeyOverrides
 }
 
 export const DEFAULT_SETTINGS: TerminalSettings = {
@@ -13,9 +19,31 @@ export const DEFAULT_SETTINGS: TerminalSettings = {
   fontFamily: 'Menlo, Monaco, "Courier New", monospace',
   fontSize: 13,
   lineHeight: 1.2,
+  showGitStatus: true,
+  keybindings: {},
 }
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
+
+export function normalizeKeybindings(v: unknown): KeyOverrides {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+  const src = v as Record<string, unknown>
+  const out: KeyOverrides = {}
+  const used = new Set<string>()
+  for (const a of ACTIONS) {
+    if (!Object.prototype.hasOwnProperty.call(src, a.id)) continue
+    const raw = src[a.id]
+    if (raw === null) {
+      out[a.id] = null
+      continue
+    }
+    const p = typeof raw === 'string' ? parseAccel(raw) : null
+    if (!p) continue
+    out[a.id] = used.has(p) ? null : p
+    used.add(p)
+  }
+  return out
+}
 
 export function normalizeSettings(s: Partial<TerminalSettings> | undefined): TerminalSettings {
   const v = s ?? {}
@@ -24,6 +52,8 @@ export function normalizeSettings(s: Partial<TerminalSettings> | undefined): Ter
     fontFamily: typeof v.fontFamily === 'string' && v.fontFamily.trim() ? v.fontFamily.trim() : DEFAULT_SETTINGS.fontFamily,
     fontSize: typeof v.fontSize === 'number' && Number.isFinite(v.fontSize) ? clamp(Math.round(v.fontSize), 10, 24) : DEFAULT_SETTINGS.fontSize,
     lineHeight: typeof v.lineHeight === 'number' && Number.isFinite(v.lineHeight) ? clamp(Math.round(v.lineHeight * 10) / 10, 1, 1.6) : DEFAULT_SETTINGS.lineHeight,
+    showGitStatus: typeof v.showGitStatus === 'boolean' ? v.showGitStatus : DEFAULT_SETTINGS.showGitStatus,
+    keybindings: normalizeKeybindings(v.keybindings),
   }
 }
 
