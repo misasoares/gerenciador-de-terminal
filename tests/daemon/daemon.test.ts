@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import { buildPaneEnv } from '../../src/daemon/panes'
+import { DEFAULT_SETTINGS } from '../../src/shared/settings'
 import { connectApp } from '../helpers/app-client'
 import { RpcClient } from '../../src/shared/rpc-client'
 import { makeRepo, type TestRepo } from '../helpers/repo'
@@ -274,7 +275,7 @@ describe('Daemon', () => {
     await first.app.client.request({ t: 'pane.meta', paneId, name: '   ' })
     await first.app.waitState((s) => s.panes[0]?.name === null)
     await first.app.client.request({ t: 'pane.meta', paneId, name })
-    await first.app.client.request({ t: 'settings.save', settings: { theme: 'dracula', fontFamily: 'JetBrains Mono', fontSize: 99, lineHeight: 1.3 } })
+    await first.app.client.request({ t: 'settings.save', settings: { ...DEFAULT_SETTINGS, theme: 'dracula', fontFamily: 'JetBrains Mono', fontSize: 99, lineHeight: 1.3 } })
     await first.app.waitState((s) => s.settings.theme === 'dracula' && s.settings.fontSize === 24)
     await new Promise((r) => setTimeout(r, 400))
     first.app.client.close()

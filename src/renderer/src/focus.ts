@@ -29,3 +29,9 @@ export function lookingAt(app: Pick<AppState, 'layout' | 'panes'> | null, paneId
 export function shouldFocusTerminal(ui: { renamingPaneId: string | null }, paneId: string): boolean {
   return ui.renamingPaneId !== paneId
 }
+
+/** shells/agentes que terminaram sem erro (código 0) e não são retomáveis: o painel fecha sozinho */
+export function panesToAutoClose(app: Pick<AppState, 'panes' | 'resumable'>): string[] {
+  const resumable = new Set(app.resumable.map((r) => r.paneId))
+  return app.panes.filter((p) => !p.alive && p.exitCode === 0 && !resumable.has(p.id)).map((p) => p.id)
+}

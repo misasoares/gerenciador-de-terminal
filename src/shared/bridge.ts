@@ -30,4 +30,8 @@ export interface GtApi {
   setBadge(text: string): void
   onReveal(cb: (paneId: string) => void): () => void
   pathForFile(file: File): string
+  /** process.platform do Electron ('darwin', 'linux'…) */
+  platform: string
+  /** atalhos resolvidos: o processo principal reconstrói o menu */
+  setKeybindings(b: Record<string, string | null>): void
 }

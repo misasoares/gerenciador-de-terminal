@@ -30,6 +30,8 @@ const api: GtApi = {
     return () => ipcRenderer.removeListener('gt:reveal', l)
   },
   pathForFile: (file: File) => webUtils.getPathForFile(file),
+  platform: process.platform,
+  setKeybindings: (b) => ipcRenderer.send('gt:keybindings', b),
 }
 
 contextBridge.exposeInMainWorld('gt', api)

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PaneView } from '../../../shared/types'
 import { hidePane, PANE_MIME } from '../actions'
-import { headerView, textOn } from '../header'
+import { gitBadges, headerView, textOn } from '../header'
 import { getUi, setUi, useUi } from '../store'
 
 export const STATUS_DOT = { working: '🟢', 'needs-you': '🟡', 'your-turn': '🔵', idle: '⚪', shell: '' } as const
@@ -12,6 +12,8 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
   const accounts = useUi((s) => s.app!.accounts)
   const userHome = useUi((s) => s.app!.userHome)
   const h = useMemo(() => headerView(pane, { projects, accounts, userHome }), [pane, projects, accounts, userHome])
+  const showGit = useUi((s) => s.app!.settings.showGitStatus)
+  const g = gitBadges(h, showGit)
 
   const [flash, setFlash] = useState(false)
   const prev = useRef(pane.worktreePath)
@@ -91,17 +93,19 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
           </>
         ) : (
           <>
-            <span className="ph-branch" title={h.branch ?? 'HEAD destacado'}>
+            <span className="ph-branch" title={h.hasUpstream ? (h.branch ?? 'HEAD destacado') : `${h.branch ?? 'HEAD destacado'} · branch sem upstream`}>
               {h.branch ?? 'HEAD destacado'}
             </span>
             <span className="ph-fixed">
-              <span className={h.changed ? 'ph-changed dirty' : 'ph-changed'}>
-                ● {h.changed}
-                {!compact && ' alterados'}
-              </span>
-              <span className="ph-sync" title={h.hasUpstream ? undefined : 'branch sem upstream'}>
-                ↑{h.ahead} ↓{h.behind}
-              </span>
+              {g.changed !== null && (
+                <span className="ph-changed dirty">
+                  ● {g.changed}
+                  {!compact && ' alterados'}
+                </span>
+              )}
+              {(g.ahead !== null || g.behind !== null) && (
+                <span className="ph-sync">{[g.ahead !== null && `↑${g.ahead}`, g.behind !== null && `↓${g.behind}`].filter(Boolean).join(' ')}</span>
+              )}
               {h.warning && (
                 <span className="ph-warn" title={h.warning}>
                   ⚠

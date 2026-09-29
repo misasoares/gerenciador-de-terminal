@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { normalizeSettings, THEME_IDS, type TerminalSettings } from '../../../shared/settings'
 import { THEMES } from '../themes'
 import { AgentsPanel } from './AgentsPanel'
+import { KeybindingsPanel } from './KeybindingsPanel'
 import { setUi, showError, useUi } from '../store'
 
 export function Preferences() {
   const saved = useUi((s) => s.app?.settings)
   const [draft, setDraft] = useState<TerminalSettings | null>(saved ?? null)
-  const [tab, setTab] = useState<'terminal' | 'agents'>('terminal')
+  const [tab, setTab] = useState<'terminal' | 'agents' | 'shortcuts'>('terminal')
   if (!saved || !draft) return null
   const update = (patch: Partial<TerminalSettings>) => {
     const next = normalizeSettings({ ...draft, ...patch })
@@ -26,9 +27,14 @@ export function Preferences() {
           <button className={tab === 'agents' ? 'active' : ''} onClick={() => setTab('agents')}>
             Agentes
           </button>
+          <button className={tab === 'shortcuts' ? 'active' : ''} onClick={() => setTab('shortcuts')}>
+            Atalhos
+          </button>
         </div>
         {tab === 'agents' ? (
           <AgentsPanel />
+        ) : tab === 'shortcuts' ? (
+          <KeybindingsPanel overrides={draft.keybindings} onChange={(keybindings) => update({ keybindings })} />
         ) : (
           <>
         <div className="field">
@@ -53,6 +59,10 @@ export function Preferences() {
           <div className="field-label">ALTURA DE LINHA · {draft.lineHeight.toFixed(1)}</div>
           <input type="range" min={1} max={1.6} step={0.1} value={draft.lineHeight} onChange={(e) => update({ lineHeight: Number(e.target.value) })} />
         </div>
+        <label className="field pref-check">
+          <input type="checkbox" checked={draft.showGitStatus} onChange={(e) => update({ showGitStatus: e.target.checked })} />
+          Mostrar status do git no cabeçalho (● alterados, ↑↓ commits)
+        </label>
           </>
         )}
         <div className="modal-actions">

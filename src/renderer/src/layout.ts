@@ -40,6 +40,17 @@ export function removeLeaf(root: LayoutNode, paneId: string): LayoutNode | null 
   return { ...root, children, sizes: children.length === root.children.length ? root.sizes : [] }
 }
 
+/** tira o painel do layout; a aba que fica vazia fecha junto, a não ser que seja a única */
+export function removePane(l: Layout, paneId: string): Layout {
+  const owner = findTab(l, paneId)
+  const tabs = l.tabs.map((t) => ({ ...t, root: t.root ? removeLeaf(t.root, paneId) : null }))
+  const idx = owner ? tabs.findIndex((t) => t.id === owner.id) : -1
+  if (idx < 0 || tabs[idx].root !== null || tabs.length === 1) return { ...l, tabs }
+  const rest = tabs.filter((_, i) => i !== idx)
+  const activeTabId = l.activeTabId === owner!.id ? rest[Math.max(0, idx - 1)].id : l.activeTabId
+  return { tabs: rest, activeTabId }
+}
+
 export function setSizes(root: LayoutNode, path: number[], sizes: number[]): LayoutNode {
   if (root.type === 'leaf') return root
   if (path.length === 0) return { ...root, sizes }

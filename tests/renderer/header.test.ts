@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { headerView, tildify } from '../../src/renderer/src/header'
+import { gitBadges, headerView, tildify } from '../../src/renderer/src/header'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import type { PaneView, ProjectView } from '../../src/shared/types'
 
@@ -49,5 +49,15 @@ describe('texto sobre a cor da sessão', () => {
     expect(textOn('#1e3a8a')).toBe('#ffffff') // azul escuro
     expect(textOn('#000000')).toBe('#ffffff')
     expect(textOn('#ffffff')).toBe('#111111')
+  })
+})
+
+describe('gitBadges', () => {
+  it('zeros somem', () => {
+    expect(gitBadges({ changed: 0, ahead: 0, behind: 0 }, true)).toEqual({ changed: null, ahead: null, behind: null })
+    expect(gitBadges({ changed: 3, ahead: 0, behind: 2 }, true)).toEqual({ changed: 3, ahead: null, behind: 2 })
+  })
+  it('preferência desligada esconde tudo', () => {
+    expect(gitBadges({ changed: 3, ahead: 1, behind: 2 }, false)).toEqual({ changed: null, ahead: null, behind: null })
   })
 })

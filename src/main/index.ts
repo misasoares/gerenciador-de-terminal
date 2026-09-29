@@ -5,9 +5,17 @@ import type { ClientRequest } from '../shared/protocol'
 import type { ConfirmOptions, MenuItemSpec } from '../shared/bridge'
 import { DaemonLink } from './daemon-link'
 import { buildMenu } from './menu'
+import { platformOf, resolveBindings, type Bindings } from '../shared/keybindings'
 import { NotifyKeeper } from './notify-keeper'
 
 const notifications = new NotifyKeeper()
+const platform = platformOf(process.platform)
+/** atalhos em vigor; o renderer manda os resolvidos pelas preferências (gt:keybindings) */
+let bindings: Bindings = resolveBindings(platform, {})
+
+function applyMenu(): void {
+  Menu.setApplicationMenu(buildMenu({ send: (a) => win?.webContents.send('gt:menu', a), quitAll: () => void quitAll(), platform, bindings }))
+}
 
 let win: BrowserWindow | null = null
 const home = process.env.GT_HOME ?? path.join(os.homedir(), '.gerenciador-terminal')
@@ -96,6 +104,10 @@ ipcMain.on('gt:notify', (_e, o: { paneId: string; title: string; body: string })
   })
   n.show()
 })
+ipcMain.on('gt:keybindings', (_e, b: Bindings) => {
+  bindings = b
+  applyMenu()
+})
 ipcMain.on('gt:setBadge', (_e, text: string) => {
   app.dock?.setBadge(text)
 })
@@ -122,7 +134,7 @@ app.whenReady().then(async () => {
     app.quit()
     return
   }
-  Menu.setApplicationMenu(buildMenu({ send: (a) => win?.webContents.send('gt:menu', a), quitAll: () => void quitAll() }))
+  applyMenu()
   createWindow()
   app.on('activate', () => {
     if (!win) createWindow()

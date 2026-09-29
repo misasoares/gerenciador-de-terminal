@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { findTab, leaves, neighbor, removeLeaf, setSizes, splitLeaf } from '../../src/renderer/src/layout'
-import type { LayoutNode } from '../../src/shared/types'
+import { findTab, leaves, neighbor, removeLeaf, removePane, setSizes, splitLeaf } from '../../src/renderer/src/layout'
+import type { Layout, LayoutNode } from '../../src/shared/types'
 
 const leaf = (paneId: string): LayoutNode => ({ type: 'leaf', paneId })
 
@@ -39,5 +39,38 @@ describe('layout', () => {
     expect(neighbor(rects, 'b', 'down')).toBe('c')
     expect(neighbor(rects, 'b', 'up')).toBeNull()
     expect(neighbor(rects, null, 'up')).toBe('a')
+  })
+})
+
+describe('removePane', () => {
+  const leaf = (paneId: string) => ({ type: 'leaf' as const, paneId })
+  const two: Layout = {
+    tabs: [
+      { id: 't1', name: 'Aba 1', root: leaf('a') },
+      { id: 't2', name: 'Aba 2', root: { type: 'split', dir: 'row', children: [leaf('b'), leaf('c')], sizes: [] } },
+    ],
+    activeTabId: 't1',
+  }
+  it('aba que fica vazia fecha e a ativa passa para a vizinha', () => {
+    const l = removePane(two, 'a')
+    expect(l.tabs.map((t) => t.id)).toEqual(['t2'])
+    expect(l.activeTabId).toBe('t2')
+  })
+  it('aba em segundo plano vazia fecha sem mudar a ativa', () => {
+    const l = removePane(removePane(two, 'b'), 'c')
+    expect(l.tabs.map((t) => t.id)).toEqual(['t1'])
+    expect(l.activeTabId).toBe('t1')
+  })
+  it('a única aba nunca fecha', () => {
+    const one: Layout = { tabs: [{ id: 't1', name: 'Aba 1', root: leaf('a') }], activeTabId: 't1' }
+    expect(removePane(one, 'a')).toEqual({ tabs: [{ id: 't1', name: 'Aba 1', root: null }], activeTabId: 't1' })
+  })
+  it('aba que ainda tem painéis continua', () => {
+    const l = removePane(two, 'b')
+    expect(l.tabs).toHaveLength(2)
+    expect(l.tabs[1].root).toEqual(leaf('c'))
+  })
+  it('painel fora do layout: nada muda além da cópia', () => {
+    expect(removePane(two, 'zzz').tabs.map((t) => t.id)).toEqual(['t1', 't2'])
   })
 })
