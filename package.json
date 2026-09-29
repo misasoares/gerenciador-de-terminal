@@ -58,14 +58,52 @@
     "linux": {
       "target": [
         {
-          "target": "AppImage",
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "rpm",
           "arch": [
             "x64"
           ]
         }
       ],
       "category": "Development",
-      "artifactName": "gerenciador-de-terminal-${version}-x64.AppImage"
+      "maintainer": "misasoares <misasoaresms2@gmail.com>",
+      "artifactName": "gerenciador-de-terminal-${version}-${arch}.${ext}"
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0",
+        "git",
+        "netcat-openbsd",
+        "procps"
+      ]
+    },
+    "rpm": {
+      "depends": [
+        "gtk3",
+        "libnotify",
+        "nss",
+        "libXScrnSaver",
+        "(libXtst or libXtst6)",
+        "xdg-utils",
+        "at-spi2-core",
+        "(libuuid or libuuid1)",
+        "git",
+        "nmap-ncat",
+        "procps-ng"
+      ]
     }
   },
   "author": "misasoares"

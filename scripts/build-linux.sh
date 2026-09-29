@@ -1,5 +1,6 @@
 #!/bin/sh
-# Build Linux: testes num Linux arm64 nativo, bundle JS no host e AppImage x64 empacotado num container amd64.
+# Build Linux: testes num Linux arm64 nativo, bundle JS no host, .deb/.rpm x64 empacotados num container amd64
+# e instalação de cada pacote num Debian e num Fedora limpos (as dependências têm que vir sozinhas).
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 # o colima só compartilha o HOME com a VM do docker: /tmp ficaria vazio dentro do container
@@ -15,8 +16,16 @@ echo "== 2/3 bundle JS (independe de arquitetura)"
 (cd "$ROOT" && npx electron-vite build)
 rsync -a "$ROOT/out/" "$WORK/out/"
 
-echo "== 3/3 AppImage x64"
+echo "== 3/4 pacotes .deb e .rpm (x64)"
 docker run --rm --platform linux/amd64 -v "$WORK":/work -w /work node:22-bookworm sh scripts/linux-container.sh package
 mkdir -p "$ROOT/dist"
-cp "$WORK"/dist/*.AppImage "$ROOT/dist/"
-echo "AppImage em: $(ls "$ROOT"/dist/*.AppImage)"
+rm -f "$ROOT"/dist/*.deb "$ROOT"/dist/*.rpm
+cp "$WORK"/dist/*.deb "$WORK"/dist/*.rpm "$ROOT/dist/"
+
+echo "== 4/4 instalação limpa: o gerenciador de pacotes traz git, nc e ps"
+CHECK='command -v git && command -v nc && command -v ps && ls /opt/*/gerenciador-de-terminal && echo INSTALACAO-OK'
+docker run --rm --platform linux/amd64 -v "$WORK/dist":/pkg debian:bookworm sh -c \
+  "apt-get update -qq && apt-get install -y -qq /pkg/*.deb >/dev/null && $CHECK"
+docker run --rm --platform linux/amd64 -v "$WORK/dist":/pkg fedora:41 sh -c \
+  "cp /pkg/*.rpm /tmp/ && dnf install -y -q /tmp/*.rpm >/dev/null && $CHECK"  # o dnf não lê direto do volume montado
+echo "Pacotes em:"; ls "$ROOT"/dist/*.deb "$ROOT"/dist/*.rpm

@@ -24,13 +24,15 @@ Abas não ativas ganham uma bolinha quando algo nelas espera você; o Dock mostr
 ## Conflitos entre worktrees
 Botão ⇄ no projeto: compara cada worktree com a main e com cada outra (inclui alterações não commitadas), sem mexer em nada.
 
-## Linux (AppImage x64)
-    chmod +x gerenciador-de-terminal-*-x64.AppImage
-    ./gerenciador-de-terminal-*-x64.AppImage
+## Linux (x64: .deb e .rpm)
+    sudo apt install ./gerenciador-de-terminal-*-amd64.deb     # Ubuntu, Debian, Mint, Pop!_OS
+    sudo dnf install ./gerenciador-de-terminal-*-x86_64.rpm    # Fedora
+O gerenciador de pacotes instala junto o que o app usa: git, `nc` com `-U` (netcat-openbsd / nmap-ncat) e procps.
 Na primeira abertura o assistente configura Claude e/ou Codex (padrão: `claude --dangerously-skip-permissions` e `codex --yolo`) e instala os hooks.
-Os hooks usam `nc -U`: se a distro não tiver, instale `netcat-openbsd` (Debian/Ubuntu já vêm com ele).
+As CLIs do Claude e do Codex não vêm no pacote (são do npm): instale-as antes.
 No Codex, confie no hook uma vez: abra o Codex, digite `/hooks` e aprove o hook do Gerenciador de Terminal.
-Build: `npm run pack:linux` (precisa de Docker; compila e roda os testes num container linux/amd64).
+Atalhos no Linux usam Ctrl+Shift (Ctrl+C/D/W ficam com o shell); copiar/colar é Ctrl+Shift+C/V. Troque em Preferências → Atalhos.
+Build: `npm run pack:linux` (precisa de Docker; roda os testes no Linux, gera os pacotes e testa a instalação num Debian e num Fedora limpos).
 
 ## Encerrar de verdade
 Menu do app → "Encerrar tudo" (as sessões ficam disponíveis para retomar na próxima abertura).
