@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { focusAfterHide, splitCwd } from '../../src/renderer/src/focus'
+import { focusAfterHide, panesToAutoClose, splitCwd } from '../../src/renderer/src/focus'
 import type { Layout, PaneView } from '../../src/shared/types'
 
 const pane = (id: string, cwd: string, worktreePath: string | null = null): PaneView => ({ id, seq: 1, cwd, alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: null, worktreePath })
@@ -35,5 +35,17 @@ describe('foco depois de esconder', () => {
   it('aba ficou vazia: sem foco', () => {
     const one: Layout = { tabs: [{ id: 't1', name: 'A', root: { type: 'leaf', paneId: 'a' } }], activeTabId: 't1' }
     expect(focusAfterHide(one, 'a')).toBeNull()
+  })
+})
+
+describe('panesToAutoClose', () => {
+  const pane = (id: string, alive: boolean, exitCode: number | null) =>
+    ({ id, seq: 1, cwd: '/', alive, exitCode, accountId: null, claude: null, projectPath: null, worktreePath: null, name: null, color: null, agentHooksMissing: false }) as PaneView
+  it('só os que terminaram com código 0 e não são retomáveis', () => {
+    const app = {
+      panes: [pane('vivo', true, null), pane('ok', false, 0), pane('erro', false, 1), pane('sinal', false, null), pane('retomavel', false, 0)],
+      resumable: [{ paneId: 'retomavel', cwd: '/', accountId: null, sessionId: 's' }],
+    }
+    expect(panesToAutoClose(app)).toEqual(['ok'])
   })
 })

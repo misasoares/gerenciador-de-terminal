@@ -1,5 +1,5 @@
 import type { AgentKind, Layout, Tab } from '../../shared/types'
-import { findTab, insertBeside, leaves, neighbor, removeLeaf, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone } from './layout'
+import { findTab, insertBeside, leaves, neighbor, removeLeaf, removePane, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone } from './layout'
 import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
@@ -71,8 +71,11 @@ export function revealPane(paneId: string): void {
 export function hidePane(paneId: string): void {
   const before = getUi().app?.layout
   const next = before && getUi().focusedPaneId === paneId ? focusAfterHide(before, paneId) : undefined
-  updateLayout((l) => ({ ...l, tabs: l.tabs.map((t) => ({ ...t, root: t.root ? removeLeaf(t.root, paneId) : null })) }))
-  if (next !== undefined) {
+  updateLayout((l) => removePane(l, paneId))
+  const after = getUi().app?.layout
+  // a aba ativa fechou (ficou vazia): o foco vai para a aba que ficou ativa
+  if (before && after?.activeTabId && after.activeTabId !== before.activeTabId) activateTab(after.activeTabId)
+  else if (next !== undefined) {
     if (next) focusPane(next)
     else setUi({ focusedPaneId: null })
   }

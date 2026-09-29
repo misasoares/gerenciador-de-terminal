@@ -1,8 +1,9 @@
 import { createRoot } from 'react-dom/client'
 import type { AppState, PaneView } from '../../shared/types'
-import { markSeenIfLooking, revealPane, runMenuAction } from './actions'
+import { closeDeadPane, markSeenIfLooking, revealPane, runMenuAction } from './actions'
 import { App } from './App'
 import { dockBadge, noticesFor, throttleNotices } from './attention'
+import { panesToAutoClose } from './focus'
 import { headerView } from './header'
 import { leaves } from './layout'
 import { getUi, setUi, showError } from './store'
@@ -12,6 +13,7 @@ import './styles.css'
 
 let seenFirstState = false
 const sentNotices = new Map<string, number>()
+const autoClosed = new Set<string>()
 
 function visiblePaneIds(): Set<string> {
   const app = getUi().app
@@ -22,6 +24,12 @@ function visiblePaneIds(): Set<string> {
 function onStateArrived(prevPanes: PaneView[] | null): void {
   const app = getUi().app
   if (!app) return
+  // terminou sem erro: o painel (e a aba, se ficar vazia) fecha sozinho
+  for (const id of panesToAutoClose(app)) {
+    if (autoClosed.has(id)) continue
+    autoClosed.add(id)
+    closeDeadPane(id)
+  }
   window.gt.setBadge(dockBadge(app.panes))
   const notices = throttleNotices(
     noticesFor(seenFirstState ? prevPanes : null, app.panes, { windowFocused: document.hasFocus(), visible: visiblePaneIds() }),
