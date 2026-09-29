@@ -59,6 +59,10 @@ export function Preferences() {
           <div className="field-label">ALTURA DE LINHA · {draft.lineHeight.toFixed(1)}</div>
           <input type="range" min={1} max={1.6} step={0.1} value={draft.lineHeight} onChange={(e) => update({ lineHeight: Number(e.target.value) })} />
         </div>
+        <label className="field pref-check">
+          <input type="checkbox" checked={draft.showGitStatus} onChange={(e) => update({ showGitStatus: e.target.checked })} />
+          Mostrar status do git no cabeçalho (● alterados, ↑↓ commits)
+        </label>
           </>
         )}
         <div className="modal-actions">

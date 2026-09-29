@@ -44,6 +44,18 @@ export function headerView(pane: PaneView, app: Pick<AppState, 'projects' | 'acc
   }
 }
 
+export interface GitBadges {
+  changed: number | null
+  ahead: number | null
+  behind: number | null
+}
+
+/** peças do git no cabeçalho: só aparecem quando dizem algo (> 0) e a preferência está ligada */
+export function gitBadges(h: Pick<HeaderView, 'changed' | 'ahead' | 'behind'>, show: boolean): GitBadges {
+  const keep = (n: number) => (show && n > 0 ? n : null)
+  return { changed: keep(h.changed), ahead: keep(h.ahead), behind: keep(h.behind) }
+}
+
 function channel(hex: string, i: number): number {
   const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255
   return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
