@@ -76,7 +76,7 @@ function TabBar({ layout }: { layout: Layout }) {
             e.dataTransfer.effectAllowed = 'move'
           }}
           onDragEnd={() => setDropAt(null)}
-          style={t.color ? { background: t.color, color: textOn(t.color) } : undefined}
+          style={t.color ? { backgroundColor: t.color, color: textOn(t.color) } : undefined}
           onClick={() => activateTab(t.id)}
           onDoubleClick={() => setEditing(t.id)}
           onContextMenu={(e) => {
