@@ -1,5 +1,5 @@
 import type { AgentKind, Layout, Tab } from '../../shared/types'
-import { findTab, insertBeside, leaves, neighbor, removeLeaf, removePane, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone } from './layout'
+import { findTab, insertBeside, leaves, neighbor, removeLeaf, removePane, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone, withTabColor } from './layout'
 import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
@@ -154,6 +154,10 @@ export function renameTab(tabId: string, name: string): void {
   const clean = name.trim()
   if (!clean) return
   updateLayout((l) => ({ ...l, tabs: l.tabs.map((t) => (t.id === tabId ? { ...t, name: clean } : t)) }))
+}
+
+export function setTabColor(tabId: string, color: string | null): void {
+  updateLayout((l) => withTabColor(l, tabId, color))
 }
 
 const sizeTimers = new Map<string, ReturnType<typeof setTimeout>>()

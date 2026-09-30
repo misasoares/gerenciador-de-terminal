@@ -6,6 +6,8 @@ import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
 import { activateTab, addTab, closeTab, renameTab, saveSizes } from '../actions'
 import { leaves } from '../layout'
+import { tabMenu } from '../flows'
+import { textOn } from '../header'
 import { updateLayout, useUi } from '../store'
 import { PaneFrame } from './PaneFrame'
 
@@ -37,9 +39,14 @@ function TabBar({ layout }: { layout: Layout }) {
       {layout.tabs.map((t, i) => (
         <div
           key={t.id}
-          className={`tab${t.id === layout.activeTabId ? ' active' : ''}`}
+          className={`tab${t.id === layout.activeTabId ? ' active' : ''}${t.color ? ' colored' : ''}`}
+          style={t.color ? { background: t.color, color: textOn(t.color) } : undefined}
           onClick={() => activateTab(t.id)}
           onDoubleClick={() => setEditing(t.id)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            void tabMenu(t).then((r) => r === 'rename' && setEditing(t.id))
+          }}
         >
           {editing === t.id ? (
             <input

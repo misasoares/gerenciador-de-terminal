@@ -52,4 +52,19 @@ describe('ProjectRegistry', () => {
     await reg.refreshAll()
     expect(reg.error(path.join(repo.root, 'sumiu'))).not.toBeNull()
   })
+
+  it('cor do projeto: define, limpa e recusa cor inválida', async () => {
+    repo = makeRepo()
+    let changes = 0
+    const reg = new ProjectRegistry([], () => { changes++ })
+    await reg.add(repo.dir, null)
+    const before = changes
+    reg.setColor(repo.dir, '#22c55e')
+    expect(reg.get(repo.dir)?.color).toBe('#22c55e')
+    expect(changes).toBe(before + 1)
+    reg.setColor(repo.dir, null)
+    expect(reg.get(repo.dir)?.color).toBeNull()
+    expect(() => reg.setColor(repo!.dir, 'verde')).toThrow('cor inválida')
+    expect(() => reg.setColor('/nao/existe', '#22c55e')).toThrow('projeto não encontrado')
+  })
 })

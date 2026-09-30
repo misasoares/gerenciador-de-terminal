@@ -5,6 +5,7 @@ import { addProjectFlow, analyzeConflictsFlow, projectMenu, sessionMenu, worktre
 import { buildSidebar, isExpanded, railLabel, type ProjectItem, type SessionItem } from '../sidebar-model'
 import { setUi, useUi } from '../store'
 import { STATUS_DOT } from './PaneHeader'
+import { textOn } from '../header'
 
 function Summary({ s }: { s: ProjectItem['summary'] }) {
   return (
@@ -82,7 +83,9 @@ function Tree() {
               title={p.path}
             >
               <span className="sb-caret">{open ? '▾' : '▸'}</span>
-              <span className="sb-name">{p.name.toUpperCase()}</span>
+              <span className={`sb-name${p.color ? ' colored' : ''}`} style={p.color ? { background: p.color, color: textOn(p.color) } : undefined}>
+                {p.name.toUpperCase()}
+              </span>
               <button
                 className="sb-mini sb-conflicts"
                 title="Analisar conflitos entre worktrees"

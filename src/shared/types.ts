@@ -61,6 +61,8 @@ export interface ProjectConfig {
   path: string
   name: string
   defaultAccountId: string | null
+  /** cor do projeto (#rrggbb); ausente/null = sem cor */
+  color?: string | null
 }
 
 export interface ProjectView extends ProjectConfig {
@@ -94,6 +96,8 @@ export interface Tab {
   id: string
   name: string
   root: LayoutNode | null
+  /** cor da aba (#rrggbb); ausente/null = sem cor */
+  color?: string | null
 }
 
 export interface Layout {

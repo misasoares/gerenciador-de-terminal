@@ -23,6 +23,7 @@ export type ClientRequest =
   | { t: 'project.add'; path: string }
   | { t: 'project.remove'; path: string }
   | { t: 'project.setAccount'; path: string; accountId: string | null }
+  | { t: 'project.setColor'; path: string; color: string | null }
   | { t: 'layout.save'; layout: Layout }
   | { t: 'worktree.checkRemove'; path: string }
   | { t: 'worktree.remove'; path: string; force: boolean; deleteBranch: boolean }

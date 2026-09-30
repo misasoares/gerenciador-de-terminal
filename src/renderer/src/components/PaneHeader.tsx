@@ -39,7 +39,7 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
           </>
         ) : (
           <>
-            <span className="ph-block ph-project" style={pane.color ? { background: pane.color, color: textOn(pane.color) } : undefined}>
+            <span className="ph-block ph-project" style={h.projectColor ? { background: h.projectColor, color: textOn(h.projectColor) } : undefined}>
               {h.project.toUpperCase()}
             </span>
             <span className={`ph-block ph-worktree${h.isMainWorktree ? '' : ' extra'}`}>⎇ {h.worktree}</span>
@@ -61,7 +61,12 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
             }}
           />
         ) : (
-          <span className="ph-label" title={`${h.label} — duplo clique para renomear`} onDoubleClick={() => setUi({ renamingPaneId: pane.id })}>
+          <span
+            className={`ph-label${h.sessionColor ? ' colored' : ''}`}
+            style={h.sessionColor ? { background: h.sessionColor, color: textOn(h.sessionColor) } : undefined}
+            title={`${h.label} — duplo clique para renomear`}
+            onDoubleClick={() => setUi({ renamingPaneId: pane.id })}
+          >
             {h.label}
           </span>
         )}

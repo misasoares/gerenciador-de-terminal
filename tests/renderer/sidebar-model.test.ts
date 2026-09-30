@@ -43,4 +43,10 @@ describe('buildSidebar', () => {
   it('nome dado pelo usuário vence o título', () => {
     expect(sessionLabel(pane('p8', { name: 'revisão', claude: claude('idle', 'Título') }))).toBe('revisão')
   })
+
+  it('projeto leva a própria cor para a sidebar (null quando não tem)', () => {
+    expect(buildSidebar(app).projects[0].color).toBeNull()
+    const pintado = { ...app, projects: [{ ...app.projects[0], color: '#a855f7' }] }
+    expect(buildSidebar(pintado).projects[0].color).toBe('#a855f7')
+  })
 })

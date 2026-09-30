@@ -29,6 +29,7 @@ export interface ProjectItem {
   path: string
   name: string
   defaultAccountId: string | null
+  color: string | null
   error: string | null
   fetchError: string | null
   worktrees: WorktreeItem[]
@@ -68,6 +69,7 @@ export function buildSidebar(app: AppState): { projects: ProjectItem[]; outside:
       path: p.path,
       name: p.name,
       defaultAccountId: p.defaultAccountId,
+      color: p.color ?? null,
       error: p.error,
       fetchError: p.fetchError,
       worktrees,
