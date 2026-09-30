@@ -14,6 +14,9 @@ import { loadPersisted, savePersisted, type Persisted } from './persist'
 import { ProjectRegistry } from './projects'
 import { startServer, type Conn, type RpcServer } from './server'
 import { checkRemove, removeWorktree } from './worktree-remove'
+import { UsageMonitor } from './usage/monitor'
+import { groupLogins, missingLoginHints } from './usage/logins'
+import type { Login, ReadResult } from './usage/types'
 
 export interface DaemonOptions {
   home: string
@@ -32,6 +35,9 @@ export interface DaemonOptions {
   detectShell?: string
   /** tempo sem hooks até avisar que o Codex não aprovou o hook (padrão 20 s) */
   codexHookGraceMs?: number
+  /** leitor do uso do plano; padrão inerte (testes não tocam Keychain nem rede). O main.ts passa o real */
+  usageRead?: (login: Login) => Promise<ReadResult>
+  usageIntervalMs?: number
   onShutdown?: () => void
 }
 
@@ -51,6 +57,8 @@ export class Daemon {
   private conflictTimers = new Map<string, NodeJS.Timeout>()
   private conflictRerun = new Set<string>()
   private conflictCache = new Map<string, Map<string, string[]>>()
+  private usage!: UsageMonitor
+  private logins: Login[] = []
 
   private constructor(private o: DaemonOptions) {}
 
@@ -75,6 +83,23 @@ export class Daemon {
     return set
   }
 
+  private refreshLogins(): void {
+    this.logins = groupLogins(this.persisted.accounts, this.persisted.loginDirs)
+    this.usage.setLogins(this.logins)
+  }
+
+  /** o hook revela o CLAUDE_CONFIG_DIR/CODEX_HOME do agente; Stop antecipa a leitura do uso */
+  private onUsageHook(paneId: string, configDir: string, event: string): void {
+    const id = this.panes.records().find((r) => r.id === paneId)?.accountId
+    if (!id) return
+    if (this.persisted.loginDirs[id] !== configDir) {
+      this.persisted.loginDirs[id] = configDir
+      this.refreshLogins()
+      this.changed()
+    }
+    if (event === 'Stop') this.usage.poke(id)
+  }
+
   private checkHookTargets(): string[] {
     return checkTargets(hookTargets(this.o.userHome, this.agentsInUse(), this.o.env ?? process.env), (a) => this.hookCmdFor(a))
   }
@@ -93,6 +118,22 @@ export class Daemon {
     p.resumable = [...byId.values()]
     p.panes = []
     this.persisted = p
+    this.usage = new UsageMonitor({
+      read: this.o.usageRead ?? (async () => ({ kind: 'no-token' })),
+      onChange: () => this.changed(false),
+      onAlert: (text, notified) => {
+        const apps = [...(this.server?.conns ?? [])].filter((c) => c.role === 'app')
+        for (const c of apps) c.send({ t: 'usage.alert', text })
+        if (apps.length === 0) return false
+        this.persisted.usageNotified = notified
+        this.changed()
+        return true
+      },
+      labelOf: (id) => this.persisted.accounts.find((a) => a.id === id)?.label ?? id,
+      notified: p.usageNotified,
+      log: (m) => console.error(m),
+      intervalMs: this.o.usageIntervalMs,
+    })
 
     this.monitor = new GitMonitor((p) => {
       if (p) this.onWorktreeChanged(p)
@@ -122,6 +163,7 @@ export class Daemon {
     })
     this.hookWarnings = this.checkHookTargets()
     this.server = await startServer(this.o.socketPath, (req, conn) => this.handle(req, conn))
+    this.refreshLogins()
     await this.registry.refreshAll()
     this.monitor.startFetch(() => this.registry.list().map((c) => c.path), this.o.fetchIntervalMs ?? p.fetchIntervalMin * 60_000)
     // worktrees criadas/removidas por fora (Claude, subagente, git na mão) entram e saem da lista
@@ -143,6 +185,7 @@ export class Daemon {
     if (this.broadcastTimer) clearTimeout(this.broadcastTimer)
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.monitor.stop()
+    this.usage.stop()
     for (const t of this.conflictTimers.values()) clearTimeout(t)
     if (killPtys) this.panes.host.killAll()
     await this.server?.close()
@@ -208,6 +251,8 @@ export class Daemon {
       resumable: this.persisted.resumable,
       hookWarnings: this.hookWarnings,
       settings: this.persisted.settings,
+      usage: this.usage.views(),
+      usageHints: { ...missingLoginHints(this.persisted.accounts, this.logins), ...this.usage.hints() },
     }
   }
 
@@ -300,6 +345,7 @@ export class Daemon {
         conn.role = 'hook'
         conn.end() // libera o Claude antes de processar (ler título pode demorar)
         await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
+        this.onUsageHook(req.paneId, req.configDir || '', req.payload.hook_event_name)
         return null
       case 'pane.create': {
         const rec = this.panes.create(req)
@@ -346,6 +392,7 @@ export class Daemon {
         if (err) throw new Error(err)
         this.persisted.accounts = req.accounts.map((a) => ({ ...a, configDirMatch: [...a.configDirMatch] }))
         this.hookWarnings = this.checkHookTargets()
+        this.refreshLogins()
         this.changed()
         return null
       }

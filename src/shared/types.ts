@@ -32,6 +32,8 @@ export interface Account {
   settingsMatch: string | null
   /** projetos dentro deste prefixo (com ~) sugerem esta conta */
   pathPrefix: string | null
+  /** mostra o uso do plano deste agente; ausente = true. false para gateway ou chave de API */
+  planUsage?: boolean
 }
 
 export interface GitStatus {
@@ -121,6 +123,9 @@ export interface AppState {
   /** arquivos settings.json sem os hooks do app */
   hookWarnings: string[]
   settings: TerminalSettings
+  usage: UsageView[]
+  /** por agente: por que ainda não há uso para mostrar */
+  usageHints: Record<string, string>
 }
 
 export interface HookPayload {
@@ -156,4 +161,27 @@ export interface ConflictReport {
   pairs: { a: string; b: string; files: string[]; dirty: boolean }[]
   cleanPairs: number
   errors: { worktreePath: string; message: string }[]
+}
+
+export interface UsageWindow {
+  kind: '5h' | 'week'
+  /** 0–100 */
+  percent: number
+  /** epoch ms; null = desconhecido */
+  resetsAt: number | null
+}
+
+export type UsageStatus = 'ok' | 'stale' | 'expired' | 'unavailable'
+
+/** uso de um login (agentes com o mesmo CLAUDE_CONFIG_DIR/CODEX_HOME compartilham o plano) */
+export interface UsageView {
+  loginKey: string
+  agent: AgentKind
+  /** agentes com planUsage deste login, na ordem da lista */
+  accountIds: string[]
+  windows: UsageWindow[]
+  plan: string | null
+  /** última leitura bem-sucedida (epoch ms) */
+  readAt: number | null
+  status: UsageStatus
 }

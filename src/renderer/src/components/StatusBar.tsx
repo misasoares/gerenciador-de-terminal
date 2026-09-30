@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { resumeAll, restartDaemonFlow } from '../flows'
 import { hidePane } from '../actions'
 import { setUi, showError, useUi } from '../store'
+import { usageChips } from '../usage-model'
 
 /** 2l: avisos não intrusivos na barra de status inferior */
 export function StatusBar() {
@@ -56,6 +57,22 @@ export function StatusBar() {
           </button>
         </span>
       )}
+      <span className="st-spacer" />
+      {usageChips(app, Date.now()).map((c) => (
+        <span key={c.key} className={`st-usage${c.dim ? ' u-dim' : ''}`} title={c.tooltip}>
+          <span style={{ color: c.color }}>{c.label}</span>
+          {c.unavailable ? (
+            <span className="u-dim">indisponível</span>
+          ) : (
+            c.parts.map((p, i) => (
+              <span key={i} className={p.level === 'bad' ? 'u-bad' : p.level === 'warn' ? 'u-warn' : undefined}>
+                {i > 0 ? '· ' : ''}
+                {p.text}
+              </span>
+            ))
+          )}
+        </span>
+      ))}
     </div>
   )
 }
