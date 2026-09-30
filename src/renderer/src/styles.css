@@ -39,6 +39,11 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tab.colored:not(.active) { opacity: 0.8; }
 .tab.colored .tab-key,
 .tab.colored .tab-close { color: inherit; opacity: 0.75; }
+.tab { position: relative; }
+.tab.drop-before::before,
+.tab.drop-after::after { content: ''; position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--accent); }
+.tab.drop-before::before { left: -1px; }
+.tab.drop-after::after { right: -1px; }
 .tab input { width: 120px; background: #3c3c3c; color: var(--fg); border: 1px solid var(--accent); }
 .tab-close, .tab-add { background: none; padding: 0 4px; color: var(--fg-dim); }
 .tab-body { flex: 1; min-height: 0; position: relative; }

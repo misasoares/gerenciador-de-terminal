@@ -5,7 +5,9 @@ import { useMemo, useState } from 'react'
 import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
 import { activateTab, addTab, closeTab, renameTab, saveSizes } from '../actions'
-import { leaves } from '../layout'
+import { leaves, moveTab } from '../layout'
+
+const TAB_MIME = 'application/x-gt-tab'
 import { tabMenu } from '../flows'
 import { textOn } from '../header'
 import { updateLayout, useUi } from '../store'
@@ -34,12 +36,35 @@ function TabBar({ layout }: { layout: Layout }) {
   const panes = useUi((s) => s.app?.panes)
   const attn = useMemo(() => tabAttention(layout, panes ?? []), [layout, panes])
   const [editing, setEditing] = useState<string | null>(null)
+  /** posição de inserção (0..n) enquanto uma aba é arrastada */
+  const [dropAt, setDropAt] = useState<number | null>(null)
   return (
     <div className="tabbar">
       {layout.tabs.map((t, i) => (
         <div
           key={t.id}
-          className={`tab${t.id === layout.activeTabId ? ' active' : ''}${t.color ? ' colored' : ''}`}
+          className={`tab${t.id === layout.activeTabId ? ' active' : ''}${t.color ? ' colored' : ''}${dropAt === i ? ' drop-before' : ''}${dropAt === i + 1 && i === layout.tabs.length - 1 ? ' drop-after' : ''}`}
+          draggable={editing !== t.id}
+          onDragStart={(e) => {
+            e.dataTransfer.setData(TAB_MIME, t.id)
+            e.dataTransfer.effectAllowed = 'move'
+          }}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes(TAB_MIME)) return
+            e.preventDefault()
+            const r = e.currentTarget.getBoundingClientRect()
+            setDropAt(i + (e.clientX > r.left + r.width / 2 ? 1 : 0))
+          }}
+          onDrop={(e) => {
+            const id = e.dataTransfer.getData(TAB_MIME)
+            if (!id) return
+            e.preventDefault()
+            const r = e.currentTarget.getBoundingClientRect()
+            const to = i + (e.clientX > r.left + r.width / 2 ? 1 : 0)
+            updateLayout((l) => moveTab(l, id, to))
+            setDropAt(null)
+          }}
+          onDragEnd={() => setDropAt(null)}
           style={t.color ? { background: t.color, color: textOn(t.color) } : undefined}
           onClick={() => activateTab(t.id)}
           onDoubleClick={() => setEditing(t.id)}
