@@ -421,6 +421,9 @@ export class Daemon {
       case 'project.setAccount':
         this.registry.setAccount(req.path, req.accountId)
         return null
+      case 'project.setColor':
+        this.registry.setColor(req.path, req.color)
+        return null
       case 'layout.save':
         this.persisted.layout = req.layout
         this.changed()

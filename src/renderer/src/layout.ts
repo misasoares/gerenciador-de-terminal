@@ -107,3 +107,9 @@ export function replaceLeaf(root: LayoutNode, target: string, paneId: string): L
   if (root.type === 'leaf') return root.paneId === target ? { type: 'leaf', paneId } : root
   return { ...root, children: root.children.map((c) => replaceLeaf(c, target, paneId)) }
 }
+
+/** muda a cor de uma aba; cor inválida não altera nada */
+export function withTabColor(layout: Layout, tabId: string, color: string | null): Layout {
+  if (color !== null && !/^#[0-9a-fA-F]{6}$/.test(color)) return layout
+  return { ...layout, tabs: layout.tabs.map((t) => (t.id === tabId ? { ...t, color } : t)) }
+}

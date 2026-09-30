@@ -18,7 +18,7 @@ describe('headerView', () => {
     const h = headerView(pane({ worktreePath: '/r/api/.claude/worktrees/auth', accountId: 'mslabs', claude: { sessionId: 's', agent: 'claude' as const, status: 'needs-you', statusSince: 0, title: null, transcriptPath: null } }), app)
     expect(h).toEqual({
       project: 'api', worktree: 'auth', isMainWorktree: false, branch: 'feat/auth', changed: 5, ahead: 2, behind: 0,
-      hasUpstream: false, status: 'needs-you', account: { label: 'mslabs', color: '#c586c0' }, warning: null, label: 'sessão 1',
+      hasUpstream: false, status: 'needs-you', account: { label: 'mslabs', color: '#c586c0' }, warning: null, label: 'sessão 1', projectColor: null, sessionColor: null,
     })
   })
 
@@ -59,5 +59,13 @@ describe('gitBadges', () => {
   })
   it('preferência desligada esconde tudo', () => {
     expect(gitBadges({ changed: 3, ahead: 1, behind: 2 }, false)).toEqual({ changed: null, ahead: null, behind: null })
+  })
+
+  it('cor do projeto e cor da sessão vêm separadas', () => {
+    const colored = { ...app, projects: [{ ...project, color: '#f97316' }] }
+    const h = headerView(pane({ color: '#3b82f6' }), colored)
+    expect(h.projectColor).toBe('#f97316')
+    expect(h.sessionColor).toBe('#3b82f6')
+    expect(headerView(pane({}), app)).toMatchObject({ projectColor: null, sessionColor: null })
   })
 })

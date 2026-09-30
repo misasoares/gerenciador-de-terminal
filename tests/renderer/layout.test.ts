@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findTab, leaves, neighbor, removeLeaf, removePane, setSizes, splitLeaf } from '../../src/renderer/src/layout'
+import { findTab, leaves, neighbor, removeLeaf, removePane, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
 import type { Layout, LayoutNode } from '../../src/shared/types'
 
 const leaf = (paneId: string): LayoutNode => ({ type: 'leaf', paneId })
@@ -72,5 +72,13 @@ describe('removePane', () => {
   })
   it('painel fora do layout: nada muda além da cópia', () => {
     expect(removePane(two, 'zzz').tabs.map((t) => t.id)).toEqual(['t1', 't2'])
+  })
+
+  it('withTabColor pinta só a aba pedida e aceita null', () => {
+    const l: Layout = { tabs: [{ id: 'a', name: 'A', root: null }, { id: 'b', name: 'B', root: null, color: '#ef4444' }], activeTabId: 'a' }
+    const pintado = withTabColor(l, 'a', '#22c55e')
+    expect(pintado.tabs.map((t) => t.color ?? null)).toEqual(['#22c55e', '#ef4444'])
+    expect(withTabColor(pintado, 'b', null).tabs[1].color).toBeNull()
+    expect(withTabColor(l, 'a', 'verde')).toBe(l) // cor inválida: não muda nada
   })
 })

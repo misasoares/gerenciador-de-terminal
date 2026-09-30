@@ -1,6 +1,6 @@
-import type { RemoveCheck } from '../../shared/types'
+import type { RemoveCheck, Tab } from '../../shared/types'
 import { SESSION_COLORS } from '../../shared/settings'
-import { closeDeadPane, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane } from './actions'
+import { closeDeadPane, closeTab, setTabColor, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane } from './actions'
 import type { ProjectItem, SessionItem, WorktreeItem } from './sidebar-model'
 import { getUi, setUi, showError } from './store'
 
@@ -61,13 +61,18 @@ export async function projectMenu(p: ProjectItem): Promise<void> {
     ...accounts.map((a) => ({ id: `acct:${a.id}`, label: `${mark(p.defaultAccountId === a.id)}Conta padrão: ${a.label}` })),
     { id: 'acct:', label: `${mark(p.defaultAccountId === null)}Sem conta padrão` },
     { id: '-', label: '' },
+    { id: 'color:', label: `${mark(!p.color)}Cor: nenhuma` },
+    ...SESSION_COLORS.map((c) => ({ id: `color:${c.hex}`, label: `${mark(p.color === c.hex)}Cor: ${c.label}` })),
+    { id: '-', label: '' },
     { id: 'conflicts', label: 'Analisar conflitos entre worktrees…' },
     { id: 'remove', label: 'Remover projeto da lista' },
   ])
   if (!choice) return
   try {
     if (choice === 'conflicts') analyzeConflictsFlow(p.path)
-    else if (choice.startsWith('acct:')) {
+    else if (choice.startsWith('color:')) {
+      await window.gt.request({ t: 'project.setColor', path: p.path, color: choice.slice(6) || null })
+    } else if (choice.startsWith('acct:')) {
       await window.gt.request({ t: 'project.setAccount', path: p.path, accountId: choice.slice(5) || null })
     } else if (choice === 'remove') {
       const r = await window.gt.confirm({ message: `Remover ${p.name} da lista?`, detail: 'Nada é apagado do disco; as sessões abertas continuam.', confirmLabel: 'Remover' })
@@ -76,6 +81,23 @@ export async function projectMenu(p: ProjectItem): Promise<void> {
   } catch (e) {
     showError(e)
   }
+}
+
+/** menu da aba; devolve 'rename' para o componente abrir a edição do nome */
+export async function tabMenu(tab: Tab): Promise<'rename' | null> {
+  const mark = (on: boolean) => (on ? '✓ ' : '    ')
+  const choice = await window.gt.contextMenu([
+    { id: 'rename', label: 'Renomear…' },
+    { id: '-', label: '' },
+    { id: 'color:', label: `${mark(!tab.color)}Cor: nenhuma` },
+    ...SESSION_COLORS.map((c) => ({ id: `color:${c.hex}`, label: `${mark(tab.color === c.hex)}Cor: ${c.label}` })),
+    { id: '-', label: '' },
+    { id: 'close', label: 'Fechar aba (as sessões continuam rodando)' },
+  ])
+  if (choice === 'rename') return 'rename'
+  if (choice === 'close') closeTab(tab.id)
+  else if (choice?.startsWith('color:')) setTabColor(tab.id, choice.slice(6) || null)
+  return null
 }
 
 export async function sessionMenu(s: SessionItem): Promise<void> {

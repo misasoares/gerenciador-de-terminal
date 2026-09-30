@@ -56,6 +56,14 @@ export class ProjectRegistry {
     this.onChange()
   }
 
+  setColor(p: string, color: string | null): void {
+    if (color !== null && !/^#[0-9a-fA-F]{6}$/.test(color)) throw new Error(`cor inválida: ${color}`)
+    const c = this.get(p)
+    if (!c) throw new Error(`projeto não encontrado: ${p}`)
+    c.color = color
+    this.onChange()
+  }
+
   async refresh(p: string): Promise<void> {
     const r = await listWorktrees(p)
     const before = JSON.stringify([this.wts.get(p) ?? null, this.errors.get(p) ?? null])
