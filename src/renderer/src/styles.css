@@ -36,9 +36,16 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tab.active { background: var(--bg); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
 .tab-key { font-size: 10px; color: var(--fg-dim); }
 .tab.colored { border-right-color: rgba(0, 0, 0, 0.25); }
-.tab.colored:not(.active) { opacity: 0.8; }
+.tab.colored:not(.active) { background-image: linear-gradient(rgba(20, 20, 20, 0.55), rgba(20, 20, 20, 0.55)); color: rgba(255, 255, 255, 0.72) !important; }
+.tab.colored:not(.active):hover { background-image: linear-gradient(rgba(20, 20, 20, 0.35), rgba(20, 20, 20, 0.35)); }
+.tab.colored.active { font-weight: 700; box-shadow: inset 0 -3px 0 currentColor; }
 .tab.colored .tab-key,
 .tab.colored .tab-close { color: inherit; opacity: 0.75; }
+.tab { position: relative; }
+.tab.drop-before::before,
+.tab.drop-after::after { content: ''; position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--accent); }
+.tab.drop-before::before { left: -1px; }
+.tab.drop-after::after { right: -1px; }
 .tab input { width: 120px; background: #3c3c3c; color: var(--fg); border: 1px solid var(--accent); }
 .tab-close, .tab-add { background: none; padding: 0 4px; color: var(--fg-dim); }
 .tab-body { flex: 1; min-height: 0; position: relative; }

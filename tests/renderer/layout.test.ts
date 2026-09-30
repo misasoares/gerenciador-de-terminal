@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findTab, leaves, neighbor, removeLeaf, removePane, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
+import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
 import type { Layout, LayoutNode } from '../../src/shared/types'
 
 const leaf = (paneId: string): LayoutNode => ({ type: 'leaf', paneId })
@@ -80,5 +80,41 @@ describe('removePane', () => {
     expect(pintado.tabs.map((t) => t.color ?? null)).toEqual(['#22c55e', '#ef4444'])
     expect(withTabColor(pintado, 'b', null).tabs[1].color).toBeNull()
     expect(withTabColor(l, 'a', 'verde')).toBe(l) // cor inválida: não muda nada
+  })
+})
+
+describe('moveTab', () => {
+  const l: Layout = { tabs: ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id, root: null })), activeTabId: 'b' }
+  const ids = (x: Layout) => x.tabs.map((t) => t.id)
+
+  it('move para frente, para trás, para o início e para o fim (índice de inserção na lista original)', () => {
+    expect(ids(moveTab(l, 'a', 3))).toEqual(['b', 'c', 'a', 'd'])
+    expect(ids(moveTab(l, 'd', 1))).toEqual(['a', 'd', 'b', 'c'])
+    expect(ids(moveTab(l, 'c', 0))).toEqual(['c', 'a', 'b', 'd'])
+    expect(ids(moveTab(l, 'a', 4))).toEqual(['b', 'c', 'd', 'a'])
+  })
+
+  it('soltar no mesmo lugar ou id desconhecido não muda nada', () => {
+    expect(moveTab(l, 'b', 1)).toBe(l)
+    expect(moveTab(l, 'b', 2)).toBe(l)
+    expect(moveTab(l, 'zzz', 0)).toBe(l)
+  })
+
+  it('a aba ativa continua a mesma', () => {
+    expect(moveTab(l, 'b', 4).activeTabId).toBe('b')
+  })
+})
+
+describe('tabInsertIndex', () => {
+  // abas de 100px lado a lado: meios em 50, 150, 250
+  const mids = [50, 150, 250]
+  it('antes do meio de uma aba entra antes dela; depois do meio, depois', () => {
+    expect(tabInsertIndex(mids, 10)).toBe(0)
+    expect(tabInsertIndex(mids, 60)).toBe(1)
+    expect(tabInsertIndex(mids, 240)).toBe(2)
+  })
+  it('espaço vazio depois da última aba (ou o botão +) vai para o fim', () => {
+    expect(tabInsertIndex(mids, 260)).toBe(3)
+    expect(tabInsertIndex(mids, 900)).toBe(3)
   })
 })

@@ -113,3 +113,21 @@ export function withTabColor(layout: Layout, tabId: string, color: string | null
   if (color !== null && !/^#[0-9a-fA-F]{6}$/.test(color)) return layout
   return { ...layout, tabs: layout.tabs.map((t) => (t.id === tabId ? { ...t, color } : t)) }
 }
+
+/** move a aba para a posição de inserção toIndex (0..n, contada na lista original); sem efeito → mesmo objeto */
+export function moveTab(layout: Layout, tabId: string, toIndex: number): Layout {
+  const from = layout.tabs.findIndex((t) => t.id === tabId)
+  if (from < 0) return layout
+  const to = Math.max(0, Math.min(toIndex, layout.tabs.length))
+  const dest = to > from ? to - 1 : to
+  if (dest === from) return layout
+  const tabs = [...layout.tabs]
+  const [tab] = tabs.splice(from, 1)
+  tabs.splice(dest, 0, tab)
+  return { ...layout, tabs }
+}
+
+/** posição de inserção (0..n) de uma aba solta em x, dados os meios horizontais das abas */
+export function tabInsertIndex(mids: number[], x: number): number {
+  return mids.filter((m) => x > m).length
+}
