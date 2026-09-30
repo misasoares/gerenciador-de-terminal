@@ -126,3 +126,8 @@ export function moveTab(layout: Layout, tabId: string, toIndex: number): Layout 
   tabs.splice(dest, 0, tab)
   return { ...layout, tabs }
 }
+
+/** posição de inserção (0..n) de uma aba solta em x, dados os meios horizontais das abas */
+export function tabInsertIndex(mids: number[], x: number): number {
+  return mids.filter((m) => x > m).length
+}

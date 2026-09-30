@@ -5,9 +5,16 @@ import { useMemo, useState } from 'react'
 import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
 import { activateTab, addTab, closeTab, renameTab, saveSizes } from '../actions'
-import { leaves, moveTab } from '../layout'
+import { leaves, moveTab, tabInsertIndex } from '../layout'
 
 const TAB_MIME = 'application/x-gt-tab'
+
+function tabMids(bar: HTMLElement): number[] {
+  return [...bar.querySelectorAll<HTMLElement>(':scope > .tab')].map((el) => {
+    const r = el.getBoundingClientRect()
+    return r.left + r.width / 2
+  })
+}
 import { tabMenu } from '../flows'
 import { textOn } from '../header'
 import { updateLayout, useUi } from '../store'
@@ -39,7 +46,26 @@ function TabBar({ layout }: { layout: Layout }) {
   /** posição de inserção (0..n) enquanto uma aba é arrastada */
   const [dropAt, setDropAt] = useState<number | null>(null)
   return (
-    <div className="tabbar">
+    <div
+      className="tabbar"
+      // o soltar é da barra inteira: vale também o espaço vazio depois da última aba e o botão +
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes(TAB_MIME)) return
+        e.preventDefault()
+        setDropAt(tabInsertIndex(tabMids(e.currentTarget), e.clientX))
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropAt(null)
+      }}
+      onDrop={(e) => {
+        const id = e.dataTransfer.getData(TAB_MIME)
+        setDropAt(null)
+        if (!id) return
+        e.preventDefault()
+        const to = tabInsertIndex(tabMids(e.currentTarget), e.clientX)
+        updateLayout((l) => moveTab(l, id, to))
+      }}
+    >
       {layout.tabs.map((t, i) => (
         <div
           key={t.id}
@@ -48,21 +74,6 @@ function TabBar({ layout }: { layout: Layout }) {
           onDragStart={(e) => {
             e.dataTransfer.setData(TAB_MIME, t.id)
             e.dataTransfer.effectAllowed = 'move'
-          }}
-          onDragOver={(e) => {
-            if (!e.dataTransfer.types.includes(TAB_MIME)) return
-            e.preventDefault()
-            const r = e.currentTarget.getBoundingClientRect()
-            setDropAt(i + (e.clientX > r.left + r.width / 2 ? 1 : 0))
-          }}
-          onDrop={(e) => {
-            const id = e.dataTransfer.getData(TAB_MIME)
-            if (!id) return
-            e.preventDefault()
-            const r = e.currentTarget.getBoundingClientRect()
-            const to = i + (e.clientX > r.left + r.width / 2 ? 1 : 0)
-            updateLayout((l) => moveTab(l, id, to))
-            setDropAt(null)
           }}
           onDragEnd={() => setDropAt(null)}
           style={t.color ? { background: t.color, color: textOn(t.color) } : undefined}

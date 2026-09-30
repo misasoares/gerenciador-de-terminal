@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
+import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
 import type { Layout, LayoutNode } from '../../src/shared/types'
 
 const leaf = (paneId: string): LayoutNode => ({ type: 'leaf', paneId })
@@ -102,5 +102,19 @@ describe('moveTab', () => {
 
   it('a aba ativa continua a mesma', () => {
     expect(moveTab(l, 'b', 4).activeTabId).toBe('b')
+  })
+})
+
+describe('tabInsertIndex', () => {
+  // abas de 100px lado a lado: meios em 50, 150, 250
+  const mids = [50, 150, 250]
+  it('antes do meio de uma aba entra antes dela; depois do meio, depois', () => {
+    expect(tabInsertIndex(mids, 10)).toBe(0)
+    expect(tabInsertIndex(mids, 60)).toBe(1)
+    expect(tabInsertIndex(mids, 240)).toBe(2)
+  })
+  it('espaço vazio depois da última aba (ou o botão +) vai para o fim', () => {
+    expect(tabInsertIndex(mids, 260)).toBe(3)
+    expect(tabInsertIndex(mids, 900)).toBe(3)
   })
 })
