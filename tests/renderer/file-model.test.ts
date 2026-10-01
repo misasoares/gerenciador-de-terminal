@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { baseName, findFilePane, insertFileLeaf, isFilePane, languageFor, lineSeparator, pickerRoot, relativeTo } from '../../src/renderer/src/file-model'
+import { resolveRelative, baseName, findFilePane, insertFileLeaf, isFilePane, languageFor, lineSeparator, pickerRoot, relativeTo } from '../../src/renderer/src/file-model'
 import type { Layout, PaneView, ProjectView, Tab } from '../../src/shared/types'
 
 const leaf = (paneId: string) => ({ type: 'leaf' as const, paneId })
@@ -48,5 +48,17 @@ describe('file-model', () => {
     expect(pickerRoot(app, 'file:1')).toBe('/r/api')
     expect(pickerRoot(app, null)).toBe('/r/api')
     expect(pickerRoot({ ...app, projects: [] }, null)).toBe('/u')
+  })
+})
+
+describe('resolveRelative (links dentro de um .md)', () => {
+  it('resolve relativo à pasta do arquivo; ignora http, âncora e mailto', () => {
+    expect(resolveRelative('/r/api/docs/a.md', 'spec.md')).toBe('/r/api/docs/spec.md')
+    expect(resolveRelative('/r/api/docs/a.md', '../README.md#uso')).toBe('/r/api/README.md')
+    expect(resolveRelative('/r/api/docs/a.md', './sub/b%20c.md')).toBe('/r/api/docs/sub/b c.md')
+    expect(resolveRelative('/r/api/docs/a.md', '/abs/x.md')).toBe('/abs/x.md')
+    expect(resolveRelative('/r/api/docs/a.md', 'https://x.com/a.md')).toBeNull()
+    expect(resolveRelative('/r/api/docs/a.md', '#secao')).toBeNull()
+    expect(resolveRelative('/r/api/docs/a.md', 'mailto:a@b.c')).toBeNull()
   })
 })

@@ -53,3 +53,12 @@ export function findPathCandidates(line: string): PathCandidate[] {
   }
   return out.sort((a, b) => a.start - b.start)
 }
+
+/** índices [start, end) de uma linha lógica que o terminal quebrou → coordenadas do xterm (1-based, fim inclusivo) */
+export function linkRange(start: number, end: number, firstRow: number, cols: number): { start: { x: number; y: number }; end: { x: number; y: number } } {
+  const last = end - 1
+  return {
+    start: { x: (start % cols) + 1, y: firstRow + Math.floor(start / cols) },
+    end: { x: (last % cols) + 1, y: firstRow + Math.floor(last / cols) },
+  }
+}

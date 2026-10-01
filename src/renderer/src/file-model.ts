@@ -60,3 +60,23 @@ export function pickerRoot(app: Pick<AppState, 'panes' | 'projects' | 'layout' |
   if (pane) return pane.worktreePath ?? pane.cwd
   return app.projects[0]?.path ?? app.userHome
 }
+
+/** link dentro de um .md → caminho absoluto (relativo à pasta do arquivo); null para http, mailto e âncoras */
+export function resolveRelative(fromFile: string, href: string): string | null {
+  if (!href || href.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(href)) return null
+  let rel = href.split('#')[0].split('?')[0]
+  try {
+    rel = decodeURIComponent(rel)
+  } catch {
+    // mantém como veio
+  }
+  if (!rel) return null
+  const base = rel.startsWith('/') ? [] : fromFile.split('/').slice(0, -1)
+  const out: string[] = []
+  for (const seg of [...base, ...rel.split('/')]) {
+    if (seg === '' || seg === '.') continue
+    if (seg === '..') out.pop()
+    else out.push(seg)
+  }
+  return '/' + out.join('/')
+}

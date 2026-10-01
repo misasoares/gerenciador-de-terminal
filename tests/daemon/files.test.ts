@@ -110,3 +110,15 @@ describe('FileWatcher', () => {
     w.stop()
   })
 })
+
+describe('existing com bases extras', () => {
+  it('procura também a partir da raiz da worktree e da principal', async () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, 'docs'))
+    fs.writeFileSync(path.join(d, 'docs', 'r.md'), '')
+    fs.mkdirSync(path.join(d, 'sub'))
+    expect(await existing(path.join(d, 'sub'), ['docs/r.md'])).toEqual([])
+    expect(await existing(path.join(d, 'sub'), ['docs/r.md'], [d])).toEqual([{ path: 'docs/r.md', abs: path.join(d, 'docs', 'r.md') }])
+  })
+})
+

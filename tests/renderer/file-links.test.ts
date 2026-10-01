@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findPathCandidates } from '../../src/renderer/src/file-links'
+import { findPathCandidates, linkRange } from '../../src/renderer/src/file-links'
 
 const paths = (s: string) => findPathCandidates(s).map((c) => [c.path, c.line])
 
@@ -25,5 +25,14 @@ describe('findPathCandidates', () => {
     const [c] = findPathCandidates(line)
     expect(line.slice(c.start, c.end)).toBe('src/app.ts:42')
     expect(c.text).toBe('src/app.ts:42')
+  })
+})
+
+describe('linkRange (linha quebrada pelo terminal)', () => {
+  it('converte índices da linha lógica em coordenadas do xterm (1-based, fim inclusivo)', () => {
+    // 10 colunas; a linha lógica começa na linha 5 da tela
+    expect(linkRange(2, 6, 5, 10)).toEqual({ start: { x: 3, y: 5 }, end: { x: 6, y: 5 } })
+    expect(linkRange(8, 14, 5, 10)).toEqual({ start: { x: 9, y: 5 }, end: { x: 4, y: 6 } })
+    expect(linkRange(10, 20, 5, 10)).toEqual({ start: { x: 1, y: 6 }, end: { x: 10, y: 6 } })
   })
 })

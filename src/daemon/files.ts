@@ -68,12 +68,18 @@ export async function listFiles(root: string, limit = 20_000): Promise<{ files: 
   return { files: all.slice(0, limit), truncated: all.length > limit }
 }
 
-export async function existing(cwd: string, paths: string[]): Promise<{ path: string; abs: string }[]> {
+/** relativos: tenta o cwd e depois as bases extras (raiz da worktree, pasta principal do projeto) */
+export async function existing(cwd: string, paths: string[], bases: string[] = []): Promise<{ path: string; abs: string }[]> {
   const out: { path: string; abs: string }[] = []
   for (const p of paths) {
-    const abs = path.isAbsolute(p) ? p : path.resolve(cwd, p)
-    const st = await fs.promises.stat(abs).catch(() => null)
-    if (st?.isFile()) out.push({ path: p, abs })
+    const tries = path.isAbsolute(p) ? [p] : [cwd, ...bases].map((b) => path.resolve(b, p))
+    for (const abs of tries) {
+      const st = await fs.promises.stat(abs).catch(() => null)
+      if (st?.isFile()) {
+        out.push({ path: p, abs })
+        break
+      }
+    }
   }
   return out
 }

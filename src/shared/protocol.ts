@@ -24,7 +24,7 @@ export type ClientRequest =
   | { t: 'file.read'; path: string }
   | { t: 'file.write'; path: string; content: string; expectedMtimeMs: number | null }
   | { t: 'file.list'; root: string }
-  | { t: 'file.exists'; cwd: string; paths: string[] }
+  | { t: 'file.exists'; cwd: string; paths: string[]; bases?: string[] }
   | { t: 'file.watch'; path: string }
   | { t: 'file.unwatch'; path: string }
   | { t: 'filepane.set'; id: string; path: string; mode: FilePaneMeta['mode'] }

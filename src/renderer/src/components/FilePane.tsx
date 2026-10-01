@@ -10,12 +10,12 @@ import { javascript } from '@codemirror/lang-javascript'
 import { properties } from '@codemirror/legacy-modes/mode/properties'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { dirtyFiles, dropOnPane, focusPane, PANE_MIME, pendingLine, requestCloseFile } from '../actions'
+import { dirtyFiles, dropOnPane, focusPane, openFile, PANE_MIME, pendingLine, requestCloseFile } from '../actions'
 import { dropZone, type DropZone } from '../layout'
 import type React from 'react'
 import { errorMessage } from '../api'
 import { onFileChanged } from '../file-events'
-import { baseName, languageFor, lineSeparator, pickerRoot, relativeTo, type FileLanguage } from '../file-model'
+import { baseName, languageFor, lineSeparator, pickerRoot, relativeTo, resolveRelative, type FileLanguage } from '../file-model'
 import { setUi, useUi } from '../store'
 
 const LANG: Record<FileLanguage, () => Extension> = {
@@ -236,6 +236,11 @@ export function FilePane({ paneId }: { paneId: string }) {
               e.preventDefault()
               const href = a.getAttribute('href') ?? ''
               if (/^https?:\/\//.test(href)) void window.gt.openExternal(href)
+              else {
+                // link relativo para outro arquivo do projeto: abre no leitor, ao lado
+                const target = resolveRelative(path, href)
+                if (target) void openFile(target, { besideId: paneId })
+              }
             }}
             dangerouslySetInnerHTML={{ __html: html }}
           />

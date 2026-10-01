@@ -436,7 +436,7 @@ export class Daemon {
       case 'file.list':
         return listFiles(req.root)
       case 'file.exists':
-        return existing(req.cwd, req.paths)
+        return existing(req.cwd, req.paths, req.bases ?? [])
       case 'file.watch':
         if (!this.watchedConns.has(conn)) {
           this.watchedConns.add(conn)
