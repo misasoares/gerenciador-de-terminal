@@ -30,3 +30,8 @@ export function relativeTime(ms: number, now: number): string {
 export function isMissing(e: unknown): boolean {
   return errorMessage(e).includes('conversation-missing')
 }
+
+/** só os painéis que continuam para retomar (um painel descartado sai da contagem) */
+export function liveMissing(missing: string[], resumable: { paneId: string }[]): string[] {
+  return missing.filter((id) => resumable.some((r) => r.paneId === id))
+}

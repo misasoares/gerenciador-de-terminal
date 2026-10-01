@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterConversations, isMissing, normalize, relativeTime } from '../../src/renderer/src/conversations-model'
+import { filterConversations, isMissing, liveMissing, normalize, relativeTime } from '../../src/renderer/src/conversations-model'
 import type { ConversationInfo } from '../../src/shared/types'
 
 const c = (sessionId: string, title: string, branch: string | null = null): ConversationInfo => ({ agent: 'claude', sessionId, cwd: '/r', title, branch, lastActivity: 0, messages: 1, accountIds: [], openPaneId: null })
@@ -25,5 +25,10 @@ describe('conversations-model', () => {
   it('isMissing reconhece o erro do daemon', () => {
     expect(isMissing(new Error('conversation-missing'))).toBe(true)
     expect(isMissing(new Error('outra coisa'))).toBe(false)
+  })
+
+  it('liveMissing ignora painéis que já não estão para retomar (descartados)', () => {
+    expect(liveMissing(['a', 'b', 'c'], [{ paneId: 'b' }, { paneId: 'c' }])).toEqual(['b', 'c'])
+    expect(liveMissing(['a'], [])).toEqual([])
   })
 })
