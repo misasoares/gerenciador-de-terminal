@@ -101,3 +101,9 @@ export function accountsWithoutHooks(app: Pick<AppState, 'hookWarnings' | 'accou
   }
   return out
 }
+
+/** à vista: principal, com sessão ou em conflito; o resto (sem sessão, pasta apagada) fica recolhido */
+export function splitWorktrees(worktrees: WorktreeItem[], conflicted: Set<string>): { visible: WorktreeItem[]; hidden: WorktreeItem[] } {
+  const keep = (w: WorktreeItem) => !w.prunable && (w.isMain || w.sessions.length > 0 || conflicted.has(w.path))
+  return { visible: worktrees.filter(keep), hidden: worktrees.filter((w) => !keep(w)) }
+}

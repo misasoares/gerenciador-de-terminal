@@ -1,4 +1,5 @@
-import type { AppState, PaneView, SessionStatus } from '../../shared/types'
+import type { AppState, Layout, PaneView, SessionStatus } from '../../shared/types'
+import { leaves } from './layout'
 
 export interface HeaderView {
   project: string
@@ -71,4 +72,15 @@ function channel(hex: string, i: number): number {
 export function textOn(bg: string): string {
   const l = 0.2126 * channel(bg, 0) + 0.7152 * channel(bg, 1) + 0.0722 * channel(bg, 2)
   return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? '#111111' : '#ffffff'
+}
+
+/** a aba do painel tem 2+ painéis, todos no mesmo projeto e worktree: o cabeçalho pode esconder o que se repete */
+export function sharesContext(paneId: string, layout: Layout, panes: PaneView[]): boolean {
+  const tab = layout.tabs.find((t) => leaves(t.root).includes(paneId))
+  const ids = tab ? leaves(tab.root) : []
+  if (ids.length < 2) return false
+  const inTab = ids.map((id) => panes.find((p) => p.id === id)).filter((p): p is PaneView => !!p)
+  if (inTab.length !== ids.length) return false
+  const [first] = inTab
+  return first.projectPath !== null && inTab.every((p) => p.projectPath === first.projectPath && p.worktreePath === first.worktreePath)
 }

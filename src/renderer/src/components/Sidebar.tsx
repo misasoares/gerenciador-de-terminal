@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { openNewSessionDialog, PANE_MIME, revealPane } from '../actions'
 import { conflictPartners } from '../conflicts-model'
 import { addProjectFlow, analyzeConflictsFlow, projectMenu, sessionMenu, worktreeMenu } from '../flows'
-import { buildSidebar, isExpanded, railLabel, type ProjectItem, type SessionItem } from '../sidebar-model'
+import { buildSidebar, isExpanded, railLabel, splitWorktrees, type ProjectItem, type SessionItem } from '../sidebar-model'
 import { setUi, useUi } from '../store'
 import { STATUS_DOT } from './PaneHeader'
 import { textOn } from '../header'
@@ -37,7 +37,11 @@ function SessionRow({ s, outside }: { s: SessionItem; outside?: boolean }) {
       {s.color && <span className="sb-color" style={{ background: s.color }} />}
       <span className="sb-label">{s.label}</span>
       {s.hidden && <span className="sb-tag">oculta</span>}
-      {s.tab !== null && <span className="sb-tab">{s.tab}</span>}
+      {s.tab !== null && (
+        <span className="sb-tab" title={`aberta na aba ${s.tab}`}>
+          ⌘{s.tab}
+        </span>
+      )}
       {outside && (
         <button
           className="sb-mini"
@@ -58,6 +62,8 @@ function Tree() {
   const focusedId = useUi((s) => s.focusedPaneId)
   const model = useMemo(() => (app ? buildSidebar(app) : null), [app])
   const [overrides, setOverrides] = useState<Record<string, boolean>>({})
+  /** projetos com as worktrees sem sessão à mostra */
+  const [showIdle, setShowIdle] = useState<Record<string, boolean>>({})
   if (!app || !model) return null
   const focusedProject = app.panes.find((p) => p.id === focusedId)?.projectPath ?? null
 
@@ -83,8 +89,8 @@ function Tree() {
               title={p.path}
             >
               <span className="sb-caret">{open ? '▾' : '▸'}</span>
-              <span className={`sb-name${p.color ? ' colored' : ''}`} style={p.color ? { background: p.color, color: textOn(p.color) } : undefined}>
-                {p.name.toUpperCase()}
+              <span className={`sb-name${p.color ? ' colored' : ''}`} style={p.color ? { background: p.color, color: textOn(p.color) } : undefined} title={p.name}>
+                {p.name}
               </span>
               <button
                 className="sb-mini sb-conflicts"
@@ -104,7 +110,12 @@ function Tree() {
               <Summary s={p.summary} />
             </div>
             {open &&
-              p.worktrees.map((w) => (
+              (() => {
+                const view = app.projects.find((x) => x.path === p.path)
+                const conflicted = new Set((view?.conflicts?.pairs ?? []).flatMap((x) => [x.a, x.b]).concat((view?.conflicts?.vsMain ?? []).filter((x) => x.files.length > 0).map((x) => x.worktreePath)))
+                const { visible, hidden } = splitWorktrees(p.worktrees, conflicted)
+                return [...visible, ...(showIdle[p.path] ? hidden : [])]
+              })().map((w) => (
                 <div key={w.path} className="sb-worktree">
                   <div
                     className="sb-wt-row"
@@ -150,6 +161,19 @@ function Tree() {
                   ))}
                 </div>
               ))}
+            {open &&
+              (() => {
+                const view = app.projects.find((x) => x.path === p.path)
+                const conflicted = new Set((view?.conflicts?.pairs ?? []).flatMap((x) => [x.a, x.b]).concat((view?.conflicts?.vsMain ?? []).filter((x) => x.files.length > 0).map((x) => x.worktreePath)))
+                const n = splitWorktrees(p.worktrees, conflicted).hidden.length
+                if (n === 0) return null
+                const on = !!showIdle[p.path]
+                return (
+                  <button className="sb-more" onClick={() => setShowIdle((o) => ({ ...o, [p.path]: !on }))}>
+                    {on ? 'esconder worktrees sem sessão' : `+${n} ${n === 1 ? 'worktree sem sessão' : 'worktrees sem sessão'}`}
+                  </button>
+                )
+              })()}
           </div>
         )
       })}
