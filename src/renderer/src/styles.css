@@ -256,3 +256,10 @@ kbd { font-family: inherit; background: #3a3d41; border-radius: 3px; padding: 1p
 .dock-preview-left { top: 0; bottom: 0; left: 0; width: 33%; }
 .dock-preview-right { top: 0; bottom: 0; right: 0; width: 33%; }
 .tab-body.drop-empty { outline: 2px solid var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.conv-modal { width: min(860px, 92vw); }
+.conv-list { max-height: 60vh; overflow-y: auto; margin-top: 8px; }
+.conv-row { display: grid; grid-template-columns: 56px 1fr auto auto auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 4px; }
+.conv-row.selected { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.conv-agent { font-size: 11px; color: var(--fg-dim); }
+.conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-meta, .conv-account { font-size: 11.5px; color: var(--fg-dim); white-space: nowrap; }

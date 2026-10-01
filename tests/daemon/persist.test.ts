@@ -37,4 +37,8 @@ describe('persistência', () => {
     savePersisted(f, data)
     expect(loadPersisted(f)).toEqual(data)
   })
+
+  it('claudeProfiles e codexHomes têm padrão vazio', () => {
+    expect(defaultPersisted()).toMatchObject({ claudeProfiles: [], codexHomes: [] })
+  })
 })

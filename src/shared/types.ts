@@ -114,6 +114,8 @@ export interface ResumeEntry {
   sessionId: string | null
   /** ausente em entradas antigas = claude */
   agent?: AgentKind
+  /** caminho do .jsonl visto no hook (Claude); ajuda a localizar a conversa ao retomar */
+  transcriptPath?: string | null
 }
 
 export interface AppState {
@@ -188,4 +190,19 @@ export interface UsageView {
   /** última leitura bem-sucedida (epoch ms) */
   readAt: number | null
   status: UsageStatus
+}
+
+export interface ConversationInfo {
+  agent: AgentKind
+  sessionId: string
+  /** pasta de onde a conversa é retomada (a pasta em que o arquivo foi gravado) */
+  cwd: string
+  title: string
+  branch: string | null
+  lastActivity: number
+  messages: number
+  /** contas que podem retomar, na ordem da lista de agentes; [] = conta não configurada */
+  accountIds: string[]
+  /** painel vivo com esta sessão */
+  openPaneId: string | null
 }

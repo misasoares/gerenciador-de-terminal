@@ -2,6 +2,8 @@ import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { closeDeadPane, dropOnPane, focusPane, openNewPane, PANE_MIME } from '../actions'
 import { tildify } from '../header'
+import { chooseConversationFor } from '../flows'
+import { isMissing } from '../conversations-model'
 import { dropZone, type DropZone } from '../layout'
 import { setUi, showError, useUi } from '../store'
 import { PaneHeader } from './PaneHeader'
@@ -14,6 +16,7 @@ export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProje
   const focused = useUi((s) => s.focusedPaneId === paneId)
   const flashing = useUi((s) => s.flashPaneId === paneId)
   const resumable = useUi((s) => s.app?.resumable.find((r) => r.paneId === paneId))
+  const missing = useUi((s) => s.missingResume.includes(paneId))
   const accounts = useUi((s) => s.app?.accounts)
   const userHome = useUi((s) => s.app?.userHome ?? '')
   const [zone, setZone] = useState<DropZone | null>(null)
@@ -34,7 +37,10 @@ export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProje
 
   const resume = () => {
     if (!resumable) return
-    openNewPane({ paneId, cwd: resumable.cwd, accountId: resumable.accountId, resumeSessionId: resumable.sessionId ?? undefined, resumeAgent: resumable.agent }).catch(showError)
+    openNewPane({ paneId, cwd: resumable.cwd, accountId: resumable.accountId, resumeSessionId: resumable.sessionId ?? undefined, resumeAgent: resumable.agent, transcriptPath: resumable.transcriptPath ?? null }).catch((e) => {
+      if (isMissing(e)) setUi((s) => ({ missingResume: [...s.missingResume.filter((id) => id !== paneId), paneId] }))
+      else showError(e)
+    })
   }
 
   const status = pane?.claude?.status
@@ -67,11 +73,17 @@ export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProje
         <TerminalView paneId={paneId} />
       ) : resumable ? (
         <div className="pane-dead">
-          <div className="pane-dead-title">{resumable.sessionId ? 'sessão perdida' : 'terminal perdido'}</div>
+          <div className="pane-dead-title">{missing ? 'A conversa salva não foi encontrada' : resumable.sessionId ? 'sessão perdida' : 'terminal perdido'}</div>
           <div className="pane-dead-actions">
-            <button className="primary" onClick={resume}>
-              {resumable.sessionId ? 'Retomar sessão' : 'Abrir de novo'}
-            </button>
+            {missing ? (
+              <button className="primary" onClick={() => chooseConversationFor(paneId)}>
+                Escolher conversa…
+              </button>
+            ) : (
+              <button className="primary" onClick={resume}>
+                {resumable.sessionId ? 'Retomar sessão' : 'Abrir de novo'}
+              </button>
+            )}
             <button onClick={() => closeDeadPane(paneId)}>Descartar</button>
           </div>
           <div className="pane-dead-detail">

@@ -51,11 +51,12 @@ export async function openNewPane(o: {
   accountId: string | null
   resumeSessionId?: string
   resumeAgent?: AgentKind
+  transcriptPath?: string | null
   paneId?: string
   dir?: 'row' | 'column'
 }): Promise<string> {
   const paneId = o.paneId ?? crypto.randomUUID()
-  await window.gt.request({ t: 'pane.create', paneId, cwd: o.cwd, accountId: o.accountId, resumeSessionId: o.resumeSessionId, resumeAgent: o.resumeAgent, cols: 100, rows: 30 })
+  await window.gt.request({ t: 'pane.create', paneId, cwd: o.cwd, accountId: o.accountId, resumeSessionId: o.resumeSessionId, resumeAgent: o.resumeAgent, transcriptPath: o.transcriptPath ?? null, cols: 100, rows: 30 })
   placePane(paneId, o.dir ?? 'row')
   focusPane(paneId)
   return paneId

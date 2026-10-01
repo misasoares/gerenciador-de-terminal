@@ -10,6 +10,8 @@ import { connectApp } from '../helpers/app-client'
 import { RpcClient } from '../../src/shared/rpc-client'
 import { makeRepo, type TestRepo } from '../helpers/repo'
 import { runWithInput } from '../helpers/run'
+import { projectDirName } from '../../src/daemon/conversations/files'
+import type { ConversationInfo } from '../../src/shared/types'
 import { waitFor } from '../helpers/wait'
 
 let daemons: Daemon[] = []
@@ -58,6 +60,22 @@ function hook(o: DaemonOptions, paneId: string, payload: Record<string, unknown>
   return runWithInput('/bin/sh', [o.hookScriptPath], JSON.stringify(payload), {
     PATH: '/usr/bin:/bin', GT_PANE_ID: paneId, GT_SOCKET: o.socketPath, ...(configDir ? { CLAUDE_CONFIG_DIR: configDir } : {}),
   })
+}
+
+function fakeClaudeConv(o: DaemonOptions, cwd: string, id: string, text = 'oi'): string {
+  const f = path.join(o.userHome, '.claude', 'projects', projectDirName(cwd), `${id}.jsonl`)
+  fs.mkdirSync(path.dirname(f), { recursive: true })
+  fs.writeFileSync(f, JSON.stringify({ type: 'user', message: { role: 'user', content: text }, cwd, timestamp: 't' }) + '\n')
+  return f
+}
+
+function fakeCodexConv(o: DaemonOptions, cwd: string, id: string): string {
+  const f = path.join(o.userHome, '.codex', 'sessions', '2026', '10', '01', `rollout-2026-10-01T10-00-00-${id}.jsonl`)
+  fs.mkdirSync(path.dirname(f), { recursive: true })
+  const meta = { type: 'session_meta', payload: { id, cwd } }
+  const msg = { type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'oi' }] } }
+  fs.writeFileSync(f, JSON.stringify(meta) + '\n' + JSON.stringify(msg) + '\n')
+  return f
 }
 
 describe('buildPaneEnv', () => {
@@ -150,6 +168,29 @@ describe('Daemon', () => {
     await waitFor(() => JSON.parse(fs.readFileSync(o.stateFile, 'utf8')).loginDirs?.mslabs === mslabs)
   })
 
+  it('conversas: lista por pasta, marca painel aberto, recusa conversa ausente e retoma no cwd de início', async () => {
+    repo = makeRepo()
+    const { o, app } = await boot()
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    fakeClaudeConv(o, repo.dir, 'cafe-0001', 'Corrigir login')
+    const wt = path.join(repo.dir, '.claude', 'worktrees', 'x')
+    repo.git('worktree', 'add', '-b', 'x', wt)
+
+    const list = await app.client.request<ConversationInfo[]>({ t: 'conversations.list', paths: [repo.dir] })
+    expect(list.map((c) => [c.sessionId, c.title, c.accountIds, c.openPaneId])).toEqual([['cafe-0001', 'Corrigir login', ['misa'], null]])
+
+    await expect(app.client.request({ t: 'pane.create', cwd: repo.dir, accountId: 'misa', resumeSessionId: 'sumiu', cols: 80, rows: 24 })).rejects.toThrow('conversation-missing')
+
+    // o painel guardava o cwd da worktree, mas a conversa começou na pasta principal
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: wt, accountId: 'misa', resumeSessionId: 'cafe-0001', cols: 80, rows: 24 })
+    const st = await app.waitState((s) => s.panes.some((p) => p.id === paneId))
+    expect(st.panes.find((p) => p.id === paneId)?.cwd).toBe(repo.dir)
+    await hook(o, paneId, { hook_event_name: 'SessionStart', session_id: 'cafe-0001', cwd: repo.dir, transcript_path: path.join(o.userHome, '.claude', 'projects', projectDirName(repo.dir), 'cafe-0001.jsonl') })
+    await app.waitState((s) => s.panes.some((p) => p.claude?.sessionId === 'cafe-0001'))
+    const again = await app.client.request<ConversationInfo[]>({ t: 'conversations.list', paths: [repo.dir] })
+    expect(again[0].openPaneId).toBe(paneId)
+  })
+
   it('poller: cd no shell muda a worktree; sessão sem processo claude é encerrada', async () => {
     repo = makeRepo()
     const wt = path.join(repo.root, 'wt b')
@@ -187,8 +228,9 @@ describe('Daemon', () => {
     daemons = []
 
     const second = await boot({}, first.home)
+    fakeClaudeConv(second.o, repo.dir, 'abcd-1234')
     const st = await second.app.waitState((s) => s.resumable.length === 1)
-    expect(st.resumable[0]).toEqual({ paneId, cwd: repo.dir, accountId: 'misa', sessionId: 'abcd-1234', agent: 'claude' })
+    expect(st.resumable[0]).toEqual({ paneId, cwd: repo.dir, accountId: 'misa', sessionId: 'abcd-1234', agent: 'claude', transcriptPath: null })
     expect(st.panes).toEqual([])
 
     await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: 'misa', resumeSessionId: 'abcd-1234', cols: 80, rows: 24 })
@@ -208,6 +250,7 @@ describe('Daemon', () => {
     daemons = []
 
     const second = await boot({}, first.home)
+    fakeCodexConv(second.o, repo.dir, 'abcd-1234')
     const st = await second.app.waitState((s) => s.resumable.length === 1)
     expect(st.resumable[0]).toMatchObject({ accountId: null, sessionId: 'abcd-1234', agent: 'codex' })
     await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: null, resumeSessionId: 'abcd-1234', resumeAgent: 'codex', cols: 80, rows: 24 })

@@ -10,6 +10,7 @@ export interface PersistedPane {
   accountId: string | null
   sessionId: string | null
   agent?: AgentKind
+  transcriptPath?: string | null
 }
 
 export interface Persisted {
@@ -26,6 +27,9 @@ export interface Persisted {
   loginDirs: Record<string, string>
   /** chaves de aviso de uso já disparadas (loginKey|janela|resetsAt|limiar) */
   usageNotified: string[]
+  /** CLAUDE_CONFIG_DIR / CODEX_HOME vistos em hooks (perfis onde procurar conversas) */
+  claudeProfiles: string[]
+  codexHomes: string[]
 }
 
 export function defaultPersisted(): Persisted {
@@ -41,6 +45,8 @@ export function defaultPersisted(): Persisted {
     settings: { ...DEFAULT_SETTINGS },
     loginDirs: {},
     usageNotified: [],
+    claudeProfiles: [],
+    codexHomes: [],
   }
 }
 
@@ -63,6 +69,8 @@ export function loadPersisted(file: string): Persisted {
       settings: normalizeSettings(parsed.settings),
       loginDirs: parsed.loginDirs && typeof parsed.loginDirs === 'object' ? parsed.loginDirs : {},
       usageNotified: Array.isArray(parsed.usageNotified) ? parsed.usageNotified.filter((k) => typeof k === 'string') : [],
+      claudeProfiles: Array.isArray(parsed.claudeProfiles) ? parsed.claudeProfiles.filter((x) => typeof x === 'string') : [],
+      codexHomes: Array.isArray(parsed.codexHomes) ? parsed.codexHomes.filter((x) => typeof x === 'string') : [],
     }
   } catch {
     fs.renameSync(file, `${file}.corrupt-${Date.now()}`)

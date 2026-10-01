@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { resumeAll, restartDaemonFlow } from '../flows'
+import { chooseConversationFor, resumeAll, restartDaemonFlow } from '../flows'
 import { hidePane } from '../actions'
 import { setUi, showError, useUi } from '../store'
 import { usageChips } from '../usage-model'
+import { liveMissing } from '../conversations-model'
 
 /** 2l: avisos não intrusivos na barra de status inferior */
 export function StatusBar() {
@@ -10,8 +11,11 @@ export function StatusBar() {
   const connected = useUi((s) => s.connected)
   const vm = useUi((s) => s.versionMismatch)
   const error = useUi((s) => s.error)
+  const missingAll = useUi((s) => s.missingResume)
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
   if (!app) return null
+  // calculado no render (não no seletor): o seletor precisa devolver sempre a mesma referência
+  const missing = liveMissing(missingAll, app.resumable)
   const alive = app.panes.filter((p) => p.alive).length
   const dismiss = (k: string) => setDismissed((d) => ({ ...d, [k]: true }))
 
@@ -35,6 +39,14 @@ export function StatusBar() {
             }
           >
             Descartar
+          </button>
+        </span>
+      )}
+      {missing.length > 0 && (
+        <span className="st-item warn">
+          {missing.length === 1 ? '1 conversa não encontrada' : `${missing.length} conversas não encontradas`}{' '}
+          <button className="st-btn" onClick={() => chooseConversationFor(missing[0])}>
+            Escolher
           </button>
         </span>
       )}
