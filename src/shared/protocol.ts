@@ -1,4 +1,4 @@
-import type { Account, AgentKind, AppState, HookPayload, Layout } from './types'
+import type { Account, AgentKind, AppState, HookPayload, Layout, FilePaneMeta } from './types'
 import type { TerminalSettings } from './settings'
 
 export const PROTOCOL_VERSION = 2
@@ -21,6 +21,13 @@ export type ClientRequest =
   | { t: 'accounts.save'; accounts: Account[] }
   | { t: 'agents.detect' }
   | { t: 'conversations.list'; paths: string[] }
+  | { t: 'file.read'; path: string }
+  | { t: 'file.write'; path: string; content: string; expectedMtimeMs: number | null }
+  | { t: 'file.list'; root: string }
+  | { t: 'file.exists'; cwd: string; paths: string[] }
+  | { t: 'file.watch'; path: string }
+  | { t: 'file.unwatch'; path: string }
+  | { t: 'filepane.set'; id: string; path: string; mode: FilePaneMeta['mode'] }
   | { t: 'project.add'; path: string }
   | { t: 'project.remove'; path: string }
   | { t: 'project.setAccount'; path: string; accountId: string | null }
@@ -44,6 +51,7 @@ export type ServerMessage =
   | { t: 'state'; state: AppState }
   | { t: 'pane.data'; paneId: string; data: string; seq: number }
   | { t: 'usage.alert'; text: string }
+  | { t: 'file.changed'; path: string; mtimeMs: number | null }
 
 /** eventos que o processo principal do Electron entrega ao renderer */
 export type BridgeEvent =

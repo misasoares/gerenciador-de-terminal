@@ -41,4 +41,7 @@ describe('persistência', () => {
   it('claudeProfiles e codexHomes têm padrão vazio', () => {
     expect(defaultPersisted()).toMatchObject({ claudeProfiles: [], codexHomes: [] })
   })
+  it('filePanes tem padrão vazio', () => {
+    expect(defaultPersisted()).toMatchObject({ filePanes: {} })
+  })
 })

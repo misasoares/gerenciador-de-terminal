@@ -9,6 +9,7 @@ export interface Conn {
   subscriptions: Map<string, number>
   send(m: ServerMessage): void
   end(): void
+  onClose(fn: () => void): void
 }
 
 export type Handler = (req: ClientRequest, conn: Conn) => unknown | Promise<unknown>
@@ -31,6 +32,7 @@ export async function startServer(socketPath: string, handler: Handler): Promise
     sockets.add(sock)
     sock.setEncoding('utf8')
     const dec = new LineDecoder()
+    const closers: (() => void)[] = []
     const conn: Conn = {
       role: null,
       subscriptions: new Map(),
@@ -38,6 +40,9 @@ export async function startServer(socketPath: string, handler: Handler): Promise
         if (!sock.destroyed) sock.write(encode(m))
       },
       end: () => sock.end(),
+      onClose: (fn) => {
+        closers.push(fn)
+      },
     }
     conns.add(conn)
 
@@ -57,6 +62,7 @@ export async function startServer(socketPath: string, handler: Handler): Promise
     sock.on('close', () => {
       conns.delete(conn)
       sockets.delete(sock)
+      for (const fn of closers) fn()
     })
   })
 

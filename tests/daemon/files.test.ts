@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { existing, listFiles, MAX_BYTES, readFile, writeFile } from '../../src/daemon/files'
+import { existing, FileWatcher, listFiles, MAX_BYTES, readFile, writeFile } from '../../src/daemon/files'
 
 const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-f-')))
 const git = (dir: string, ...args: string[]) => execFileSync('git', ['-C', dir, ...args], { stdio: 'pipe' })
@@ -76,5 +76,37 @@ describe('arquivos', () => {
       { path: 'docs/r.md', abs: path.join(d, 'docs', 'r.md') },
       { path: path.join(d, 'docs', 'r.md'), abs: path.join(d, 'docs', 'r.md') },
     ])
+  })
+})
+
+describe('FileWatcher', () => {
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  it('avisa mudança, troca por renomear, remoção; para no unwatch', async () => {
+    const d = tmp()
+    const f = path.join(d, 'r.md')
+    fs.writeFileSync(f, 'a')
+    const got: [string, number | null, string[]][] = []
+    const w = new FileWatcher<string>((p, m, subs) => got.push([p, m, subs]), 30)
+    w.watch(f, 'conn-1')
+    await wait(50)
+    fs.writeFileSync(f, 'b')
+    await wait(150)
+    expect(got.at(-1)?.[0]).toBe(f)
+    expect(got.at(-1)?.[1]).toBe(fs.statSync(f).mtimeMs)
+    expect(got.at(-1)?.[2]).toEqual(['conn-1'])
+    const before = got.length
+    fs.writeFileSync(path.join(d, '.tmp'), 'c')
+    fs.renameSync(path.join(d, '.tmp'), f) // escrita atômica de outro programa
+    await wait(150)
+    expect(got.length).toBeGreaterThan(before)
+    fs.rmSync(f)
+    await wait(150)
+    expect(got.at(-1)?.[1]).toBeNull()
+    w.unwatchAll('conn-1')
+    const n = got.length
+    fs.writeFileSync(f, 'd')
+    await wait(150)
+    expect(got.length).toBe(n)
+    w.stop()
   })
 })

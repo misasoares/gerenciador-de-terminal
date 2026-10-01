@@ -77,3 +77,67 @@ export async function existing(cwd: string, paths: string[]): Promise<{ path: st
   }
   return out
 }
+
+interface Watch<S> {
+  watcher: fs.FSWatcher | null
+  subs: Set<S>
+  timer: NodeJS.Timeout | null
+}
+
+/** vigia a PASTA do arquivo (sobrevive a "renomear por cima") e avisa quem assinou o caminho */
+export class FileWatcher<S> {
+  private w = new Map<string, Watch<S>>()
+
+  constructor(private notify: (path: string, mtimeMs: number | null, subs: S[]) => void, private debounceMs = 150) {}
+
+  watch(p: string, sub: S): void {
+    let entry = this.w.get(p)
+    if (!entry) {
+      entry = { watcher: null, subs: new Set(), timer: null }
+      const e = entry
+      try {
+        const base = path.basename(p)
+        e.watcher = fs.watch(path.dirname(p), (_ev, name) => {
+          if (name && name.toString() !== base) return
+          if (e.timer) clearTimeout(e.timer)
+          e.timer = setTimeout(() => {
+            e.timer = null
+            fs.promises
+              .stat(p)
+              .then((st) => st.mtimeMs, () => null)
+              .then((m) => this.notify(p, m, [...e.subs]))
+          }, this.debounceMs)
+        })
+        e.watcher.on('error', () => {})
+      } catch {
+        // pasta inexistente: sem vigilância (o painel mostra "Arquivo não encontrado")
+      }
+      this.w.set(p, entry)
+    }
+    entry.subs.add(sub)
+  }
+
+  unwatch(p: string, sub: S): void {
+    const e = this.w.get(p)
+    if (!e) return
+    e.subs.delete(sub)
+    if (e.subs.size === 0) this.drop(p, e)
+  }
+
+  unwatchAll(sub: S): void {
+    for (const [p, e] of this.w) {
+      e.subs.delete(sub)
+      if (e.subs.size === 0) this.drop(p, e)
+    }
+  }
+
+  stop(): void {
+    for (const [p, e] of this.w) this.drop(p, e)
+  }
+
+  private drop(p: string, e: Watch<S>): void {
+    if (e.timer) clearTimeout(e.timer)
+    e.watcher?.close()
+    this.w.delete(p)
+  }
+}

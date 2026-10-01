@@ -191,6 +191,33 @@ describe('Daemon', () => {
     expect(again[0].openPaneId).toBe(paneId)
   })
 
+  it('arquivos: ler, salvar, listar, vigiar e filePanes podado pelo layout', async () => {
+    repo = makeRepo()
+    const { app } = await boot()
+    const f = path.join(repo.dir, '.env')
+    fs.writeFileSync(f, 'A=1\n')
+    const r = await app.client.request<{ content: string; mtimeMs: number }>({ t: 'file.read', path: f })
+    expect(r.content).toBe('A=1\n')
+    await app.client.request({ t: 'file.write', path: f, content: 'A=2\n', expectedMtimeMs: r.mtimeMs })
+    expect(fs.readFileSync(f, 'utf8')).toBe('A=2\n')
+    await expect(app.client.request({ t: 'file.write', path: f, content: 'x', expectedMtimeMs: 1 })).rejects.toThrow('file-changed')
+    const list = await app.client.request<{ files: string[] }>({ t: 'file.list', root: repo.dir })
+    expect(list.files).toContain('.env')
+    expect(await app.client.request({ t: 'file.exists', cwd: repo.dir, paths: ['.env', 'nada'] })).toEqual([{ path: '.env', abs: f }])
+
+    await app.client.request({ t: 'file.watch', path: f })
+    await new Promise((r) => setTimeout(r, 50))
+    fs.writeFileSync(f, 'A=3\n')
+    await waitFor(() => app.fileEvents().some((e) => e.path === f))
+
+    await app.client.request({ t: 'filepane.set', id: 'file:1', path: f, mode: 'edit' })
+    await app.waitState((s) => s.filePanes['file:1']?.path === f)
+    await app.client.request({ t: 'layout.save', layout: { tabs: [{ id: 't', name: 'A', root: { type: 'leaf', paneId: 'file:1' } }], activeTabId: 't' } })
+    expect((await app.client.request<{ filePanes: Record<string, unknown> }>({ t: 'state.get' })).filePanes['file:1']).toBeTruthy()
+    await app.client.request({ t: 'layout.save', layout: { tabs: [{ id: 't', name: 'A', root: null }], activeTabId: 't' } })
+    await app.waitState((s) => !s.filePanes['file:1'])
+  })
+
   it('poller: cd no shell muda a worktree; sessão sem processo claude é encerrada', async () => {
     repo = makeRepo()
     const wt = path.join(repo.root, 'wt b')

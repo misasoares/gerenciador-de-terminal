@@ -132,6 +132,8 @@ export interface AppState {
   usage: UsageView[]
   /** por agente: por que ainda não há uso para mostrar */
   usageHints: Record<string, string>
+  /** painéis de arquivo abertos (id file:<uuid> → caminho e modo) */
+  filePanes: Record<string, FilePaneMeta>
 }
 
 export interface HookPayload {
@@ -205,4 +207,9 @@ export interface ConversationInfo {
   accountIds: string[]
   /** painel vivo com esta sessão */
   openPaneId: string | null
+}
+
+export interface FilePaneMeta {
+  path: string
+  mode: 'view' | 'edit'
 }

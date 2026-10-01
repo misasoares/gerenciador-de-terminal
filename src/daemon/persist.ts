@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Account, AgentKind, Layout, ProjectConfig, ResumeEntry } from '../shared/types'
+import type { Account, AgentKind, Layout, ProjectConfig, ResumeEntry, FilePaneMeta } from '../shared/types'
 import { migrateAccounts } from './accounts'
 import { DEFAULT_SETTINGS, normalizeSettings, type TerminalSettings } from '../shared/settings'
 
@@ -30,6 +30,8 @@ export interface Persisted {
   /** CLAUDE_CONFIG_DIR / CODEX_HOME vistos em hooks (perfis onde procurar conversas) */
   claudeProfiles: string[]
   codexHomes: string[]
+  /** painéis de arquivo (id file:<uuid>) */
+  filePanes: Record<string, FilePaneMeta>
 }
 
 export function defaultPersisted(): Persisted {
@@ -47,6 +49,7 @@ export function defaultPersisted(): Persisted {
     usageNotified: [],
     claudeProfiles: [],
     codexHomes: [],
+    filePanes: {},
   }
 }
 
@@ -71,6 +74,7 @@ export function loadPersisted(file: string): Persisted {
       usageNotified: Array.isArray(parsed.usageNotified) ? parsed.usageNotified.filter((k) => typeof k === 'string') : [],
       claudeProfiles: Array.isArray(parsed.claudeProfiles) ? parsed.claudeProfiles.filter((x) => typeof x === 'string') : [],
       codexHomes: Array.isArray(parsed.codexHomes) ? parsed.codexHomes.filter((x) => typeof x === 'string') : [],
+      filePanes: parsed.filePanes && typeof parsed.filePanes === 'object' ? parsed.filePanes : {},
     }
   } catch {
     fs.renameSync(file, `${file}.corrupt-${Date.now()}`)
