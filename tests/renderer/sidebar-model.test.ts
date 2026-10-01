@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from '../../src/shared/settings'
 import { describe, expect, it } from 'vitest'
-import { buildSidebar, sessionLabel } from '../../src/renderer/src/sidebar-model'
+import { buildSidebar, sessionLabel, splitWorktrees } from '../../src/renderer/src/sidebar-model'
 import type { AppState, PaneView } from '../../src/shared/types'
 
 const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: Number(id.slice(1)), cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
@@ -48,5 +48,15 @@ describe('buildSidebar', () => {
     expect(buildSidebar(app).projects[0].color).toBeNull()
     const pintado = { ...app, projects: [{ ...app.projects[0], color: '#a855f7' }] }
     expect(buildSidebar(pintado).projects[0].color).toBe('#a855f7')
+  })
+})
+
+describe('splitWorktrees', () => {
+  const wt = (path: string, over: Record<string, unknown> = {}) => ({ path, label: path, isMain: false, branch: null, git: null, prunable: false, sessions: [], ...over })
+  it('à vista: principal, com sessão ou em conflito; recolhidas: sem sessão e apagadas', () => {
+    const list = [wt('main', { isMain: true }), wt('dev1'), wt('dev2', { sessions: [{ paneId: 'p' }] }), wt('velha', { prunable: true }), wt('gate')]
+    const r = splitWorktrees(list as never, new Set(['gate']))
+    expect(r.visible.map((w) => w.path)).toEqual(['main', 'dev2', 'gate'])
+    expect(r.hidden.map((w) => w.path)).toEqual(['dev1', 'velha'])
   })
 })

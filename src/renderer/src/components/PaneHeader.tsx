@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PaneView } from '../../../shared/types'
 import { hidePane, PANE_MIME } from '../actions'
-import { gitBadges, headerView, textOn } from '../header'
+import { gitBadges, headerView, sharesContext, textOn } from '../header'
 import { getUi, setUi, useUi } from '../store'
 
 export const STATUS_DOT = { working: '🟢', 'needs-you': '🟡', 'your-turn': '🔵', idle: '⚪', shell: '' } as const
@@ -12,6 +12,8 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
   const accounts = useUi((s) => s.app!.accounts)
   const userHome = useUi((s) => s.app!.userHome)
   const h = useMemo(() => headerView(pane, { projects, accounts, userHome }), [pane, projects, accounts, userHome])
+  // aba toda no mesmo projeto/worktree: projeto e worktree ficam discretos (a informação se repete em cada painel)
+  const quiet = useUi((s) => (s.app ? sharesContext(pane.id, s.app.layout, s.app.panes) : false))
   const showGit = useUi((s) => s.app!.settings.showGitStatus)
   const g = gitBadges(h, showGit)
 
@@ -39,10 +41,14 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
           </>
         ) : (
           <>
-            <span className="ph-block ph-project" style={h.projectColor ? { background: h.projectColor, color: textOn(h.projectColor) } : undefined}>
+            <span
+              className={`ph-block ph-project${quiet ? ' quiet' : ''}`}
+              style={quiet ? (h.projectColor ? { color: h.projectColor } : undefined) : h.projectColor ? { background: h.projectColor, color: textOn(h.projectColor) } : undefined}
+              title={quiet ? 'todos os painéis desta aba estão neste projeto e worktree' : undefined}
+            >
               {h.project.toUpperCase()}
             </span>
-            <span className={`ph-block ph-worktree${h.isMainWorktree ? '' : ' extra'}`}>⎇ {h.worktree}</span>
+            <span className={`ph-block ph-worktree${h.isMainWorktree ? '' : ' extra'}${quiet ? ' quiet' : ''}`}>⎇ {h.worktree}</span>
           </>
         )}
         {renaming ? (
@@ -105,7 +111,7 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
               {g.changed !== null && (
                 <span className="ph-changed dirty">
                   ● {g.changed}
-                  {!compact && ' alterados'}
+                  {!compact && (g.changed === 1 ? ' alterado' : ' alterados')}
                 </span>
               )}
               {(g.ahead !== null || g.behind !== null) && (

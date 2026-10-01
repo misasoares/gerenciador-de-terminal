@@ -110,7 +110,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .sb-summary { margin-left: auto; display: flex; gap: 6px; font-weight: 400; font-size: 11px; }
 .sb-wt-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 22px; }
 .sb-wt-name { font-family: Menlo, monospace; font-size: 12px; padding: 1px 5px; border-radius: 3px; background: #3a3d41; }
-.sb-wt-name.extra { background: var(--worktree-bg); color: var(--worktree-fg); }
+.sb-wt-name.extra { background: #3a3d41; color: var(--worktree-bg); }
 .sb-git { margin-left: auto; font-size: 11px; color: var(--fg-dim); white-space: nowrap; }
 .sb-git .dirty { color: var(--warn); }
 .sb-session { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 38px; cursor: pointer; border: 1px solid transparent; }
@@ -120,7 +120,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .sb-session .dot { width: 16px; text-align: center; font-size: 10px; }
 .sb-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-tag { font-size: 10px; color: var(--fg-dim); }
-.sb-tab { margin-left: auto; font-size: 10px; min-width: 16px; text-align: center; background: #3a3d41; border-radius: 3px; }
+.sb-tab { margin-left: auto; font-size: 10px; min-width: 16px; text-align: center; color: var(--fg-dim); }
 .sb-add { margin: 10px 10px 0; background: none; border: 1px dashed #555; color: var(--fg-dim); }
 
 .rail { position: relative; width: 52px; flex-shrink: 0; background: var(--bg-side); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 10px; }
@@ -256,3 +256,12 @@ kbd { font-family: inherit; background: #3a3d41; border-radius: 3px; padding: 1p
 .dock-preview-left { top: 0; bottom: 0; left: 0; width: 33%; }
 .dock-preview-right { top: 0; bottom: 0; right: 0; width: 33%; }
 .tab-body.drop-empty { outline: 2px solid var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+/* limpeza visual: nome da sessão do tamanho do texto (não pinta a linha inteira) */
+.ph-row1 .ph-label.colored { flex: 0 1 auto; border-radius: 3px; margin: 3px 0; height: 20px; line-height: 20px; align-self: center; }
+/* aba toda no mesmo projeto/worktree: projeto e worktree discretos */
+.ph-row1 .ph-block.quiet { background: transparent !important; color: var(--fg-dim); font-weight: 600; font-size: 11.5px; padding: 0 4px; }
+.ph-row1 .ph-worktree.quiet { margin-left: 0; }
+/* sidebar: nome do projeto em uma linha, sem caixa alta */
+.sb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-more { display: block; margin: 2px 0 4px 22px; background: none; border: none; padding: 0; color: var(--fg-dim); font-size: 11px; cursor: pointer; }
+.sb-more:hover { color: var(--fg); text-decoration: underline; }

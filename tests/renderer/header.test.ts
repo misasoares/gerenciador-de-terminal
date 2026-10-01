@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { gitBadges, headerView, tildify } from '../../src/renderer/src/header'
+import { gitBadges, headerView, sharesContext, tildify } from '../../src/renderer/src/header'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
-import type { PaneView, ProjectView } from '../../src/shared/types'
+import type { Layout, PaneView, ProjectView } from '../../src/shared/types'
 
 const project: ProjectView = {
   path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null,
@@ -67,5 +67,32 @@ describe('gitBadges', () => {
     expect(h.projectColor).toBe('#f97316')
     expect(h.sessionColor).toBe('#3b82f6')
     expect(headerView(pane({}), app)).toMatchObject({ projectColor: null, sessionColor: null })
+  })
+})
+
+describe('sharesContext', () => {
+  const leaf = (paneId: string) => ({ type: 'leaf' as const, paneId })
+  const layout: Layout = {
+    tabs: [
+      { id: 't1', name: 'a', root: { type: 'split', dir: 'row', sizes: [], children: [leaf('a'), leaf('b')] } },
+      { id: 't2', name: 'b', root: { type: 'split', dir: 'row', sizes: [], children: [leaf('c'), leaf('d')] } },
+      { id: 't3', name: 'c', root: leaf('e') },
+    ],
+    activeTabId: 't1',
+  }
+  const panes = [
+    pane({ id: 'a' }),
+    pane({ id: 'b' }),
+    pane({ id: 'c' }),
+    pane({ id: 'd', projectPath: '/r/outro', worktreePath: '/r/outro' }),
+    pane({ id: 'e' }),
+  ]
+  it('aba com todos os painéis no mesmo projeto e worktree: discreto', () => {
+    expect(sharesContext('a', layout, panes)).toBe(true)
+  })
+  it('aba com projetos diferentes ou painel sozinho: mantém o destaque', () => {
+    expect(sharesContext('c', layout, panes)).toBe(false)
+    expect(sharesContext('e', layout, panes)).toBe(false)
+    expect(sharesContext('zzz', layout, panes)).toBe(false)
   })
 })
