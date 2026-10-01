@@ -209,12 +209,31 @@ function DockEdges({ tabId }: { tabId: string }) {
 export function Workspace({ empty, onAddProject }: { empty?: React.ReactNode; onAddProject?: (dir: string) => void }) {
   addProject = onAddProject
   const layout = useUi((s) => s.app?.layout)
+  const [emptyOver, setEmptyOver] = useState(false)
   if (!layout) return null
   const tab = layout.tabs.find((t) => t.id === layout.activeTabId)
   return (
     <div className="workspace">
       <TabBar layout={layout} />
-      <div className="tab-body">
+      <div
+        className={`tab-body${emptyOver ? ' drop-empty' : ''}`}
+        // aba vazia: a área inteira aceita a sessão arrastada (não há painel nem faixa para receber)
+        onDragOver={(e) => {
+          if (tab?.root || !e.dataTransfer.types.includes(PANE_MIME)) return
+          e.preventDefault()
+          setEmptyOver(true)
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setEmptyOver(false)
+        }}
+        onDrop={(e) => {
+          setEmptyOver(false)
+          const pane = e.dataTransfer.getData(PANE_MIME)
+          if (!tab || tab.root || !pane) return
+          e.preventDefault()
+          dockPaneAt(pane, tab.id, 'right')
+        }}
+      >
         {tab?.root ? (
           <SplitNode key={`${tab.id}:${tab.root.type === 'split' ? tab.root.dir : 'leaf'}`} node={tab.root} tabId={tab.id} path={[]} />
         ) : (

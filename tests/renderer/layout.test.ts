@@ -155,6 +155,13 @@ describe('encostar na borda da área inteira', () => {
     expect(dockPane(l, 'a', 'zzz', 'bottom')).toBe(l)
   })
 
+  it('dockPane em aba vazia: a sessão vira o único painel dela', () => {
+    const l: Layout = { tabs: [{ id: 't1', name: '1', root: row(L('a'), L('b')) }, { id: 'vazia', name: '2', root: null }], activeTabId: 'vazia' }
+    const n = dockPane(l, 'b', 'vazia', 'right')
+    expect(n.tabs.map((t) => [t.id, t.root])).toEqual([['t1', L('a')], ['vazia', L('b')]])
+    expect(n.activeTabId).toBe('vazia')
+  })
+
   it('withPaneInNewTab leva o painel para uma aba nova no fim e ativa', () => {
     const l: Layout = { tabs: [{ id: 't1', name: '1', root: row(L('a'), L('b')) }], activeTabId: 't1' }
     const n = withPaneInNewTab(l, 'b', { id: 'nova', name: 'Aba 2', root: null })
