@@ -16,11 +16,11 @@ echo "== 2/3 bundle JS (independe de arquitetura)"
 (cd "$ROOT" && npx electron-vite build)
 rsync -a "$ROOT/out/" "$WORK/out/"
 
-echo "== 3/4 pacotes .deb e .rpm (x64)"
+echo "== 3/4 pacotes .deb, .rpm e AppImage (x64)"
 docker run --rm --platform linux/amd64 -v "$WORK":/work -w /work node:22-bookworm sh scripts/linux-container.sh package
 mkdir -p "$ROOT/dist"
-rm -f "$ROOT"/dist/*.deb "$ROOT"/dist/*.rpm
-cp "$WORK"/dist/*.deb "$WORK"/dist/*.rpm "$ROOT/dist/"
+rm -f "$ROOT"/dist/*.deb "$ROOT"/dist/*.rpm "$ROOT"/dist/*.AppImage
+cp "$WORK"/dist/*.deb "$WORK"/dist/*.rpm "$WORK"/dist/*.AppImage "$ROOT/dist/"
 
 echo "== 4/4 instalação limpa: o gerenciador de pacotes traz git, nc e ps"
 CHECK='command -v git && command -v nc && command -v ps && ls /opt/*/gerenciador-de-terminal && echo INSTALACAO-OK'
@@ -28,4 +28,4 @@ docker run --rm --platform linux/amd64 -v "$WORK/dist":/pkg debian:bookworm sh -
   "apt-get update -qq && apt-get install -y -qq /pkg/*.deb >/dev/null && $CHECK"
 docker run --rm --platform linux/amd64 -v "$WORK/dist":/pkg fedora:41 sh -c \
   "cp /pkg/*.rpm /tmp/ && dnf install -y -q /tmp/*.rpm >/dev/null && $CHECK"  # o dnf não lê direto do volume montado
-echo "Pacotes em:"; ls "$ROOT"/dist/*.deb "$ROOT"/dist/*.rpm
+echo "Pacotes em:"; ls "$ROOT"/dist/*.deb "$ROOT"/dist/*.rpm "$ROOT"/dist/*.AppImage
