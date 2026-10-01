@@ -16,6 +16,14 @@ describe('zonas de soltar', () => {
     expect(dropZone(0.5, 0.5)).toBe('center')
   })
 
+  it('fora do quadrado central, vale a borda mais próxima (triângulos pelas diagonais)', () => {
+    expect(dropZone(0.5, 0.7)).toBe('bottom') // antes caía no centro e trocava de lugar
+    expect(dropZone(0.3, 0.5)).toBe('left')
+    expect(dropZone(0.72, 0.4)).toBe('right')
+    expect(dropZone(0.45, 0.32)).toBe('top')
+    expect(dropZone(0.4, 0.6)).toBe('center')
+  })
+
   it('insertBeside respeita o lado', () => {
     expect(insertBeside(leaf('a'), 'a', 'b', 'left')).toEqual({ type: 'split', dir: 'row', sizes: [], children: [leaf('b'), leaf('a')] })
     expect(insertBeside(leaf('a'), 'a', 'b', 'bottom')).toEqual({ type: 'split', dir: 'column', sizes: [], children: [leaf('a'), leaf('b')] })

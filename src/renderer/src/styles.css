@@ -96,7 +96,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .drop-right { right: 0; top: 0; bottom: 0; width: 50%; }
 .drop-top { left: 0; right: 0; top: 0; height: 50%; }
 .drop-bottom { left: 0; right: 0; bottom: 0; height: 50%; }
-.drop-center { inset: 15%; }
+.drop-center { inset: 35%; }
 
 .sidebar { width: 264px; flex-shrink: 0; background: var(--bg-side); border-right: 1px solid var(--border); overflow-y: auto; padding-bottom: 12px; user-select: none; display: flex; flex-direction: column; }
 .sidebar.floating { position: absolute; left: 100%; top: 0; bottom: 0; z-index: 20; box-shadow: 6px 0 18px rgba(0, 0, 0, 0.5); }
@@ -246,10 +246,10 @@ kbd { font-family: inherit; background: #3a3d41; border-radius: 3px; padding: 1p
 .sb-name.colored { padding: 0 5px; border-radius: 3px; }
 /* encostar sessão na borda da área inteira */
 .dock-edge { position: absolute; z-index: 20; }
-.dock-edge-top { top: 0; left: 0; right: 0; height: 24px; }
-.dock-edge-bottom { bottom: 0; left: 0; right: 0; height: 24px; }
-.dock-edge-left { top: 0; bottom: 0; left: 0; width: 24px; }
-.dock-edge-right { top: 0; bottom: 0; right: 0; width: 24px; }
+.dock-edge-top { top: 0; left: 0; right: 0; height: 40px; }
+.dock-edge-bottom { bottom: 0; left: 0; right: 0; height: 40px; }
+.dock-edge-left { top: 0; bottom: 0; left: 0; width: 40px; }
+.dock-edge-right { top: 0; bottom: 0; right: 0; width: 40px; }
 .dock-preview { position: absolute; z-index: 19; pointer-events: none; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 2px solid var(--accent); }
 .dock-preview-top { top: 0; left: 0; right: 0; height: 33%; }
 .dock-preview-bottom { bottom: 0; left: 0; right: 0; height: 33%; }
