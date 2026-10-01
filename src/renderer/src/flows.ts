@@ -1,7 +1,7 @@
 import type { ConversationInfo, RemoveCheck, Tab } from '../../shared/types'
 import { isMissing } from './conversations-model'
 import { SESSION_COLORS } from '../../shared/settings'
-import { closeDeadPane, closeTab, setTabColor, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane } from './actions'
+import { closeDeadPane, closeTab, setTabColor, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane, openFilePicker } from './actions'
 import type { ProjectItem, SessionItem, WorktreeItem } from './sidebar-model'
 import { getUi, setUi, showError } from './store'
 
@@ -46,12 +46,14 @@ export async function worktreeMenu(p: ProjectItem, w: WorktreeItem): Promise<voi
     { id: 'new', label: 'Nova sessão…  ⌘T' },
     { id: 'shell', label: 'Terminal comum' },
     { id: 'conv', label: 'Conversas desta worktree…' },
+    { id: 'file', label: 'Abrir arquivo…' },
     { id: 'finder', label: 'Abrir no Finder' },
     { id: '-', label: '' },
     { id: 'remove', label: 'Remover worktree…', enabled: !w.isMain },
   ])
   if (choice === 'new') openNewSessionDialog(p.path, w.path)
   else if (choice === 'shell') openNewPane({ cwd: w.path, accountId: null }).catch(showError)
+  else if (choice === 'file') openFilePicker(w.path)
   else if (choice === 'conv') openConversations({ paths: [w.path], title: `${p.name.toUpperCase()} ⎇ ${w.label}`, projectPaths: p.worktrees.map((x) => x.path) })
   else if (choice === 'finder') void window.gt.openPath(w.path)
   else if (choice === 'remove') await removeWorktreeFlow(w.path)

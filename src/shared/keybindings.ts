@@ -27,6 +27,7 @@ export const ACTIONS: readonly ActionDef[] = [
   { id: 'hide-pane', label: 'Esconder painel', group: 'sessao', mac: 'Cmd+W', linux: 'Ctrl+Shift+W' },
   { id: 'next-attention', label: 'Próxima que precisa de mim', group: 'sessao', mac: 'Cmd+J', linux: 'Ctrl+Shift+J' },
   { id: 'palette', label: 'Buscar…', group: 'sessao', mac: 'Cmd+K', linux: 'Ctrl+Shift+K' },
+  { id: 'open-file', label: 'Abrir arquivo…', group: 'sessao', mac: 'Cmd+P', linux: 'Ctrl+Shift+P' },
   focus('left', 'Foco à esquerda', 'Left'),
   focus('right', 'Foco à direita', 'Right'),
   focus('up', 'Foco acima', 'Up'),

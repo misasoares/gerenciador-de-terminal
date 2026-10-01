@@ -4,7 +4,7 @@ import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
 import { terminals } from './terminals'
-import { findFilePane, insertFileLeaf, isFilePane, languageFor } from './file-model'
+import { findFilePane, insertFileLeaf, isFilePane, languageFor, pickerRoot } from './file-model'
 
 export const PANE_MIME = 'application/x-gt-pane'
 
@@ -233,6 +233,7 @@ export function runMenuAction(action: string): void {
   } else if (action === 'next-attention') revealNextAttention()
   else if (action === 'preferences') setUi({ modal: { kind: 'preferences' } })
   else if (action === 'palette') setUi({ modal: { kind: 'palette' } })
+  else if (action === 'open-file') openFilePicker()
   else if (action === 'setup') setUi({ modal: { kind: 'setup' } })
   else if (action === 'new-tab') addTab()
   else if (action === 'toggle-sidebar') setUi((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }))
@@ -272,4 +273,10 @@ export async function requestCloseFile(id: string): Promise<void> {
   }
   dirtyFiles.delete(id)
   hidePane(id)
+}
+
+export function openFilePicker(root?: string): void {
+  const app = getUi().app
+  if (!app) return
+  setUi({ modal: { kind: 'file-picker', root: root ?? pickerRoot(app, getUi().focusedPaneId) } })
 }

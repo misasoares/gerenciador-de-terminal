@@ -1,6 +1,7 @@
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { fileLinkProvider } from './file-link-provider'
 import '@xterm/xterm/css/xterm.css'
 import { decideKey, SHIFT_ENTER_SEQUENCE } from './keys'
 import { setUi } from './store'
@@ -113,6 +114,7 @@ class TerminalRegistry {
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.loadAddon(new WebLinksAddon((_ev, uri) => void window.gt.openExternal(uri)))
+    term.registerLinkProvider(fileLinkProvider(term, paneId))
     term.open(el)
     term.attachCustomKeyEventHandler((ev) => {
       const d = decideKey(ev)
