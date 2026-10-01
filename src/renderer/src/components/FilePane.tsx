@@ -10,7 +10,9 @@ import { javascript } from '@codemirror/lang-javascript'
 import { properties } from '@codemirror/legacy-modes/mode/properties'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { dirtyFiles, focusPane, pendingLine, requestCloseFile } from '../actions'
+import { dirtyFiles, dropOnPane, focusPane, PANE_MIME, pendingLine, requestCloseFile } from '../actions'
+import { dropZone, type DropZone } from '../layout'
+import type React from 'react'
 import { errorMessage } from '../api'
 import { onFileChanged } from '../file-events'
 import { baseName, languageFor, lineSeparator, pickerRoot, relativeTo, type FileLanguage } from '../file-model'
@@ -52,6 +54,12 @@ export function FilePane({ paneId }: { paneId: string }) {
   const [problem, setProblem] = useState<Problem>(null)
   const [external, setExternal] = useState(false)
   const [flash, setFlash] = useState(false)
+  /** zona onde outro painel arrastado vai cair (igual ao terminal) */
+  const [zone, setZone] = useState<DropZone | null>(null)
+  const zoneAt = (e: React.DragEvent<HTMLDivElement>): DropZone => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return dropZone((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height)
+  }
   const path = meta?.path ?? ''
   const mode = meta?.mode ?? 'edit'
 
@@ -159,8 +167,25 @@ export function FilePane({ paneId }: { paneId: string }) {
   const isMd = languageFor(path) === 'markdown'
 
   return (
-    <div className={`pane file-pane${focused ? ' focused' : ''}`} onMouseDown={() => focusPane(paneId)}>
-      <div className="pane-header file-header">
+    <div
+      className={`pane file-pane${focused ? ' focused' : ''}`}
+      onMouseDown={() => focusPane(paneId)}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes(PANE_MIME)) return
+        e.preventDefault()
+        setZone(zoneAt(e))
+      }}
+      onDragLeave={() => setZone(null)}
+      onDrop={(e) => {
+        const dragged = e.dataTransfer.getData(PANE_MIME)
+        setZone(null)
+        if (!dragged || dragged === paneId) return
+        e.preventDefault()
+        dropOnPane(dragged, paneId, zoneAt(e))
+      }}
+    >
+      {zone && <div className={`drop-zone drop-${zone}`} />}
+      <div className="pane-header file-header" draggable onDragStart={(e) => e.dataTransfer.setData(PANE_MIME, paneId)}>
         <span className="file-name">📄 {baseName(path)}</span>
         <span className="file-path" title={path}>{relativeTo(root, path)}</span>
         {dirty && <span className="file-dirty">● não salvo</span>}
