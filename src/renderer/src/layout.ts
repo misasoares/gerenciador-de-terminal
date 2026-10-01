@@ -161,3 +161,8 @@ export function withPaneInNewTab(l: Layout, paneId: string, tab: Tab): Layout {
   const removed = removePane(l, paneId)
   return { tabs: [...removed.tabs, { ...tab, root: { type: 'leaf', paneId } }], activeTabId: tab.id }
 }
+
+/** chave de um nó para o React: inclui a direção, porque o Allotment não muda de orientação depois de montado */
+export function nodeKey(n: LayoutNode): string {
+  return n.type === 'leaf' ? n.paneId : `split:${n.dir}:${leaves(n).join(',')}`
+}

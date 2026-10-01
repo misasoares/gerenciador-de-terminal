@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
 import { activateTab, addTab, closeTab, dockPaneAt, movePaneToNewTab, moveToTab, PANE_MIME, renameTab, saveSizes } from '../actions'
-import { findTab, leaves, moveTab, tabInsertIndex, type Side } from '../layout'
+import { findTab, leaves, moveTab, nodeKey, tabInsertIndex, type Side } from '../layout'
 
 const TAB_MIME = 'application/x-gt-tab'
 
@@ -20,7 +20,6 @@ import { textOn } from '../header'
 import { updateLayout, useUi } from '../store'
 import { PaneFrame } from './PaneFrame'
 
-const nodeKey = (n: LayoutNode): string => (n.type === 'leaf' ? n.paneId : `split:${leaves(n).join(',')}`)
 
 function SplitNode({ node, tabId, path }: { node: LayoutNode; tabId: string; path: number[] }) {
   if (node.type === 'leaf') return <PaneFrame paneId={node.paneId} onAddProject={addProject} />
@@ -217,7 +216,7 @@ export function Workspace({ empty, onAddProject }: { empty?: React.ReactNode; on
       <TabBar layout={layout} />
       <div className="tab-body">
         {tab?.root ? (
-          <SplitNode key={tab.id} node={tab.root} tabId={tab.id} path={[]} />
+          <SplitNode key={`${tab.id}:${tab.root.type === 'split' ? tab.root.dir : 'leaf'}`} node={tab.root} tabId={tab.id} path={[]} />
         ) : (
           (empty ?? <div className="empty">Nenhum painel aqui. ⌘T abre uma nova sessão; ⌘D abre um terminal.</div>)
         )}

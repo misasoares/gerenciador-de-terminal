@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, dockAtRoot, dockPane, withPaneInNewTab, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
+import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, dockAtRoot, dockPane, withPaneInNewTab, nodeKey, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
 import type { Layout, LayoutNode } from '../../src/shared/types'
 
 const leaf = (paneId: string): LayoutNode => ({ type: 'leaf', paneId })
@@ -160,5 +160,15 @@ describe('encostar na borda da área inteira', () => {
     const n = withPaneInNewTab(l, 'b', { id: 'nova', name: 'Aba 2', root: null })
     expect(n.tabs.map((t) => [t.id, t.root])).toEqual([['t1', L('a')], ['nova', L('b')]])
     expect(n.activeTabId).toBe('nova')
+  })
+})
+
+describe('nodeKey', () => {
+  it('a mesma divisão em outra direção tem outra chave (o Allotment não troca de orientação: precisa recriar)', () => {
+    const L = (id: string): LayoutNode => ({ type: 'leaf', paneId: id })
+    const row: LayoutNode = { type: 'split', dir: 'row', children: [L('a'), L('b')], sizes: [] }
+    const col: LayoutNode = { ...row, dir: 'column' }
+    expect(nodeKey(row)).not.toBe(nodeKey(col))
+    expect(nodeKey(L('a'))).toBe('a')
   })
 })
