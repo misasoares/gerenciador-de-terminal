@@ -31,7 +31,11 @@ button:disabled { opacity: 0.5; cursor: default; }
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .workspace { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-.tabbar { display: flex; align-items: stretch; background: var(--bg-bar); border-bottom: 1px solid var(--border); height: 32px; flex-shrink: 0; }
+.tabbar { display: flex; align-items: stretch; background: var(--bg-bar); border-bottom: 1px solid var(--border); height: 32px; flex-shrink: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.tabbar::-webkit-scrollbar { height: 4px; }
+.tabbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.tabbar > .tab { flex-shrink: 0; white-space: nowrap; }
+.tabbar > .tab-add { flex-shrink: 0; position: sticky; right: 0; background: var(--bg-bar); }
 .tab { display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid var(--border); color: var(--fg-dim); cursor: pointer; }
 .tab.active { background: var(--bg); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
 .tab-key { font-size: 10px; color: var(--fg-dim); }

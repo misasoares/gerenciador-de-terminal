@@ -52,9 +52,19 @@ function TabBar({ layout }: { layout: Layout }) {
     openTimer.current = null
     setPaneOver(null)
   }
+  const barRef = useRef<HTMLDivElement>(null)
+  // a aba ativa (inclusive por ⌘1…9) sempre entra na área visível da barra
+  useEffect(() => {
+    barRef.current?.querySelector<HTMLElement>(`.tab[data-tab-id="${layout.activeTabId}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [layout.activeTabId, layout.tabs.length])
   const tabUnder = (target: EventTarget) => (target as HTMLElement).closest<HTMLElement>('.tab')?.dataset.tabId ?? null
   return (
     <div
+      ref={barRef}
+      onWheel={(e) => {
+        // roda vertical do mouse também rola a barra quando as abas não cabem
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY
+      }}
       className="tabbar"
       // o soltar é da barra inteira: vale também o espaço vazio depois da última aba e o botão +
       onDragOver={(e) => {
