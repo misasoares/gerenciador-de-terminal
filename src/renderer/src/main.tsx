@@ -9,6 +9,7 @@ import { leaves } from './layout'
 import { getUi, setUi, showError } from './store'
 import { syncKeybindings } from './shortcuts'
 import { terminals } from './terminals'
+import { emitFileChanged } from './file-events'
 import './styles.css'
 
 let seenFirstState = false
@@ -75,6 +76,9 @@ window.gt.onEvent((e) => {
       break
     case 'version-mismatch':
       setUi({ versionMismatch: { daemon: e.daemon, app: e.app } })
+      break
+    case 'file.changed':
+      emitFileChanged(e.path, e.mtimeMs)
       break
   }
 })

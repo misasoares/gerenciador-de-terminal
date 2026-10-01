@@ -16,6 +16,14 @@ describe('zonas de soltar', () => {
     expect(dropZone(0.5, 0.5)).toBe('center')
   })
 
+  it('fora do quadrado central, vale a borda mais próxima (triângulos pelas diagonais)', () => {
+    expect(dropZone(0.5, 0.7)).toBe('bottom') // antes caía no centro e trocava de lugar
+    expect(dropZone(0.3, 0.5)).toBe('left')
+    expect(dropZone(0.72, 0.4)).toBe('right')
+    expect(dropZone(0.45, 0.32)).toBe('top')
+    expect(dropZone(0.4, 0.6)).toBe('center')
+  })
+
   it('insertBeside respeita o lado', () => {
     expect(insertBeside(leaf('a'), 'a', 'b', 'left')).toEqual({ type: 'split', dir: 'row', sizes: [], children: [leaf('b'), leaf('a')] })
     expect(insertBeside(leaf('a'), 'a', 'b', 'bottom')).toEqual({ type: 'split', dir: 'column', sizes: [], children: [leaf('a'), leaf('b')] })
@@ -33,7 +41,7 @@ const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: 1, c
 const claude = (status: 'working' | 'needs-you' | 'idle') => ({ sessionId: 's', agent: 'claude' as const, status, statusSince: 0, title: null, transcriptPath: null })
 
 const app = (over: Partial<AppState> = {}): AppState => ({
-  protocolVersion: 1, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {},
+  protocolVersion: 1, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {},
   layout: { tabs: [{ id: 't1', name: 'A', root: leaf('p1') }, { id: 't2', name: 'B', root: leaf('p2') }], activeTabId: 't1' },
   projects: [{ path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null, worktrees: [{ path: '/r/api', head: null, branch: 'main', isMain: true, locked: false, prunable: false, git: null }] }],
   panes: [pane('p1', { claude: claude('working') }), pane('p2', { claude: claude('needs-you') }), pane('p3', { claude: claude('idle') })],

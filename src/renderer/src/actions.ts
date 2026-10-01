@@ -4,6 +4,7 @@ import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
 import { terminals } from './terminals'
+import { findFilePane, insertFileLeaf, isFilePane, languageFor, pickerRoot } from './file-model'
 
 export const PANE_MIME = 'application/x-gt-pane'
 
@@ -227,10 +228,12 @@ export function runMenuAction(action: string): void {
   else if (action === 'split-down') splitFocused('column')
   else if (action === 'hide-pane') {
     const id = getUi().focusedPaneId
-    if (id) hidePane(id)
+    if (id && isFilePane(id)) void requestCloseFile(id)
+    else if (id) hidePane(id)
   } else if (action === 'next-attention') revealNextAttention()
   else if (action === 'preferences') setUi({ modal: { kind: 'preferences' } })
   else if (action === 'palette') setUi({ modal: { kind: 'palette' } })
+  else if (action === 'open-file') openFilePicker()
   else if (action === 'setup') setUi({ modal: { kind: 'setup' } })
   else if (action === 'new-tab') addTab()
   else if (action === 'toggle-sidebar') setUi((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }))
@@ -239,4 +242,41 @@ export function runMenuAction(action: string): void {
     const tab = getUi().app?.layout.tabs[n - 1]
     if (tab) activateTab(tab.id)
   } else if (action.startsWith('focus-')) moveFocus(action.slice(6) as Dir)
+}
+
+/** ids de painéis de arquivo com alteração não salva (o FilePane mantém) */
+export const dirtyFiles = new Set<string>()
+/** linha para onde o painel recém-aberto deve rolar */
+export const pendingLine = new Map<string, number>()
+
+export async function openFile(path: string, o: { line?: number | null; besideId?: string | null } = {}): Promise<void> {
+  const app = getUi().app
+  if (!app) return
+  const open = findFilePane(app.filePanes, app.layout, path)
+  if (open) {
+    if (o.line) pendingLine.set(open, o.line)
+    revealPane(open)
+    return
+  }
+  const id = `file:${crypto.randomUUID()}`
+  if (o.line) pendingLine.set(id, o.line)
+  await window.gt.request({ t: 'filepane.set', id, path, mode: languageFor(path) === 'markdown' ? 'view' : 'edit' })
+  updateLayout((l) => insertFileLeaf(l, id, o.besideId ?? getUi().focusedPaneId, newTab(l.tabs.length + 1, null)))
+  focusPane(id)
+}
+
+export async function requestCloseFile(id: string): Promise<void> {
+  if (dirtyFiles.has(id)) {
+    const name = (getUi().app?.filePanes[id]?.path ?? '').split('/').pop() ?? ''
+    const r = await window.gt.confirm({ message: `Descartar as alterações em ${name}?`, confirmLabel: 'Descartar' })
+    if (!r.ok) return
+  }
+  dirtyFiles.delete(id)
+  hidePane(id)
+}
+
+export function openFilePicker(root?: string): void {
+  const app = getUi().app
+  if (!app) return
+  setUi({ modal: { kind: 'file-picker', root: root ?? pickerRoot(app, getUi().focusedPaneId) } })
 }

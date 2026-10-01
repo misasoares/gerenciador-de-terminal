@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import path from 'node:path'
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
-import type { AgentKind, AppState, ConflictReport } from '../shared/types'
+import type { AgentKind, AppState, ConflictReport, LayoutNode } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
@@ -16,6 +16,7 @@ import { startServer, type Conn, type RpcServer } from './server'
 import { checkRemove, removeWorktree } from './worktree-remove'
 import { UsageMonitor } from './usage/monitor'
 import { ConversationIndex } from './conversations/index'
+import { existing, FileWatcher, listFiles, readFile, writeFile } from './files'
 import { groupLogins, missingLoginHints } from './usage/logins'
 import type { Login, ReadResult } from './usage/types'
 
@@ -60,6 +61,8 @@ export class Daemon {
   private conflictCache = new Map<string, Map<string, string[]>>()
   private usage!: UsageMonitor
   private conversations!: ConversationIndex
+  private fileWatcher!: FileWatcher<Conn>
+  private watchedConns = new Set<Conn>()
   private logins: Login[] = []
 
   private constructor(private o: DaemonOptions) {}
@@ -120,6 +123,9 @@ export class Daemon {
     p.resumable = [...byId.values()]
     p.panes = []
     this.persisted = p
+    this.fileWatcher = new FileWatcher<Conn>((path, mtimeMs, subs) => {
+      for (const c of subs) c.send({ t: 'file.changed', path, mtimeMs })
+    })
     this.conversations = new ConversationIndex({
       userHome: this.o.userHome,
       claudeProfiles: () => this.persisted.claudeProfiles,
@@ -197,6 +203,7 @@ export class Daemon {
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.monitor.stop()
     this.usage.stop()
+    this.fileWatcher.stop()
     for (const t of this.conflictTimers.values()) clearTimeout(t)
     if (killPtys) this.panes.host.killAll()
     await this.server?.close()
@@ -263,6 +270,7 @@ export class Daemon {
       hookWarnings: this.hookWarnings,
       settings: this.persisted.settings,
       usage: this.usage.views(),
+      filePanes: this.persisted.filePanes,
       usageHints: { ...missingLoginHints(this.persisted.accounts, this.logins), ...this.usage.hints() },
     }
   }
@@ -421,6 +429,32 @@ export class Daemon {
         this.changed()
         return null
       }
+      case 'file.read':
+        return readFile(req.path)
+      case 'file.write':
+        return writeFile(req.path, req.content, req.expectedMtimeMs)
+      case 'file.list':
+        return listFiles(req.root)
+      case 'file.exists':
+        return existing(req.cwd, req.paths, req.bases ?? [])
+      case 'file.watch':
+        if (!this.watchedConns.has(conn)) {
+          this.watchedConns.add(conn)
+          conn.onClose(() => {
+            this.fileWatcher.unwatchAll(conn)
+            this.watchedConns.delete(conn)
+          })
+        }
+        this.fileWatcher.watch(req.path, conn)
+        return null
+      case 'file.unwatch':
+        this.fileWatcher.unwatch(req.path, conn)
+        return null
+      case 'filepane.set':
+        if (!req.id.startsWith('file:')) throw new Error(`id inválido: ${req.id}`)
+        this.persisted.filePanes[req.id] = { path: req.path, mode: req.mode }
+        this.changed()
+        return null
       case 'conversations.list':
         return this.conversations.list(req.paths)
       case 'agents.detect':
@@ -453,6 +487,10 @@ export class Daemon {
         return null
       case 'layout.save':
         this.persisted.layout = req.layout
+        {
+          const ids = new Set(req.layout.tabs.flatMap((t) => leafIds(t.root)))
+          for (const id of Object.keys(this.persisted.filePanes)) if (!ids.has(id)) delete this.persisted.filePanes[id]
+        }
         this.changed()
         return null
       case 'worktree.checkRemove':
@@ -483,6 +521,11 @@ export class Daemon {
         return null
     }
   }
+}
+
+function leafIds(n: LayoutNode | null): string[] {
+  if (!n) return []
+  return n.type === 'leaf' ? [n.paneId] : n.children.flatMap(leafIds)
 }
 
 export const defaultShell = (): string => os.userInfo().shell || process.env.SHELL || '/bin/zsh'

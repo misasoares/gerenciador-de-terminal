@@ -79,11 +79,11 @@ export function neighbor(rects: Rect[], fromId: string | null, dir: Dir): string
 export type DropZone = 'left' | 'right' | 'top' | 'bottom' | 'center'
 export type Side = Exclude<DropZone, 'center'>
 
-/** bordas (25%) viram split daquele lado; o miolo substitui o painel */
+/** quadrado central (30%) substitui o painel; fora dele vale a borda mais próxima (triângulos pelas diagonais) */
 export function dropZone(relX: number, relY: number): DropZone {
+  if (Math.abs(relX - 0.5) < 0.15 && Math.abs(relY - 0.5) < 0.15) return 'center'
   const dists: [Side, number][] = [['left', relX], ['right', 1 - relX], ['top', relY], ['bottom', 1 - relY]]
-  const [side, dist] = dists.sort((a, b) => a[1] - b[1])[0]
-  return dist < 0.25 ? side : 'center'
+  return dists.sort((a, b) => a[1] - b[1])[0][0]
 }
 
 export function insertBeside(root: LayoutNode, target: string, paneId: string, side: Side): LayoutNode {

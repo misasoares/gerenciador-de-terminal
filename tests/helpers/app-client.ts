@@ -8,10 +8,12 @@ export async function connectApp(socketPath: string) {
   let last: AppState | null = null
   const data = new Map<string, string>()
   const alerts: string[] = []
+  const fileEvents: { path: string; mtimeMs: number | null }[] = []
   client.onMessage((m) => {
     if (m.t === 'state') last = m.state
     if (m.t === 'pane.data') data.set(m.paneId, (data.get(m.paneId) ?? '') + m.data)
     if (m.t === 'usage.alert') alerts.push(m.text)
+    if (m.t === 'file.changed') fileEvents.push({ path: m.path, mtimeMs: m.mtimeMs })
   })
   await client.request({ t: 'hello', role: 'app', version: PROTOCOL_VERSION })
   return {
@@ -19,6 +21,7 @@ export async function connectApp(socketPath: string) {
     state: () => last,
     output: (paneId: string) => data.get(paneId) ?? '',
     alerts: () => alerts,
+    fileEvents: () => fileEvents,
     waitState: (pred: (s: AppState) => boolean, ms = 8000) => waitFor(() => (last && pred(last) ? last : null), ms),
   }
 }

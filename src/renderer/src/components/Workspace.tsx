@@ -19,10 +19,12 @@ import { tabMenu } from '../flows'
 import { textOn } from '../header'
 import { updateLayout, useUi } from '../store'
 import { PaneFrame } from './PaneFrame'
+import { FilePane } from './FilePane'
+import { isFilePane } from '../file-model'
 
 
 function SplitNode({ node, tabId, path }: { node: LayoutNode; tabId: string; path: number[] }) {
-  if (node.type === 'leaf') return <PaneFrame paneId={node.paneId} onAddProject={addProject} />
+  if (node.type === 'leaf') return isFilePane(node.paneId) ? <FilePane paneId={node.paneId} /> : <PaneFrame paneId={node.paneId} onAddProject={addProject} />
   return (
     <Allotment
       vertical={node.dir === 'column'}

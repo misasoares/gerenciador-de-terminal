@@ -95,4 +95,8 @@ describe('sharesContext', () => {
     expect(sharesContext('e', layout, panes)).toBe(false)
     expect(sharesContext('zzz', layout, panes)).toBe(false)
   })
+  it('painel de arquivo na aba não desfaz o "discreto" dos terminais', () => {
+    const l: Layout = { tabs: [{ id: 't', name: 't', root: { type: 'split', dir: 'row', sizes: [], children: [leaf('a'), leaf('b'), leaf('file:1')] } }], activeTabId: 't' }
+    expect(sharesContext('a', l, [pane({ id: 'a' }), pane({ id: 'b' })])).toBe(true)
+  })
 })

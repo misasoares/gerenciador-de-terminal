@@ -26,6 +26,7 @@ export type Modal =
   | { kind: 'preferences' }
   | { kind: 'palette' }
   | { kind: 'setup' }
+  | { kind: 'file-picker'; root: string }
   | { kind: 'conversations'; paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }
 
 let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [] }
