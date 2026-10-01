@@ -15,6 +15,7 @@ import { ProjectRegistry } from './projects'
 import { startServer, type Conn, type RpcServer } from './server'
 import { checkRemove, removeWorktree } from './worktree-remove'
 import { UsageMonitor } from './usage/monitor'
+import { ConversationIndex } from './conversations/index'
 import { groupLogins, missingLoginHints } from './usage/logins'
 import type { Login, ReadResult } from './usage/types'
 
@@ -58,6 +59,7 @@ export class Daemon {
   private conflictRerun = new Set<string>()
   private conflictCache = new Map<string, Map<string, string[]>>()
   private usage!: UsageMonitor
+  private conversations!: ConversationIndex
   private logins: Login[] = []
 
   private constructor(private o: DaemonOptions) {}
@@ -114,10 +116,19 @@ export class Daemon {
     const p = loadPersisted(this.o.stateFile)
     // o que estava vivo no daemon anterior vira retomável (mesmo id → o layout continua valendo)
     const byId = new Map(p.resumable.map((r) => [r.paneId, r]))
-    for (const pane of p.panes) byId.set(pane.id, { paneId: pane.id, cwd: pane.cwd, accountId: pane.accountId, sessionId: pane.sessionId, agent: pane.agent ?? 'claude' })
+    for (const pane of p.panes) byId.set(pane.id, { paneId: pane.id, cwd: pane.cwd, accountId: pane.accountId, sessionId: pane.sessionId, agent: pane.agent ?? 'claude', transcriptPath: pane.transcriptPath ?? null })
     p.resumable = [...byId.values()]
     p.panes = []
     this.persisted = p
+    this.conversations = new ConversationIndex({
+      userHome: this.o.userHome,
+      claudeProfiles: () => this.persisted.claudeProfiles,
+      codexHomes: () => this.persisted.codexHomes,
+      accounts: () => this.persisted.accounts,
+      loginDirs: () => this.persisted.loginDirs,
+      openSessions: () => new Map(this.panes.records().filter((r) => r.alive && r.claude).map((r) => [r.claude!.sessionId, r.id])),
+      knownPaths: () => this.registry.allWorktreePaths(),
+    })
     this.usage = new UsageMonitor({
       read: this.o.usageRead ?? (async () => ({ kind: 'no-token' })),
       onChange: () => this.changed(false),
@@ -217,7 +228,7 @@ export class Daemon {
       panes: this.panes
         .records()
         .filter((r) => r.alive)
-        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude' })),
+        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude', transcriptPath: r.claude?.transcriptPath ?? null })),
     })
   }
 
@@ -345,10 +356,24 @@ export class Daemon {
         conn.role = 'hook'
         conn.end() // libera o Claude antes de processar (ler título pode demorar)
         await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
+        if (req.configDir) {
+          const list = (req.agent ?? 'claude') === 'codex' ? this.persisted.codexHomes : this.persisted.claudeProfiles
+          if (!list.includes(req.configDir)) {
+            list.push(req.configDir)
+            this.changed()
+          }
+        }
         this.onUsageHook(req.paneId, req.configDir || '', req.payload.hook_event_name)
         return null
       case 'pane.create': {
-        const rec = this.panes.create(req)
+        let req2 = req
+        if (req.resumeSessionId) {
+          const found = await this.conversations.locate(req.resumeAgent ?? 'claude', req.resumeSessionId, req.transcriptPath ?? null)
+          if (!found) throw new Error('conversation-missing')
+          // o --resume só acha a conversa na pasta onde ela foi gravada
+          if (found.startCwd) req2 = { ...req, cwd: found.startCwd }
+        }
+        const rec = this.panes.create(req2)
         this.persisted.resumable = this.persisted.resumable.filter((r) => r.paneId !== rec.id)
         this.changed()
         return { paneId: rec.id }
@@ -396,6 +421,8 @@ export class Daemon {
         this.changed()
         return null
       }
+      case 'conversations.list':
+        return this.conversations.list(req.paths)
       case 'agents.detect':
         return this.detectAgents()
       case 'settings.save':

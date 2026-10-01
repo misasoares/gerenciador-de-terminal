@@ -114,6 +114,8 @@ export interface ResumeEntry {
   sessionId: string | null
   /** ausente em entradas antigas = claude */
   agent?: AgentKind
+  /** caminho do .jsonl visto no hook (Claude); ajuda a localizar a conversa ao retomar */
+  transcriptPath?: string | null
 }
 
 export interface AppState {
