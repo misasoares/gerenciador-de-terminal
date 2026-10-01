@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { resumeAll, restartDaemonFlow } from '../flows'
+import { chooseConversationFor, resumeAll, restartDaemonFlow } from '../flows'
 import { hidePane } from '../actions'
 import { setUi, showError, useUi } from '../store'
 import { usageChips } from '../usage-model'
@@ -10,6 +10,7 @@ export function StatusBar() {
   const connected = useUi((s) => s.connected)
   const vm = useUi((s) => s.versionMismatch)
   const error = useUi((s) => s.error)
+  const missing = useUi((s) => s.missingResume)
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
   if (!app) return null
   const alive = app.panes.filter((p) => p.alive).length
@@ -35,6 +36,14 @@ export function StatusBar() {
             }
           >
             Descartar
+          </button>
+        </span>
+      )}
+      {missing.length > 0 && (
+        <span className="st-item warn">
+          {missing.length === 1 ? '1 conversa não encontrada' : `${missing.length} conversas não encontradas`}{' '}
+          <button className="st-btn" onClick={() => chooseConversationFor(missing[0])}>
+            Escolher
           </button>
         </span>
       )}

@@ -14,6 +14,8 @@ export interface UiState {
   flashPaneId: string | null
   modal: Modal | null
   renamingPaneId: string | null
+  /** painéis cuja conversa salva não foi encontrada ao retomar */
+  missingResume: string[]
 }
 
 export type Modal =
@@ -24,8 +26,9 @@ export type Modal =
   | { kind: 'preferences' }
   | { kind: 'palette' }
   | { kind: 'setup' }
+  | { kind: 'conversations'; paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }
 
-let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null }
+let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [] }
 const subs = new Set<() => void>()
 
 const subscribe = (cb: () => void) => {

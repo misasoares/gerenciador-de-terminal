@@ -3,6 +3,7 @@ import { ConflictsModal } from './ConflictsModal'
 import { Preferences } from './Preferences'
 import { Palette } from './Palette'
 import { SetupWizard } from './SetupWizard'
+import { ConversationsModal } from './ConversationsModal'
 import { revealPane } from '../actions'
 import { confirmRemove } from '../flows'
 import { headerView } from '../header'
@@ -29,6 +30,7 @@ export function Modals() {
   if (modal.kind === 'preferences') return <Preferences />
   if (modal.kind === 'palette') return <Palette />
   if (modal.kind === 'setup') return <SetupWizard />
+  if (modal.kind === 'conversations') return <ConversationsModal {...modal} />
   const close = () => {
     setDeleteBranch(false)
     setUi({ modal: null })

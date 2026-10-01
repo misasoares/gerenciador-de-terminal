@@ -1,4 +1,5 @@
-import type { RemoveCheck, Tab } from '../../shared/types'
+import type { ConversationInfo, RemoveCheck, Tab } from '../../shared/types'
+import { isMissing } from './conversations-model'
 import { SESSION_COLORS } from '../../shared/settings'
 import { closeDeadPane, closeTab, setTabColor, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane } from './actions'
 import type { ProjectItem, SessionItem, WorktreeItem } from './sidebar-model'
@@ -44,12 +45,14 @@ export async function worktreeMenu(p: ProjectItem, w: WorktreeItem): Promise<voi
   const choice = await window.gt.contextMenu([
     { id: 'new', label: 'Nova sessão…  ⌘T' },
     { id: 'shell', label: 'Terminal comum' },
+    { id: 'conv', label: 'Conversas desta worktree…' },
     { id: 'finder', label: 'Abrir no Finder' },
     { id: '-', label: '' },
     { id: 'remove', label: 'Remover worktree…', enabled: !w.isMain },
   ])
   if (choice === 'new') openNewSessionDialog(p.path, w.path)
   else if (choice === 'shell') openNewPane({ cwd: w.path, accountId: null }).catch(showError)
+  else if (choice === 'conv') openConversations({ paths: [w.path], title: `${p.name.toUpperCase()} ⎇ ${w.label}`, projectPaths: p.worktrees.map((x) => x.path) })
   else if (choice === 'finder') void window.gt.openPath(w.path)
   else if (choice === 'remove') await removeWorktreeFlow(w.path)
 }
@@ -64,11 +67,13 @@ export async function projectMenu(p: ProjectItem): Promise<void> {
     { id: 'color:', label: `${mark(!p.color)}Cor: nenhuma` },
     ...SESSION_COLORS.map((c) => ({ id: `color:${c.hex}`, label: `${mark(p.color === c.hex)}Cor: ${c.label}` })),
     { id: '-', label: '' },
+    { id: 'conv', label: 'Conversas do projeto…' },
     { id: 'conflicts', label: 'Analisar conflitos entre worktrees…' },
     { id: 'remove', label: 'Remover projeto da lista' },
   ])
   if (!choice) return
   try {
+    if (choice === 'conv') return openConversations({ paths: p.worktrees.map((w) => w.path), title: `${p.name.toUpperCase()} · projeto inteiro` })
     if (choice === 'conflicts') analyzeConflictsFlow(p.path)
     else if (choice.startsWith('color:')) {
       await window.gt.request({ t: 'project.setColor', path: p.path, color: choice.slice(6) || null })
@@ -130,13 +135,49 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
 }
 
 export async function resumeAll(): Promise<void> {
+  const missing: string[] = []
   for (const r of getUi().app?.resumable ?? []) {
     try {
-      await openNewPane({ paneId: r.paneId, cwd: r.cwd, accountId: r.accountId, resumeSessionId: r.sessionId ?? undefined, resumeAgent: r.agent })
+      await openNewPane({ paneId: r.paneId, cwd: r.cwd, accountId: r.accountId, resumeSessionId: r.sessionId ?? undefined, resumeAgent: r.agent, transcriptPath: r.transcriptPath ?? null })
     } catch (e) {
-      showError(e)
+      if (isMissing(e)) missing.push(r.paneId)
+      else showError(e)
     }
   }
+  setUi({ missingResume: missing })
+}
+
+export function openConversations(o: { paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }): void {
+  setUi({ modal: { kind: 'conversations', ...o } })
+}
+
+export async function resumeConversation(c: ConversationInfo, accountId: string, replacePaneId?: string): Promise<void> {
+  try {
+    await openNewPane({ paneId: replacePaneId, cwd: c.cwd, accountId, resumeSessionId: c.sessionId, resumeAgent: c.agent })
+    setUi((s) => ({ modal: null, missingResume: s.missingResume.filter((id) => id !== replacePaneId) }))
+  } catch (e) {
+    showError(e)
+  }
+}
+
+function tildifyHome(p: string): string {
+  const home = getUi().app?.userHome ?? ''
+  return home && p.startsWith(home) ? '~' + p.slice(home.length) : p
+}
+
+/** abre a janela de conversas para um painel cuja conversa sumiu */
+export function chooseConversationFor(paneId: string): void {
+  const app = getUi().app
+  const r = app?.resumable.find((x) => x.paneId === paneId)
+  if (!r) return
+  const project = app?.projects.find((p) => p.worktrees.some((w) => r.cwd === w.path || r.cwd.startsWith(w.path + '/')))
+  openConversations({
+    paths: [r.cwd],
+    title: project ? `${project.name.toUpperCase()} · ${tildifyHome(r.cwd)}` : tildifyHome(r.cwd),
+    accountId: r.accountId,
+    replacePaneId: paneId,
+    projectPaths: project?.worktrees.map((w) => w.path),
+  })
 }
 
 export async function restartDaemonFlow(): Promise<void> {
