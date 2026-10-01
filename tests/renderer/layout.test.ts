@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
+import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, dockAtRoot, dockPane, withPaneInNewTab, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
 import type { Layout, LayoutNode } from '../../src/shared/types'
 
 const leaf = (paneId: string): LayoutNode => ({ type: 'leaf', paneId })
@@ -116,5 +116,49 @@ describe('tabInsertIndex', () => {
   it('espaço vazio depois da última aba (ou o botão +) vai para o fim', () => {
     expect(tabInsertIndex(mids, 260)).toBe(3)
     expect(tabInsertIndex(mids, 900)).toBe(3)
+  })
+})
+
+describe('encostar na borda da área inteira', () => {
+  const L = (id: string): LayoutNode => ({ type: 'leaf', paneId: id })
+  const row = (...c: LayoutNode[]): LayoutNode => ({ type: 'split', dir: 'row', children: c, sizes: [] })
+  const col = (...c: LayoutNode[]): LayoutNode => ({ type: 'split', dir: 'column', children: c, sizes: [] })
+
+  it('três lado a lado + soltar embaixo de todas → coluna[linha[A|B|C] / X]', () => {
+    expect(dockAtRoot(row(L('a'), L('b'), L('c')), 'x', 'bottom')).toEqual(col(row(L('a'), L('b'), L('c')), L('x')))
+    expect(dockAtRoot(row(L('a'), L('b')), 'x', 'top')).toEqual(col(L('x'), row(L('a'), L('b'))))
+  })
+
+  it('mesma direção da raiz: entra como irmão no começo/fim, sem aninhar', () => {
+    expect(dockAtRoot(row(L('a'), L('b')), 'x', 'left')).toEqual(row(L('x'), L('a'), L('b')))
+    expect(dockAtRoot(col(L('a'), L('b')), 'x', 'bottom')).toEqual(col(L('a'), L('b'), L('x')))
+  })
+
+  it('raiz com um painel só ou vazia', () => {
+    expect(dockAtRoot(L('a'), 'x', 'right')).toEqual(row(L('a'), L('x')))
+    expect(dockAtRoot(null, 'x', 'bottom')).toEqual(L('x'))
+  })
+
+  it('dockPane tira o painel de onde estava (outra aba ou a mesma) e encosta na borda', () => {
+    const l: Layout = { tabs: [{ id: 't1', name: '1', root: row(L('a'), L('b'), L('c')) }, { id: 't2', name: '2', root: L('d') }], activeTabId: 't2' }
+    const same = dockPane(l, 'c', 't1', 'bottom')
+    expect(same.tabs[0].root).toEqual(col(row(L('a'), L('b')), L('c')))
+    expect(same.activeTabId).toBe('t1')
+    const other = dockPane(l, 'd', 't1', 'bottom')
+    expect(other.tabs.map((t) => t.id)).toEqual(['t1']) // a aba que ficou vazia fecha
+    expect(other.tabs[0].root).toEqual(col(row(L('a'), L('b'), L('c')), L('d')))
+  })
+
+  it('dockPane: painel único da própria aba ou aba desconhecida não muda nada', () => {
+    const l: Layout = { tabs: [{ id: 't1', name: '1', root: L('a') }, { id: 't2', name: '2', root: L('b') }], activeTabId: 't1' }
+    expect(dockPane(l, 'a', 't1', 'bottom')).toBe(l)
+    expect(dockPane(l, 'a', 'zzz', 'bottom')).toBe(l)
+  })
+
+  it('withPaneInNewTab leva o painel para uma aba nova no fim e ativa', () => {
+    const l: Layout = { tabs: [{ id: 't1', name: '1', root: row(L('a'), L('b')) }], activeTabId: 't1' }
+    const n = withPaneInNewTab(l, 'b', { id: 'nova', name: 'Aba 2', root: null })
+    expect(n.tabs.map((t) => [t.id, t.root])).toEqual([['t1', L('a')], ['nova', L('b')]])
+    expect(n.activeTabId).toBe('nova')
   })
 })

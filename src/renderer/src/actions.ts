@@ -1,5 +1,5 @@
 import type { AgentKind, Layout, Tab } from '../../shared/types'
-import { findTab, insertBeside, leaves, neighbor, removeLeaf, removePane, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone, withTabColor } from './layout'
+import { findTab, insertBeside, leaves, neighbor, removeLeaf, removePane, replaceLeaf, setSizes, splitLeaf, type Dir, type DropZone, withTabColor, dockPane, withPaneInNewTab, type Side } from './layout'
 import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
@@ -98,6 +98,18 @@ export function dropOnPane(dragged: string, target: string, zone: DropZone): voi
     return { tabs: tabs.map((t) => (t.id === tab.id ? { ...t, root } : t)), activeTabId: tab.id }
   })
   focusPane(dragged)
+}
+
+/** encosta o painel numa borda da aba inteira (abaixo/acima/ao lado de todos) */
+export function dockPaneAt(paneId: string, tabId: string, side: Side): void {
+  updateLayout((l) => dockPane(l, paneId, tabId, side))
+  focusPane(paneId)
+}
+
+/** leva o painel para uma aba nova */
+export function movePaneToNewTab(paneId: string): void {
+  updateLayout((l) => withPaneInNewTab(l, paneId, newTab(l.tabs.length + 1, null)))
+  focusPane(paneId)
 }
 
 export function moveToTab(paneId: string, tabId: string): void {

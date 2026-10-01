@@ -131,3 +131,33 @@ export function moveTab(layout: Layout, tabId: string, toIndex: number): Layout 
 export function tabInsertIndex(mids: number[], x: number): number {
   return mids.filter((m) => x > m).length
 }
+
+/** encosta o painel numa borda da área inteira (abaixo/acima/ao lado de todos) */
+export function dockAtRoot(root: LayoutNode | null, paneId: string, side: Side): LayoutNode {
+  const fresh: LayoutNode = { type: 'leaf', paneId }
+  if (!root) return fresh
+  const dir = side === 'left' || side === 'right' ? 'row' : 'column'
+  const before = side === 'left' || side === 'top'
+  if (root.type === 'split' && root.dir === dir) {
+    return { ...root, children: before ? [fresh, ...root.children] : [...root.children, fresh], sizes: [] }
+  }
+  return { type: 'split', dir, sizes: [], children: before ? [fresh, root] : [root, fresh] }
+}
+
+/** tira o painel de onde estiver e encosta na borda da aba; sem efeito → mesmo objeto */
+export function dockPane(l: Layout, paneId: string, tabId: string, side: Side): Layout {
+  const target = l.tabs.find((t) => t.id === tabId)
+  if (!target) return l
+  if (leaves(target.root).length === 1 && leaves(target.root)[0] === paneId) return l
+  const removed = removePane(l, paneId)
+  const tab = removed.tabs.find((t) => t.id === tabId)
+  if (!tab) return l
+  const root = dockAtRoot(tab.root, paneId, side)
+  return { tabs: removed.tabs.map((t) => (t.id === tabId ? { ...t, root } : t)), activeTabId: tabId }
+}
+
+/** leva o painel para uma aba nova (no fim) e ativa essa aba */
+export function withPaneInNewTab(l: Layout, paneId: string, tab: Tab): Layout {
+  const removed = removePane(l, paneId)
+  return { tabs: [...removed.tabs, { ...tab, root: { type: 'leaf', paneId } }], activeTabId: tab.id }
+}
