@@ -45,6 +45,8 @@ export function FilePane({ paneId }: { paneId: string }) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const mtime = useRef<number | null>(null)
+  /** até quando ignorar avisos do disco (o próprio salvamento também gera um) */
+  const ownWriteUntil = useRef(0)
   const [text, setText] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [problem, setProblem] = useState<Problem>(null)
@@ -75,13 +77,16 @@ export function FilePane({ paneId }: { paneId: string }) {
 
   const save = async (force = false) => {
     const content = view.current ? view.current.state.sliceDoc() : text ?? ''
+    ownWriteUntil.current = Date.now() + 1000
     try {
       const r = await window.gt.request<{ mtimeMs: number }>({ t: 'file.write', path, content, expectedMtimeMs: force || problem === 'missing' ? null : mtime.current })
       mtime.current = r.mtimeMs
-      setText(content)
+      // com o editor aberto, não recria (manteria cursor e desfazer); só o modo visualizar usa o texto
+      if (!view.current) setText(content)
       setExternal(false)
       setProblem(null)
       markDirty(false)
+      forceRef.current = false
     } catch (e) {
       const m = errorMessage(e)
       if (m.includes('file-changed')) setExternal(true)
@@ -98,7 +103,7 @@ export function FilePane({ paneId }: { paneId: string }) {
     void window.gt.request({ t: 'file.watch', path })
     const off = onFileChanged(path, (m) => {
       if (m === null) return setProblem('missing')
-      if (m === mtime.current) return
+      if (m === mtime.current || Date.now() < ownWriteUntil.current) return
       if (!dirtyFiles.has(paneId)) {
         void load().then(() => {
           setFlash(true)
@@ -145,7 +150,11 @@ export function FilePane({ paneId }: { paneId: string }) {
     }
   }, [text, mode, path])
 
-  const setMode = (m: 'view' | 'edit') => window.gt.request({ t: 'filepane.set', id: paneId, path, mode: m })
+  const setMode = (m: 'view' | 'edit') => {
+    // levar as edições para o texto antes de destruir o editor (senão a visualização mostra o antigo e a edição some)
+    if (view.current) setText(view.current.state.sliceDoc())
+    return window.gt.request({ t: 'filepane.set', id: paneId, path, mode: m })
+  }
   const html = mode === 'view' && text !== null ? DOMPurify.sanitize(marked.parse(text, { async: false }) as string) : ''
   const isMd = languageFor(path) === 'markdown'
 
