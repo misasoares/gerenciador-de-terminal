@@ -15,6 +15,7 @@ import { loadPersisted, savePersisted, type Persisted } from './persist'
 import { ProjectRegistry } from './projects'
 import { startServer, type Conn, type RpcServer } from './server'
 import { checkRemove, removeWorktree } from './worktree-remove'
+import { uniqueName } from './workspaces'
 import { UsageMonitor } from './usage/monitor'
 import { ConversationIndex } from './conversations/index'
 import { existing, FileWatcher, listFiles, readFile, writeFile } from './files'
@@ -558,10 +559,58 @@ export class Daemon {
         return null
       }
       case 'workspace.create': {
+        const name = uniqueName(req.name, this.persisted.workspaces.map((w) => w.name))
         const id = randomUUID()
-        this.persisted.workspaces.push({ id, name: req.name.trim(), open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] })
+        this.persisted.workspaces.push({ id, name, open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] })
         this.changed()
         return { id }
+      }
+      case 'workspace.rename': {
+        const w = this.persisted.workspaces.find((x) => x.id === req.id)
+        if (!w) throw new Error(`espaço não encontrado: ${req.id}`)
+        w.name = uniqueName(req.name, this.persisted.workspaces.filter((x) => x !== w).map((x) => x.name))
+        this.changed()
+        return null
+      }
+      case 'workspace.setOpen': {
+        const w = this.persisted.workspaces.find((x) => x.id === req.id)
+        if (w) w.open = req.open
+        this.changed()
+        return null
+      }
+      case 'workspace.list':
+        return this.buildState(conn.workspaceId).workspaces
+      case 'workspace.end': {
+        const w = this.persisted.workspaces.find((x) => x.id === req.id)
+        if (!w) throw new Error(`espaço não encontrado: ${req.id}`)
+        for (const r of this.panes.records().filter((x) => x.alive && x.workspaceId === w.id)) {
+          if (!w.resumable.some((e) => e.paneId === r.id)) w.resumable.push({ paneId: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude', transcriptPath: r.claude?.transcriptPath ?? null })
+          this.panes.kill(r.id)
+        }
+        w.open = false
+        this.changed()
+        return null
+      }
+      case 'pane.moveWorkspace': {
+        const rec = this.panes.records().find((r) => r.id === req.paneId)
+        const to = this.persisted.workspaces.find((x) => x.id === req.to)
+        if (!rec || !to) throw new Error('painel ou espaço não encontrado')
+        if (!rec.projectPath) await this.panes.relocateAll() // sessão recém-criada: projeto ainda não localizado
+        const from = this.ws(rec.workspaceId)
+        rec.workspaceId = to.id
+        // origem: o renderer já tirou a folha antes de pedir; aqui garante para quem não tirou
+        from.layout = { ...from.layout, tabs: from.layout.tabs.map((t) => ({ ...t, root: t.root ? removeLeafFrom(t.root, rec.id) : null })) }
+        // destino: entra na aba ativa de lá (ou numa aba nova)
+        if (!to.layout.tabs.some((t) => leafIds(t.root).includes(rec.id))) {
+          const tab = to.layout.tabs.find((t) => t.id === to.layout.activeTabId) ?? to.layout.tabs[0]
+          const leaf: LayoutNode = { type: 'leaf', paneId: rec.id }
+          if (tab) tab.root = tab.root ? { type: 'split', dir: 'row', sizes: [], children: [tab.root, leaf] } : leaf
+          else to.layout = { tabs: [{ id: randomUUID(), name: 'Aba 1', root: leaf }], activeTabId: null }
+          if (!to.layout.activeTabId) to.layout.activeTabId = to.layout.tabs[0].id
+        }
+        if (rec.projectPath && !to.projectPaths.includes(rec.projectPath)) to.projectPaths.push(rec.projectPath)
+        this.changed()
+        return null
       }
       case 'daemon.shutdown':
         setImmediate(() => {
@@ -575,6 +624,15 @@ export class Daemon {
 function leafIds(n: LayoutNode | null): string[] {
   if (!n) return []
   return n.type === 'leaf' ? [n.paneId] : n.children.flatMap(leafIds)
+}
+
+/** tira a folha do painel; split que fica com um filho vira o filho */
+function removeLeafFrom(n: LayoutNode, id: string): LayoutNode | null {
+  if (n.type === 'leaf') return n.paneId === id ? null : n
+  const children = n.children.map((c) => removeLeafFrom(c, id)).filter((c): c is LayoutNode => c !== null)
+  if (children.length === 0) return null
+  if (children.length === 1) return children[0]
+  return children.length === n.children.length ? n : { ...n, children, sizes: [] }
 }
 
 export const defaultShell = (): string => os.userInfo().shell || process.env.SHELL || '/bin/zsh'
