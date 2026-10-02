@@ -300,7 +300,9 @@ function removeLeafFrom(n: LayoutNode, id: string): LayoutNode | null {
 }
 ```
 
-Observação: a janela do renderer sobrescreve o layout com o dela no próximo `layout.save`. Para o espaço de **origem** isso é o correto (ela já não tem o painel? não — ela ainda tem). Por isso o renderer, ao pedir `pane.moveWorkspace`, tira a folha do próprio layout antes (Task 5). E o renderer de **destino** aceita o layout vindo do daemon quando chega um painel novo: em `main.tsx`, o merge "depois do primeiro carregamento o layout é do renderer" passa a aceitar o layout do daemon quando ele contém ids que o local não tem (comparar `leaves`). Implemente isso na Task 5.
+Observação sobre o layout ao mover: cada janela é dona do layout do seu espaço e o grava com `layout.save`. Para não haver disputa:
+- **origem:** o renderer tira a folha do próprio layout (`hidePane`) **antes** de pedir `pane.moveWorkspace` (Task 5), então o próximo `layout.save` dela já vem sem o painel;
+- **destino:** o renderer aceita o layout que chega do daemon quando ele traz painéis que o layout local não tem (`mergeIncomingLayout`, Task 5); fora isso, continua valendo o layout local.
 
 - [ ] **Step 4:** `npx vitest run tests/daemon/workspaces.test.ts tests/daemon/daemon.test.ts && npm test && npm run typecheck` → PASS.
 - [ ] **Step 5:** `git commit -m "feat(espacos): criar, renomear, abrir, encerrar espaço e mover sessão"`
