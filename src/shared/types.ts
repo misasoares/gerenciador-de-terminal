@@ -84,6 +84,10 @@ export interface PaneView {
   claude: ClaudeSession | null
   projectPath: string | null
   worktreePath: string | null
+  /** worktree da pasta do shell (worktreePath é a efetiva: a deduzida pela escrita do agente, se houver) */
+  shellWorktreePath?: string | null
+  /** worktreePath veio da dedução pelas escritas do agente */
+  worktreeInferred?: boolean
   name: string | null
   color: string | null
   /** processo Codex rodando há um tempo sem mandar hooks (não aprovados no /hooks) */

@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import type { Account, AgentKind, ClaudeSession, HookPayload } from '../shared/types'
 import { buildCommand, detectAccount, resumeAccount } from './accounts'
 import { cwdOf, findAgent, foregroundOf, snapshotProcs } from './platform/procs'
 import type { ProjectRegistry } from './projects'
 import { PtyHost } from './pty-host'
 import { markSeen, reduceSession } from './session'
+import { EMPTY_INFERENCE, nextInference, worktreeOf, writtenPaths, type InferenceState } from './agent-worktree'
 import { createTitleReader } from './title'
 
 export interface PaneRecord {
@@ -22,6 +24,10 @@ export interface PaneRecord {
   missingPolls: number
   projectPath: string | null
   worktreePath: string | null
+  /** dedução da worktree em que o agente escreve (quando difere da do shell) */
+  inference: InferenceState
+  /** projeto da worktree deduzida */
+  inferredProjectPath: string | null
   /** quando o poller viu o processo codex pela 1ª vez (null = sem codex) */
   agentProcSince: number | null
   lastHookAt: number
@@ -140,6 +146,8 @@ export class PaneManager {
       agentHooksMissing: false,
       projectPath: null,
       worktreePath: null,
+      inference: EMPTY_INFERENCE,
+      inferredProjectPath: null,
     }
     this.recs.set(id, rec)
     if (command) {
@@ -213,6 +221,7 @@ export class PaneManager {
     const hadSession = rec.claude !== null
     rec.configDir = configDir
     rec.claude = reduceSession(rec.claude, p, Date.now(), agent)
+    if (p.hook_event_name === 'SessionStart' || p.hook_event_name === 'SessionEnd') this.resetInference(rec)
     rec.missingPolls = 0
     if (!rec.claude) {
       rec.launchedAccountId = null
@@ -225,10 +234,13 @@ export class PaneManager {
     // hooks de subagente (agent_id) trazem o cwd do subagente, que pode estar em outra worktree
     if (p.cwd && p.cwd !== rec.cwd && !p.agent_id) {
       rec.cwd = p.cwd
+      this.resetInference(rec)
       await this.relocate(rec)
     }
+    if (this.inferFromHook(rec, p)) this.d.onChange()
     const ev = p.hook_event_name
-    if (rec.worktreePath && GIT_HINT_EVENTS.has(ev)) this.d.onGitHint(rec.worktreePath)
+    const eff = this.effectiveWorktree(rec)
+    if (eff && GIT_HINT_EVENTS.has(ev)) this.d.onGitHint(eff)
     if (agent === 'claude' && rec.claude?.transcriptPath && TITLE_EVENTS.has(ev)) {
       const sessionId = rec.claude.sessionId
       const title = await this.readTitle(rec.claude.transcriptPath)
@@ -296,6 +308,7 @@ export class PaneManager {
       const cwd = cwds.get(pid)
       if (cwd && cwd !== rec.cwd && !rec.claude) {
         rec.cwd = cwd
+        this.resetInference(rec)
         await this.relocate(rec)
       }
     }
@@ -305,7 +318,46 @@ export class PaneManager {
     await Promise.all(this.records().map((r) => this.relocate(r)))
   }
 
+  effectiveWorktree(r: PaneRecord): string | null {
+    return r.inference.inferred ?? r.worktreePath
+  }
+
+  effectiveProject(r: PaneRecord): string | null {
+    return r.inference.inferred ? r.inferredProjectPath : r.projectPath
+  }
+
+  private resetInference(rec: PaneRecord): boolean {
+    const had = rec.inference.inferred !== null || rec.inference.candidate !== null
+    rec.inference = EMPTY_INFERENCE
+    rec.inferredProjectPath = null
+    return had
+  }
+
+  private allWorktrees(): { path: string; project: string }[] {
+    return this.d.registry.list().flatMap((c) => this.d.registry.worktrees(c.path).filter((w) => !w.prunable).map((w) => ({ path: w.path, project: c.path })))
+  }
+
+  /** escritas do agente (PreToolUse) em outra worktree: 2 seguidas mudam a worktree efetiva */
+  private inferFromHook(rec: PaneRecord, p: HookPayload): boolean {
+    const paths = writtenPaths(p, rec.cwd, os.homedir())
+    if (paths.length === 0) return false
+    const wts = this.allWorktrees()
+    const before = rec.inference.inferred
+    for (const target of paths) {
+      const hit = worktreeOf(target, wts.map((w) => w.path))
+      if (hit) rec.inference = nextInference(rec.inference, hit, rec.worktreePath)
+    }
+    if (rec.inference.inferred === before) return false
+    rec.inferredProjectPath = wts.find((w) => w.path === rec.inference.inferred)?.project ?? null
+    return true
+  }
+
   private async relocate(rec: PaneRecord): Promise<void> {
+    // a worktree deduzida sumiu do cadastro (removida): volta para a do shell
+    if (rec.inference.inferred && !this.allWorktrees().some((w) => w.path === rec.inference.inferred)) {
+      this.resetInference(rec)
+      this.d.onChange()
+    }
     const cwd = rec.cwd
     const loc = await this.d.registry.locate(cwd)
     if (rec.cwd !== cwd) return // mudou de novo enquanto resolvia
