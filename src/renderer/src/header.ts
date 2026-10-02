@@ -18,6 +18,10 @@ export interface HeaderView {
   projectColor: string | null
   /** cor da sessão (bloco do nome da sessão) */
   sessionColor: string | null
+  /** worktree deduzida pelas escritas do agente (difere da do shell) */
+  worktreeInferred: boolean
+  /** rótulo da worktree do shell quando há dedução */
+  shellWorktree: string | null
 }
 
 export function worktreeLabel(w: { path: string; isMain: boolean }): string {
@@ -48,6 +52,13 @@ export function headerView(pane: PaneView, app: Pick<AppState, 'projects' | 'acc
     label: pane.name ?? pane.claude?.title ?? (pane.claude ? `sessão ${pane.seq}` : `terminal ${pane.seq}`),
     projectColor: project?.color ?? null,
     sessionColor: pane.color,
+    worktreeInferred: !!pane.worktreeInferred,
+    shellWorktree: pane.worktreeInferred
+      ? (() => {
+          const sw = project?.worktrees.find((w) => w.path === pane.shellWorktreePath)
+          return sw ? worktreeLabel(sw) : pane.shellWorktreePath ? tildify(pane.shellWorktreePath, app.userHome) : null
+        })()
+      : null,
   }
 }
 

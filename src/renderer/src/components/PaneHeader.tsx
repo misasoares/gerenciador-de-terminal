@@ -48,7 +48,12 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
             >
               {h.project.toUpperCase()}
             </span>
-            <span className={`ph-block ph-worktree${h.isMainWorktree ? '' : ' extra'}${quiet ? ' quiet' : ''}`}>⎇ {h.worktree}</span>
+            <span className={`ph-block ph-worktree${h.isMainWorktree ? '' : ' extra'}${quiet ? ' quiet' : ''}`}
+              title={h.worktreeInferred ? `o agente está editando em ${h.worktree}; o shell está em ${h.shellWorktree ?? 'outra pasta'}` : undefined}
+            >
+              ⎇ {h.worktree}
+              {h.worktreeInferred ? ' ·' : ''}
+            </span>
           </>
         )}
         {renaming ? (

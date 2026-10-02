@@ -18,7 +18,7 @@ describe('headerView', () => {
     const h = headerView(pane({ worktreePath: '/r/api/.claude/worktrees/auth', accountId: 'mslabs', claude: { sessionId: 's', agent: 'claude' as const, status: 'needs-you', statusSince: 0, title: null, transcriptPath: null } }), app)
     expect(h).toEqual({
       project: 'api', worktree: 'auth', isMainWorktree: false, branch: 'feat/auth', changed: 5, ahead: 2, behind: 0,
-      hasUpstream: false, status: 'needs-you', account: { label: 'mslabs', color: '#c586c0' }, warning: null, label: 'sessão 1', projectColor: null, sessionColor: null,
+      hasUpstream: false, status: 'needs-you', account: { label: 'mslabs', color: '#c586c0' }, warning: null, label: 'sessão 1', projectColor: null, sessionColor: null, worktreeInferred: false, shellWorktree: null,
     })
   })
 
@@ -38,6 +38,10 @@ describe('headerView', () => {
     expect(headerView(base, app).label).toBe('Refatorar auth')
     expect(headerView({ ...base, name: 'backend' }, app).label).toBe('backend')
     expect(headerView(pane({}), app).label).toBe('terminal 1')
+  })
+  it('worktree deduzida: marca e rótulo da worktree do shell', () => {
+    const h = headerView(pane({ worktreePath: '/r/api/.claude/worktrees/auth', shellWorktreePath: '/r/api', worktreeInferred: true }), app)
+    expect(h).toMatchObject({ worktree: 'auth', worktreeInferred: true, shellWorktree: 'principal' })
   })
 })
 
