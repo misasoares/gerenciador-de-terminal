@@ -28,3 +28,10 @@ export function mergeIncomingLayout(local: Layout, incoming: Layout, prevPaneIds
   const arrived = (id: string) => !mine.has(id) && nextPaneIds.has(id) && !prevPaneIds.has(id)
   return incoming.tabs.some((t) => leaves(t.root).some(arrived)) ? incoming : local
 }
+
+export type OtherWorkspace = Omit<WorkspaceSummary, 'open'>
+
+/** seção "Outros espaços" da sidebar: os abertos, menos o desta janela */
+export function otherWorkspaces(list: WorkspaceSummary[], currentId: string): OtherWorkspace[] {
+  return list.filter((w) => w.open && w.id !== currentId).map(({ open: _open, ...rest }) => rest)
+}

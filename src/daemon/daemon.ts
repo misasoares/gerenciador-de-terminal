@@ -267,7 +267,25 @@ export class Daemon {
       workspaces: this.persisted.workspaces.map((x) => {
         const live = records.filter((r) => r.alive && r.workspaceId === x.id)
         const attention = live.filter((r) => r.claude?.status === 'needs-you' || r.claude?.status === 'your-turn').length
-        return { id: x.id, name: x.name, open: x.open, sessions: live.length, attention }
+        // mesmo rótulo da sidebar (sessionLabel): nome dado, título da conversa, "sessão N" ou "terminal N"
+        const item = (r: (typeof live)[number]) => ({
+          id: r.id,
+          label: this.persisted.paneMeta[r.id]?.name ?? (r.claude ? (r.claude.title ?? `sessão ${r.seq}`) : `terminal ${r.seq}`),
+          status: r.claude?.status ?? null,
+        })
+        const byId = new Map(live.map((r) => [r.id, r]))
+        const placed = new Set<string>()
+        const tabs = x.layout.tabs.flatMap((t) => {
+          const panes = leafIds(t.root).flatMap((pid) => {
+            const r = byId.get(pid)
+            if (!r) return []
+            placed.add(pid)
+            return [item(r)]
+          })
+          return panes.length ? [{ id: t.id, name: t.name, panes }] : []
+        })
+        const hidden = live.filter((r) => !placed.has(r.id)).map(item)
+        return { id: x.id, name: x.name, open: x.open, sessions: live.length, attention, tabs, hidden }
       }),
       askOnCloseWindow: this.persisted.askOnCloseWindow,
       userHome: this.o.userHome,

@@ -140,6 +140,17 @@ export interface WorkspaceSummary {
   sessions: number
   /** sessões vivas esperando você (🟡/🔵): o badge do Dock soma todos os espaços */
   attention: number
+  /** abas com sessões vivas, na ordem do layout (navegar para outra janela direto na sessão) */
+  tabs: { id: string; name: string; panes: WorkspacePane[] }[]
+  /** sessões vivas fora de qualquer aba */
+  hidden: WorkspacePane[]
+}
+
+/** sessão no resumo de um espaço; status null = terminal sem agente */
+export interface WorkspacePane {
+  id: string
+  label: string
+  status: SessionStatus | null
 }
 
 export interface AppState {

@@ -300,3 +300,12 @@ kbd { font-family: inherit; background: #3a3d41; border-radius: 3px; padding: 1p
 .reopen-actions .spacer { flex: 1; }
 button.link { background: none; color: var(--accent); padding: 4px 0; }
 button.link:hover { background: none; text-decoration: underline; }
+/* sidebar: sessões dos outros espaços abertos */
+.sb-others { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 4px; }
+.sb-others-head { display: flex; align-items: center; gap: 4px; padding: 10px 10px 6px; font-size: 11px; letter-spacing: 0.06em; color: var(--fg-dim); cursor: pointer; }
+.sb-ws-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; font-weight: 700; font-size: 12px; }
+.sb-ws-head:hover { background: var(--bg-hover); }
+.sb-ws-head .sb-dim { margin-left: auto; font-weight: 400; }
+.sb-ws-attn { color: var(--warn); font-weight: 400; font-size: 11px; }
+.sb-ws-tabname { padding: 2px 8px 0 22px; font-size: 11px; color: var(--fg-dim); }
+.sb-ws-tab .sb-session { padding-left: 30px; }

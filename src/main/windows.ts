@@ -82,7 +82,9 @@ export class WindowManager {
     const cur = this.entries.get(id)
     if (cur) {
       if (cur.win.isMinimized()) cur.win.restore()
+      // mac: mostrar uma janela do app que está em outra mesa leva o usuário até aquela mesa
       cur.win.show()
+      cur.win.moveTop()
       cur.win.focus()
       return
     }

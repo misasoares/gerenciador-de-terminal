@@ -607,4 +607,25 @@ describe('Daemon', () => {
     const st = await app.waitState((s) => s.workspaces.find((w) => w.id === id)?.attention === 1)
     expect(st.workspaces.find((w) => w.id === 'principal')?.attention).toBe(0)
   })
+  it('espaços: o resumo traz abas e sessões de cada espaço (para navegar entre janelas)', async () => {
+    repo = makeRepo()
+    const { o, app } = await boot()
+    const { id } = await app.client.request<{ id: string }>({ t: 'workspace.create', name: 'Outro' })
+    const other = await connectApp(o.socketPath, id)
+    const mk = async () => (await other.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo!.dir, accountId: null, cols: 80, rows: 24 })).paneId
+    const a = await mk()
+    const b = await mk()
+    const c = await mk()
+    await other.client.request({ t: 'pane.meta', paneId: a, name: 'api' })
+    await hook(o, b, { hook_event_name: 'SessionStart', session_id: 'n1', cwd: repo.dir })
+    await hook(o, b, { hook_event_name: 'PermissionRequest', session_id: 'n1', cwd: repo.dir })
+    await other.client.request({ t: 'layout.save', layout: { tabs: [{ id: 't1', name: 'Back', root: { type: 'split', dir: 'row', sizes: [], children: [{ type: 'leaf', paneId: a }, { type: 'leaf', paneId: b }] } }, { id: 't2', name: 'Vazia', root: null }], activeTabId: 't1' } })
+    const st = await app.waitState((s) => s.workspaces.find((w) => w.id === id)?.tabs[0]?.panes[1]?.status === 'needs-you')
+    const w = st.workspaces.find((x) => x.id === id)!
+    const seqOf = (pid: string) => other.state()!.panes.find((p) => p.id === pid)!.seq
+    expect(w.tabs).toEqual([
+      { id: 't1', name: 'Back', panes: [{ id: a, label: 'api', status: null }, { id: b, label: `sessão ${seqOf(b)}`, status: 'needs-you' }] },
+    ])
+    expect(w.hidden).toEqual([{ id: c, label: `terminal ${seqOf(c)}`, status: null }])
+  })
 })

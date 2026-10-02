@@ -180,6 +180,10 @@ ipcMain.handle('gt:openWorkspaces', async (e, ids: string[]) => {
   for (const id of ids) await manager.open(id)
   if (manager.isChooser(e)) manager.closeChooser()
 })
+ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
+  if (paneId) await manager.reveal(workspaceId, paneId)
+  else await manager.open(workspaceId)
+})
 ipcMain.handle('gt:createWorkspace', async (e, name: string) => {
   const { id } = await service.request<{ id: string }>({ t: 'workspace.create', name })
   await manager.open(id)

@@ -38,4 +38,6 @@ export interface GtApi {
   openWorkspaces(ids: string[]): Promise<void>
   /** cria um espaço com este nome e abre a janela dele */
   createWorkspace(name: string): Promise<void>
+  /** vai para a janela do espaço (trocando de mesa) e, com paneId, abre a aba e foca o terminal */
+  revealIn(workspaceId: string, paneId: string | null): Promise<void>
 }

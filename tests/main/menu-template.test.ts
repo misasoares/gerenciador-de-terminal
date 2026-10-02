@@ -39,7 +39,7 @@ describe('menuTemplate', () => {
   it('menu Janela: novo, renomear, encerrar e a lista de espaços com ✓ nos abertos', () => {
     const opened: string[] = []
     const sent: string[] = []
-    const workspaces = [{ id: 'a', name: 'TCHEERP', open: true, sessions: 2, attention: 0 }, { id: 'b', name: 'Pessoal', open: false, sessions: 0, attention: 0 }]
+    const workspaces = [{ id: 'a', name: 'TCHEERP', open: true, sessions: 2, attention: 0, tabs: [], hidden: [] }, { id: 'b', name: 'Pessoal', open: false, sessions: 0, attention: 0, tabs: [], hidden: [] }]
     const m = flat(menuTemplate({ send: (a) => sent.push(a), quitAll: () => {}, platform: 'mac', bindings: resolveBindings('mac', {}), workspaces, openWorkspace: (id) => opened.push(id) }))
     expect(accelOf(m, 'Novo espaço de trabalho…')).toBe('Cmd+Shift+N')
     expect(m.some((i) => i.label === 'Renomear espaço…')).toBe(true)

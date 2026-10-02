@@ -3,9 +3,10 @@ import { openNewSessionDialog, PANE_MIME, revealPane } from '../actions'
 import { conflictPartners } from '../conflicts-model'
 import { addProjectFlow, analyzeConflictsFlow, projectMenu, sessionMenu, worktreeMenu } from '../flows'
 import { buildSidebar, isExpanded, railLabel, splitWorktrees, type ProjectItem, type SessionItem } from '../sidebar-model'
-import { setUi, useUi } from '../store'
+import { setUi, showError, useUi } from '../store'
 import { STATUS_DOT } from './PaneHeader'
 import { textOn } from '../header'
+import { otherWorkspaces, type OtherWorkspace } from '../workspaces-model'
 
 function Summary({ s }: { s: ProjectItem['summary'] }) {
   return (
@@ -220,11 +221,65 @@ function Rail() {
   )
 }
 
+const goTo = (wsId: string, paneId: string | null) => void window.gt.revealIn(wsId, paneId).catch(showError)
+
+function OtherWorkspaceItem({ w }: { w: OtherWorkspace }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="sb-ws">
+      <div className="sb-ws-head" onClick={() => goTo(w.id, null)} title="Ir para a janela deste espaço">
+        <span
+          className="sb-caret"
+          onClick={(e) => {
+            e.stopPropagation()
+            setOpen(!open)
+          }}
+        >
+          {open ? '▾' : '▸'}
+        </span>
+        <span className="sb-label">{w.name}</span>
+        {w.attention > 0 && <span className="sb-ws-attn">●{w.attention}</span>}
+        <span className="sb-dim">{w.sessions}</span>
+      </div>
+      {open &&
+        [...w.tabs.map((t) => ({ key: t.id, name: t.name, panes: t.panes })), ...(w.hidden.length ? [{ key: '__hidden', name: 'Escondidas', panes: w.hidden }] : [])].map((g) => (
+          <div key={g.key} className="sb-ws-tab">
+            <div className="sb-ws-tabname">{g.name}</div>
+            {g.panes.map((p) => (
+              <div key={p.id} className="sb-session" onClick={() => goTo(w.id, p.id)} title={`Ir para ${p.label} em ${w.name}`}>
+                <span className="dot">{(p.status && STATUS_DOT[p.status]) || '›'}</span>
+                <span className="sb-label">{p.label}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+    </div>
+  )
+}
+
+/** sessões dos outros espaços abertos: um clique leva à janela (e à mesa) dela, já na aba e com o terminal em foco */
+function OtherWorkspaces() {
+  const list = useUi((s) => s.app?.workspaces)
+  const current = useUi((s) => s.app?.workspaceId ?? '')
+  const others = useMemo(() => otherWorkspaces(list ?? [], current), [list, current])
+  const [open, setOpen] = useState(true)
+  if (others.length === 0) return null
+  return (
+    <div className="sb-others">
+      <div className="sb-others-head" onClick={() => setOpen(!open)}>
+        <span className="sb-caret">{open ? '▾' : '▸'}</span> OUTROS ESPAÇOS
+      </div>
+      {open && others.map((w) => <OtherWorkspaceItem key={w.id} w={w} />)}
+    </div>
+  )
+}
+
 export function Sidebar() {
   const collapsed = useUi((s) => s.sidebarCollapsed)
   if (collapsed) return <Rail />
   return (
     <aside className="sidebar">
+      <OtherWorkspaces />
       <Tree />
     </aside>
   )
