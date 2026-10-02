@@ -32,6 +32,9 @@ const api: GtApi = {
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   platform: process.platform,
   setKeybindings: (b) => ipcRenderer.send('gt:keybindings', b),
+  openWorkspaces: (ids: string[]) => ipcRenderer.invoke('gt:openWorkspaces', ids),
+  createWorkspace: (name: string) => ipcRenderer.invoke('gt:createWorkspace', name),
+  revealIn: (workspaceId: string, paneId: string | null) => ipcRenderer.invoke('gt:revealIn', workspaceId, paneId),
 }
 
 contextBridge.exposeInMainWorld('gt', api)

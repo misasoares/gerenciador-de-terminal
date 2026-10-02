@@ -3,85 +3,138 @@ import os from 'node:os'
 import path from 'node:path'
 import type { ClientRequest } from '../shared/protocol'
 import type { ConfirmOptions, MenuItemSpec } from '../shared/bridge'
+import type { WorkspaceSummary } from '../shared/types'
 import { DaemonLink } from './daemon-link'
 import { buildMenu } from './menu'
+import { dockTemplate } from './menu-template'
 import { platformOf, resolveBindings, type Bindings } from '../shared/keybindings'
 import { NotifyKeeper } from './notify-keeper'
+import { WindowManager } from './windows'
+import { badgeTotal, decideStartup } from './workspaces-model'
 
 const notifications = new NotifyKeeper()
 const platform = platformOf(process.platform)
 /** atalhos em vigor; o renderer manda os resolvidos pelas preferências (gt:keybindings) */
 let bindings: Bindings = resolveBindings(platform, {})
 
-function applyMenu(): void {
-  Menu.setApplicationMenu(buildMenu({ send: (a) => win?.webContents.send('gt:menu', a), quitAll: () => void quitAll(), platform, bindings }))
-}
-
-let win: BrowserWindow | null = null
 const home = process.env.GT_HOME ?? path.join(os.homedir(), '.gerenciador-terminal')
+const socketPath = path.join(home, 'daemon.sock')
+const daemonScript = path.join(__dirname, 'daemon.js')
 
-const link = new DaemonLink({
-  socketPath: path.join(home, 'daemon.sock'),
-  daemonScript: path.join(__dirname, 'daemon.js'),
+/** chave do que aparece nos menus (nome e aberto); sessões mudando não remontam o menu */
+let menuKey = ''
+
+// conexão de serviço: sem espaço; lista/cria espaços, atende a tela de reabrir e recebe o resumo de todos
+const service = new DaemonLink({
+  socketPath,
+  daemonScript,
   onEvent: (e) => {
-    // o aviso de uso sai daqui: a janela pode estar carregando ou fechada
     if (e.t === 'usage.alert') showUsageAlert(e.text)
-    else win?.webContents.send('gt:event', e)
+    else if (e.t === 'state') onSummary(e.state.workspaces, e.state.askOnCloseWindow)
   },
 })
+
+const manager = new WindowManager({
+  socketPath,
+  daemonScript,
+  service,
+  quitOnLastClose: platform !== 'mac',
+  quit: () => app.quit(),
+  notifications,
+})
+
+function onSummary(list: WorkspaceSummary[], askOnClose: boolean): void {
+  manager.summary = list
+  manager.askOnClose = askOnClose
+  app.dock?.setBadge(badgeTotal(list))
+  const key = JSON.stringify(list.map((w) => [w.id, w.name, w.open]))
+  if (key !== menuKey) {
+    menuKey = key
+    applyMenu()
+  }
+}
+
+function newWorkspace(): void {
+  // o nome é pedido num modal do renderer; sem janela nenhuma, a tela de reabrir tem o "Novo espaço"
+  if (!manager.sendMenu('new-workspace')) manager.openChooser()
+}
+
+function openWorkspace(id: string): void {
+  void manager.open(id).catch(showOpenError)
+}
+
+function applyMenu(): void {
+  Menu.setApplicationMenu(
+    buildMenu({
+      send: (a) => (a === 'new-workspace' ? newWorkspace() : void manager.sendMenu(a)),
+      quitAll: () => void quitAll(),
+      platform,
+      bindings,
+      workspaces: manager.summary,
+      openWorkspace,
+    }),
+  )
+  app.dock?.setMenu(Menu.buildFromTemplate(dockTemplate({ workspaces: manager.summary, openWorkspace, newWorkspace })))
+}
+
+function showOpenError(e: unknown): void {
+  dialog.showErrorBox('Gerenciador de Terminal', `Não foi possível abrir o espaço.\n\n${String(e)}`)
+}
 
 function showUsageAlert(text: string): void {
   if (!Notification.isSupported()) return
   const n = new Notification({ title: 'Uso do plano', body: text, silent: false })
   notifications.keep(n)
   n.on('click', () => {
-    if (!win) createWindow()
-    win?.show()
-    win?.focus()
+    const w = BrowserWindow.getFocusedWindow() ?? manager.windows()[0]
+    if (w) {
+      w.show()
+      w.focus()
+    } else void startup().catch(showOpenError)
   })
   n.show()
 }
 
-function createWindow(): void {
-  win = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    backgroundColor: '#1e1e1e',
-    title: 'Gerenciador de Terminal',
-    webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
-  })
-  if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
-  else void win.loadFile(path.join(__dirname, '../renderer/index.html'))
-  win.webContents.on('did-finish-load', () => notifications.loaded((id) => win?.webContents.send('gt:reveal', id)))
-  win.on('closed', () => {
-    win = null
-  })
+/** 1 espaço abre direto; 2+ mostram a tela de reabrir */
+async function startup(): Promise<void> {
+  const list = await service.request<WorkspaceSummary[]>({ t: 'workspace.list' })
+  manager.summary = list
+  const d = decideStartup(list)
+  if (d.kind === 'direct') await manager.open(d.id)
+  else manager.openChooser()
 }
 
-ipcMain.handle('gt:request', (_e, req: ClientRequest) => link.request(req))
-ipcMain.on('gt:send', (_e, req: ClientRequest) => link.send(req))
-ipcMain.handle('gt:pickFolder', async () => {
-  const r = await dialog.showOpenDialog(win!, { properties: ['openDirectory'] })
+const winOf = (e: Electron.IpcMainInvokeEvent) => BrowserWindow.fromWebContents(e.sender) ?? undefined
+
+ipcMain.handle('gt:request', (e, req: ClientRequest) => manager.linkFor(e).request(req))
+ipcMain.on('gt:send', (e, req: ClientRequest) => manager.linkFor(e).send(req))
+ipcMain.handle('gt:pickFolder', async (e) => {
+  const w = winOf(e)
+  const r = w ? await dialog.showOpenDialog(w, { properties: ['openDirectory'] }) : await dialog.showOpenDialog({ properties: ['openDirectory'] })
   return r.canceled ? null : r.filePaths[0]
 })
-ipcMain.handle('gt:confirm', async (_e, o: ConfirmOptions) => {
-  const r = await dialog.showMessageBox(win!, {
-    type: 'warning',
+ipcMain.handle('gt:confirm', async (e, o: ConfirmOptions) => {
+  const opts = {
+    type: 'warning' as const,
     message: o.message,
     detail: o.detail,
     buttons: [o.confirmLabel ?? 'Confirmar', 'Cancelar'],
     defaultId: 1,
     cancelId: 1,
     checkboxLabel: o.checkboxLabel,
-  })
+  }
+  const w = winOf(e)
+  const r = w ? await dialog.showMessageBox(w, opts) : await dialog.showMessageBox(opts)
   return { ok: r.response === 0, checked: r.checkboxChecked }
 })
-ipcMain.handle('gt:alert', async (_e, message: string, detail?: string) => {
-  await dialog.showMessageBox(win!, { type: 'info', message, detail })
+ipcMain.handle('gt:alert', async (e, message: string, detail?: string) => {
+  const w = winOf(e)
+  if (w) await dialog.showMessageBox(w, { type: 'info', message, detail })
+  else await dialog.showMessageBox({ type: 'info', message, detail })
 })
 ipcMain.handle(
   'gt:contextMenu',
-  (_e, items: MenuItemSpec[]) =>
+  (e, items: MenuItemSpec[]) =>
     new Promise<string | null>((resolve) => {
       let done = false
       const finish = (v: string | null) => {
@@ -96,7 +149,7 @@ ipcMain.handle(
         ),
       )
       // o callback de fechamento pode vir antes do click
-      menu.popup({ window: win ?? undefined, callback: () => setTimeout(() => finish(null), 50) })
+      menu.popup({ window: winOf(e), callback: () => setTimeout(() => finish(null), 50) })
     }),
 )
 ipcMain.handle('gt:openPath', async (_e, p: string) => {
@@ -105,56 +158,78 @@ ipcMain.handle('gt:openPath', async (_e, p: string) => {
 ipcMain.handle('gt:openExternal', async (_e, url: string) => {
   if (/^https?:\/\//i.test(url)) await shell.openExternal(url)
 })
-ipcMain.handle('gt:restartDaemon', () => link.shutdownDaemon(true))
-ipcMain.on('gt:notify', (_e, o: { paneId: string; title: string; body: string }) => {
+ipcMain.handle('gt:restartDaemon', (e) => manager.linkFor(e).shutdownDaemon(true))
+ipcMain.on('gt:notify', (e, o: { paneId: string; title: string; body: string }) => {
   if (!Notification.isSupported()) return
+  // o painel é do espaço da janela que avisou: o clique reabre essa janela se ela tiver fechado
+  const wsId = manager.entryOf(e)?.id
+  if (!wsId) return
   const n = new Notification({ title: o.title, body: o.body, silent: false })
   notifications.keep(n)
-  n.on('click', () => {
-    const existed = !!win
-    if (!win) createWindow()
-    win?.show()
-    win?.focus()
-    const ready = existed && !!win && !win.webContents.isLoading()
-    notifications.reveal(o.paneId, ready, (id) => win?.webContents.send('gt:reveal', id))
-  })
+  n.on('click', () => void manager.reveal(wsId, o.paneId).catch(showOpenError))
   n.show()
 })
 ipcMain.on('gt:keybindings', (_e, b: Bindings) => {
   bindings = b
   applyMenu()
 })
-ipcMain.on('gt:setBadge', (_e, text: string) => {
-  app.dock?.setBadge(text)
+ipcMain.on('gt:setBadge', () => {
+  // o badge vem do resumo de todos os espaços (onSummary), não de uma janela só
+})
+ipcMain.handle('gt:openWorkspaces', async (e, ids: string[]) => {
+  for (const id of ids) await manager.open(id)
+  if (manager.isChooser(e)) manager.closeChooser()
+})
+ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
+  if (paneId) await manager.reveal(workspaceId, paneId)
+  else await manager.open(workspaceId)
+})
+ipcMain.handle('gt:createWorkspace', async (e, name: string) => {
+  const { id } = await service.request<{ id: string }>({ t: 'workspace.create', name })
+  await manager.open(id)
+  if (manager.isChooser(e)) manager.closeChooser()
 })
 
 async function quitAll(): Promise<void> {
-  const r = await dialog.showMessageBox(win!, {
-    type: 'warning',
+  const opts = {
+    type: 'warning' as const,
     message: 'Encerrar tudo?',
     detail: 'Todas as sessões e terminais serão finalizados. Eles poderão ser retomados na próxima abertura.',
     buttons: ['Encerrar tudo', 'Cancelar'],
     defaultId: 1,
     cancelId: 1,
-  })
+  }
+  const w = BrowserWindow.getFocusedWindow()
+  const r = w ? await dialog.showMessageBox(w, opts) : await dialog.showMessageBox(opts)
   if (r.response !== 0) return
-  await link.shutdownDaemon(false)
+  manager.quitting = true
+  manager.detachAll()
+  await service.shutdownDaemon(false)
   app.quit()
 }
 
+// ⌘Q / Sair: as janelas fecham sem perguntar e os espaços abertos voltam marcados na próxima vez
+app.on('before-quit', () => {
+  manager.quitting = true
+})
+
 app.whenReady().then(async () => {
   try {
-    await link.start()
+    await service.start()
+    applyMenu()
+    await startup()
   } catch (e) {
     dialog.showErrorBox('Gerenciador de Terminal', `Não foi possível iniciar o daemon.\n\n${String(e)}\n\nVeja ${path.join(home, 'daemon.log')}`)
     app.quit()
     return
   }
-  applyMenu()
-  createWindow()
+  // mac: clique no Dock sem janelas → tela de reabrir (ou direto, com 1 espaço)
   app.on('activate', () => {
-    if (!win) createWindow()
+    if (manager.windows().length === 0) void startup().catch(showOpenError)
   })
 })
 
-app.on('window-all-closed', () => app.quit())
+app.on('window-all-closed', () => {
+  // mac: o app fica no Dock; Linux: encerra a interface como antes (o daemon segue vivo)
+  if (platform !== 'mac') app.quit()
+})

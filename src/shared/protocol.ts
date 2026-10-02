@@ -4,7 +4,7 @@ import type { TerminalSettings } from './settings'
 export const PROTOCOL_VERSION = 2
 
 export type ClientRequest =
-  | { t: 'hello'; role: 'app' | 'hook'; version: number }
+  | { t: 'hello'; role: 'app' | 'hook'; version: number; workspaceId?: string }
   | { t: 'state.get' }
   | { t: 'hook'; paneId: string; configDir: string; agent?: AgentKind; payload: HookPayload }
   | { t: 'pane.create'; paneId?: string; cwd: string; accountId: string | null; resumeSessionId?: string; resumeAgent?: AgentKind; transcriptPath?: string | null; cols: number; rows: number }
@@ -38,6 +38,13 @@ export type ClientRequest =
   | { t: 'hooks.install' }
   | { t: 'resume.dismiss'; paneId: string }
   | { t: 'daemon.shutdown' }
+  | { t: 'workspace.create'; name: string }
+  | { t: 'workspace.rename'; id: string; name: string }
+  | { t: 'workspace.setOpen'; id: string; open: boolean }
+  | { t: 'workspace.end'; id: string }
+  | { t: 'workspace.list' }
+  | { t: 'workspace.setAskOnClose'; ask: boolean }
+  | { t: 'pane.moveWorkspace'; paneId: string; to: string }
 
 /** id 0 = sem resposta (fire-and-forget) */
 export interface RequestEnvelope {

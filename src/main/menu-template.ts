@@ -1,11 +1,23 @@
 import type { MenuItemConstructorOptions } from 'electron'
 import { ACTIONS, LINUX_EDIT, type Bindings, type Platform } from '../shared/keybindings'
+import type { WorkspaceSummary } from '../shared/types'
 
 export interface MenuOptions {
   send(action: string): void
   quitAll(): void
   platform: Platform
   bindings: Bindings
+  /** resumo dos espaços para o menu Janela (✓ nos abertos) */
+  workspaces?: WorkspaceSummary[]
+  openWorkspace?(id: string): void
+}
+
+const workspaceItems = (list: WorkspaceSummary[], open: (id: string) => void): MenuItemConstructorOptions[] =>
+  list.map((w) => ({ label: w.name, type: 'checkbox', checked: w.open, click: () => open(w.id) }))
+
+/** menu do Dock (mac): lista de espaços + novo */
+export function dockTemplate(o: { workspaces: WorkspaceSummary[]; openWorkspace(id: string): void; newWorkspace(): void }): MenuItemConstructorOptions[] {
+  return [...workspaceItems(o.workspaces, o.openWorkspace), { type: 'separator' }, { label: 'Novo espaço de trabalho…', click: () => o.newWorkspace() }]
 }
 
 /** template do menu (sem Electron em tempo de execução: testável) */
@@ -80,7 +92,19 @@ export function menuTemplate(o: MenuOptions): MenuItemConstructorOptions[] {
     },
     {
       label: 'Janela',
-      submenu: [{ role: 'minimize', label: 'Minimizar' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }],
+      submenu: [
+        item('new-workspace'),
+        { label: 'Renomear espaço…', click: () => o.send('rename-workspace') },
+        { label: 'Encerrar espaço de trabalho…', click: () => o.send('end-workspace') },
+        { role: 'close', label: 'Fechar janela', accelerator: o.platform === 'mac' ? 'Cmd+Shift+W' : undefined },
+        { type: 'separator' },
+        { role: 'minimize', label: 'Minimizar' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        ...workspaceItems(o.workspaces ?? [], (id) => o.openWorkspace?.(id)),
+        ...(o.workspaces?.length ? [{ type: 'separator' as const }] : []),
+        { role: 'front' },
+      ],
     },
   ]
 }

@@ -32,10 +32,13 @@ export interface PaneRecord {
   agentProcSince: number | null
   lastHookAt: number
   agentHooksMissing: boolean
+  /** espaço de trabalho dono da sessão */
+  workspaceId: string
 }
 
 export interface CreatePane {
   paneId?: string
+  workspaceId?: string
   cwd: string
   accountId: string | null
   resumeSessionId?: string
@@ -148,6 +151,7 @@ export class PaneManager {
       worktreePath: null,
       inference: EMPTY_INFERENCE,
       inferredProjectPath: null,
+      workspaceId: o.workspaceId ?? existing?.workspaceId ?? 'principal',
     }
     this.recs.set(id, rec)
     if (command) {

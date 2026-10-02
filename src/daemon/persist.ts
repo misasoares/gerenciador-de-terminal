@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Account, AgentKind, Layout, ProjectConfig, ResumeEntry, FilePaneMeta } from '../shared/types'
+import type { Account, AgentKind, Layout, ProjectConfig, ResumeEntry, FilePaneMeta, Workspace } from '../shared/types'
 import { migrateAccounts } from './accounts'
 import { DEFAULT_SETTINGS, normalizeSettings, type TerminalSettings } from '../shared/settings'
 
@@ -11,11 +11,14 @@ export interface PersistedPane {
   sessionId: string | null
   agent?: AgentKind
   transcriptPath?: string | null
+  /** ausente em estado antigo = 'principal' */
+  workspaceId?: string
 }
 
 export interface Persisted {
   version: 1
   projects: ProjectConfig[]
+  /** legado: o daemon usa workspaces[].layout; a raiz recebe o do 'principal' para quem fizer downgrade */
   layout: Layout
   accounts: Account[]
   panes: PersistedPane[]
@@ -32,6 +35,9 @@ export interface Persisted {
   codexHomes: string[]
   /** painéis de arquivo (id file:<uuid>) */
   filePanes: Record<string, FilePaneMeta>
+  workspaces: Workspace[]
+  /** perguntar ao fechar a janela de um espaço com sessões vivas */
+  askOnCloseWindow: boolean
 }
 
 export function defaultPersisted(): Persisted {
@@ -50,6 +56,17 @@ export function defaultPersisted(): Persisted {
     claudeProfiles: [],
     codexHomes: [],
     filePanes: {},
+    workspaces: [{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] }],
+    askOnCloseWindow: true,
+  }
+}
+
+/** estado sem espaços vira o espaço 'principal' com tudo o que havia (idempotente) */
+export function migrateWorkspaces(p: Persisted): Persisted {
+  if (Array.isArray(p.workspaces) && p.workspaces.length > 0) return p
+  return {
+    ...p,
+    workspaces: [{ id: 'principal', name: 'Principal', open: true, projectPaths: p.projects.map((c) => c.path), layout: p.layout, resumable: p.resumable }],
   }
 }
 
@@ -63,7 +80,7 @@ export function loadPersisted(file: string): Persisted {
   try {
     const parsed = JSON.parse(raw) as Partial<Persisted>
     const base = defaultPersisted()
-    return {
+    return migrateWorkspaces({
       ...base,
       ...parsed,
       version: 1,
@@ -75,7 +92,9 @@ export function loadPersisted(file: string): Persisted {
       claudeProfiles: Array.isArray(parsed.claudeProfiles) ? parsed.claudeProfiles.filter((x) => typeof x === 'string') : [],
       codexHomes: Array.isArray(parsed.codexHomes) ? parsed.codexHomes.filter((x) => typeof x === 'string') : [],
       filePanes: parsed.filePanes && typeof parsed.filePanes === 'object' ? parsed.filePanes : {},
-    }
+      workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : [],
+      askOnCloseWindow: parsed.askOnCloseWindow !== false,
+    })
   } catch {
     fs.renameSync(file, `${file}.corrupt-${Date.now()}`)
     return defaultPersisted()

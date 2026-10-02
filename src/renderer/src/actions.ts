@@ -230,7 +230,11 @@ export function runMenuAction(action: string): void {
     const id = getUi().focusedPaneId
     if (id && isFilePane(id)) void requestCloseFile(id)
     else if (id) hidePane(id)
-  } else if (action === 'next-attention') revealNextAttention()
+    else window.close() // sem painel em foco, ⌘W fecha a janela do espaço (as sessões continuam)
+  } else if (action === 'new-workspace') setUi({ modal: { kind: 'workspace-name', mode: 'create' } })
+  else if (action === 'rename-workspace') setUi({ modal: { kind: 'workspace-name', mode: 'rename' } })
+  else if (action === 'end-workspace') void endWorkspace()
+  else if (action === 'next-attention') revealNextAttention()
   else if (action === 'preferences') setUi({ modal: { kind: 'preferences' } })
   else if (action === 'palette') setUi({ modal: { kind: 'palette' } })
   else if (action === 'open-file') openFilePicker()
@@ -242,6 +246,23 @@ export function runMenuAction(action: string): void {
     const tab = getUi().app?.layout.tabs[n - 1]
     if (tab) activateTab(tab.id)
   } else if (action.startsWith('focus-')) moveFocus(action.slice(6) as Dir)
+}
+
+/** encerra as sessões do espaço (ficam para retomar) e fecha a janela */
+async function endWorkspace(): Promise<void> {
+  const app = getUi().app
+  if (!app) return
+  const w = app.workspaces.find((x) => x.id === app.workspaceId)
+  const n = w?.sessions ?? 0
+  const detail = n === 0 ? 'Não há sessões rodando.' : n === 1 ? 'A sessão será encerrada e fica para retomar.' : `As ${n} sessões serão encerradas e ficam para retomar.`
+  const r = await window.gt.confirm({ message: `Encerrar o espaço ${w?.name ?? ''}?`, detail, confirmLabel: 'Encerrar espaço' })
+  if (!r.ok) return
+  try {
+    await window.gt.request({ t: 'workspace.end', id: app.workspaceId })
+    window.close()
+  } catch (e) {
+    showError(e)
+  }
 }
 
 /** ids de painéis de arquivo com alteração não salva (o FilePane mantém) */

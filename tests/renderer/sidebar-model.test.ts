@@ -7,7 +7,7 @@ const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: Numb
 const claude = (status: 'working' | 'needs-you' | 'idle', title: string | null = null) => ({ sessionId: 's', agent: 'claude' as const, status, statusSince: 0, title, transcriptPath: null })
 
 const app: AppState = {
-  protocolVersion: 1, userHome: '/u', accounts: [], resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {}, layout: { tabs: [], activeTabId: null },
+  protocolVersion: 1, workspaceId: 'principal', workspaces: [], askOnCloseWindow: true, userHome: '/u', accounts: [], resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {}, layout: { tabs: [], activeTabId: null },
   projects: [{
     path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null,
     worktrees: [

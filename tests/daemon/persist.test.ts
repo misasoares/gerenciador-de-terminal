@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { defaultPersisted, loadPersisted, savePersisted } from '../../src/daemon/persist'
+import { defaultPersisted, loadPersisted, migrateWorkspaces, savePersisted } from '../../src/daemon/persist'
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'gt-p-'))
 
@@ -43,5 +43,18 @@ describe('persistência', () => {
   })
   it('filePanes tem padrão vazio', () => {
     expect(defaultPersisted()).toMatchObject({ filePanes: {} })
+  })
+  it('migra o estado antigo para o espaço Principal (layout, retomáveis e projetos)', () => {
+    const f = path.join(tmp(), 'state.json')
+    const layout = { tabs: [{ id: 't', name: 'A', root: { type: 'leaf' as const, paneId: 'p1' } }], activeTabId: 't' }
+    fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [{ path: '/r/a', name: 'a', defaultAccountId: null }], layout, resumable: [{ paneId: 'p1', cwd: '/r/a', accountId: null, sessionId: null }], panes: [] }))
+    const p = loadPersisted(f)
+    expect(p.workspaces).toEqual([{ id: 'principal', name: 'Principal', open: true, projectPaths: ['/r/a'], layout, resumable: [{ paneId: 'p1', cwd: '/r/a', accountId: null, sessionId: null }] }])
+    expect(p.askOnCloseWindow).toBe(true)
+    expect(migrateWorkspaces(p)).toEqual(p)
+  })
+
+  it('estado novo começa com o espaço Principal vazio', () => {
+    expect(defaultPersisted().workspaces).toEqual([{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] }])
   })
 })

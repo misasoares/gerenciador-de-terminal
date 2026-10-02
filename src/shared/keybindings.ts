@@ -21,6 +21,7 @@ const focus = (dir: string, label: string, key: string): ActionDef => ({ id: `fo
 
 export const ACTIONS: readonly ActionDef[] = [
   { id: 'preferences', label: 'Preferências…', group: 'app', mac: 'Cmd+,', linux: 'Ctrl+,' },
+  { id: 'new-workspace', label: 'Novo espaço de trabalho…', group: 'app', mac: 'Cmd+Shift+N', linux: 'Ctrl+Alt+N' },
   { id: 'new-session', label: 'Nova sessão…', group: 'sessao', mac: 'Cmd+T', linux: 'Ctrl+Shift+T' },
   { id: 'split-right', label: 'Dividir à direita', group: 'sessao', mac: 'Cmd+D', linux: 'Ctrl+Shift+D' },
   { id: 'split-down', label: 'Dividir abaixo', group: 'sessao', mac: 'Cmd+Shift+D', linux: 'Ctrl+Shift+E' },

@@ -3,7 +3,7 @@ import { PROTOCOL_VERSION } from '../../src/shared/protocol'
 import type { AppState } from '../../src/shared/types'
 import { waitFor } from './wait'
 
-export async function connectApp(socketPath: string) {
+export async function connectApp(socketPath: string, workspaceId?: string) {
   const client = await RpcClient.connect(socketPath)
   let last: AppState | null = null
   const data = new Map<string, string>()
@@ -15,7 +15,7 @@ export async function connectApp(socketPath: string) {
     if (m.t === 'usage.alert') alerts.push(m.text)
     if (m.t === 'file.changed') fileEvents.push({ path: m.path, mtimeMs: m.mtimeMs })
   })
-  await client.request({ t: 'hello', role: 'app', version: PROTOCOL_VERSION })
+  await client.request({ t: 'hello', role: 'app', version: PROTOCOL_VERSION, ...(workspaceId ? { workspaceId } : {}) })
   return {
     client,
     state: () => last,

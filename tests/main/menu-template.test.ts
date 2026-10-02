@@ -1,6 +1,6 @@
 import type { MenuItemConstructorOptions } from 'electron'
 import { describe, expect, it } from 'vitest'
-import { menuTemplate } from '../../src/main/menu-template'
+import { dockTemplate, menuTemplate } from '../../src/main/menu-template'
 import { resolveBindings } from '../../src/shared/keybindings'
 
 function flat(items: MenuItemConstructorOptions[]): MenuItemConstructorOptions[] {
@@ -35,5 +35,22 @@ describe('menuTemplate', () => {
     const m = flat(menuTemplate({ send: (a) => sent.push(a), quitAll: () => {}, platform: 'linux', bindings: resolveBindings('linux', {}) }))
     ;(m.find((i) => i.label === 'Nova aba')?.click as () => void)()
     expect(sent).toEqual(['new-tab'])
+  })
+  it('menu Janela: novo, renomear, encerrar e a lista de espaços com ✓ nos abertos', () => {
+    const opened: string[] = []
+    const sent: string[] = []
+    const workspaces = [{ id: 'a', name: 'TCHEERP', open: true, sessions: 2, attention: 0, tabs: [], hidden: [] }, { id: 'b', name: 'Pessoal', open: false, sessions: 0, attention: 0, tabs: [], hidden: [] }]
+    const m = flat(menuTemplate({ send: (a) => sent.push(a), quitAll: () => {}, platform: 'mac', bindings: resolveBindings('mac', {}), workspaces, openWorkspace: (id) => opened.push(id) }))
+    expect(accelOf(m, 'Novo espaço de trabalho…')).toBe('Cmd+Shift+N')
+    expect(m.some((i) => i.label === 'Renomear espaço…')).toBe(true)
+    expect(m.some((i) => i.label === 'Encerrar espaço de trabalho…')).toBe(true)
+    const a = m.find((i) => i.label === 'TCHEERP')!
+    const b = m.find((i) => i.label === 'Pessoal')!
+    expect([a.type, a.checked, b.checked]).toEqual(['checkbox', true, false])
+    ;(b.click as () => void)()
+    expect(opened).toEqual(['b'])
+    expect(accelOf(build('linux'), 'Novo espaço de trabalho…')).toBe('Ctrl+Alt+N')
+    const dock = dockTemplate({ workspaces, openWorkspace: (id) => opened.push(id), newWorkspace: () => sent.push('new-workspace') })
+    expect(dock.map((i) => i.label)).toEqual(['TCHEERP', 'Pessoal', undefined, 'Novo espaço de trabalho…'])
   })
 })

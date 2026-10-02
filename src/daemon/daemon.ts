@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
-import type { AgentKind, AppState, ConflictReport, LayoutNode } from '../shared/types'
+import type { AgentKind, AppState, ConflictReport, LayoutNode, Workspace } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
@@ -14,6 +15,7 @@ import { loadPersisted, savePersisted, type Persisted } from './persist'
 import { ProjectRegistry } from './projects'
 import { startServer, type Conn, type RpcServer } from './server'
 import { checkRemove, removeWorktree } from './worktree-remove'
+import { uniqueName } from './workspaces'
 import { UsageMonitor } from './usage/monitor'
 import { ConversationIndex } from './conversations/index'
 import { existing, FileWatcher, listFiles, readFile, writeFile } from './files'
@@ -88,6 +90,12 @@ export class Daemon {
     return set
   }
 
+  /** espaço pelo id; desconhecido cai no 'principal' */
+  private ws(id: string): Workspace {
+    const all = this.persisted.workspaces
+    return all.find((w) => w.id === id) ?? all.find((w) => w.id === 'principal') ?? all[0]
+  }
+
   private refreshLogins(): void {
     this.logins = groupLogins(this.persisted.accounts, this.persisted.loginDirs)
     this.usage.setLogins(this.logins)
@@ -117,12 +125,14 @@ export class Daemon {
     writeHookScript(this.o.hookScriptPath)
     if (this.canonicalHookScript !== this.o.hookScriptPath) writeHookScript(this.canonicalHookScript)
     const p = loadPersisted(this.o.stateFile)
-    // o que estava vivo no daemon anterior vira retomável (mesmo id → o layout continua valendo)
-    const byId = new Map(p.resumable.map((r) => [r.paneId, r]))
-    for (const pane of p.panes) byId.set(pane.id, { paneId: pane.id, cwd: pane.cwd, accountId: pane.accountId, sessionId: pane.sessionId, agent: pane.agent ?? 'claude', transcriptPath: pane.transcriptPath ?? null })
-    p.resumable = [...byId.values()]
-    p.panes = []
     this.persisted = p
+    // o que estava vivo no daemon anterior vira retomável no seu espaço (mesmo id → o layout continua valendo)
+    for (const pane of p.panes) {
+      const w = this.ws(pane.workspaceId ?? 'principal')
+      w.resumable = w.resumable.filter((r) => r.paneId !== pane.id)
+      w.resumable.push({ paneId: pane.id, cwd: pane.cwd, accountId: pane.accountId, sessionId: pane.sessionId, agent: pane.agent ?? 'claude', transcriptPath: pane.transcriptPath ?? null })
+    }
+    p.panes = []
     this.fileWatcher = new FileWatcher<Conn>((path, mtimeMs, subs) => {
       for (const c of subs) c.send({ t: 'file.changed', path, mtimeMs })
     })
@@ -219,8 +229,13 @@ export class Daemon {
     if (!this.broadcastTimer) {
       this.broadcastTimer = setTimeout(() => {
         this.broadcastTimer = null
-        const state = this.buildState()
-        for (const c of this.server?.conns ?? []) if (c.role === 'app') c.send({ t: 'state', state })
+        const cache = new Map<string, AppState>()
+        for (const c of this.server?.conns ?? []) {
+          if (c.role !== 'app') continue
+          let state = cache.get(c.workspaceId)
+          if (!state) cache.set(c.workspaceId, (state = this.buildState(c.workspaceId)))
+          c.send({ t: 'state', state })
+        }
       }, 30)
     }
     if (persist && !this.saveTimer) {
@@ -233,28 +248,59 @@ export class Daemon {
 
   private save(): void {
     if (this.stopping) return
+    const main = this.ws('principal')
     savePersisted(this.o.stateFile, {
       ...this.persisted,
+      // raiz = espaço principal, para quem voltar a uma versão sem espaços
+      layout: main.layout,
+      resumable: main.resumable,
       projects: this.registry.list(),
       panes: this.panes
         .records()
         .filter((r) => r.alive)
-        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude', transcriptPath: r.claude?.transcriptPath ?? null })),
+        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude', transcriptPath: r.claude?.transcriptPath ?? null, workspaceId: r.workspaceId })),
     })
   }
 
-  private buildState(): AppState {
+  private buildState(wsId: string): AppState {
+    const w = this.ws(wsId)
+    const records = this.panes.records()
     return {
       protocolVersion: PROTOCOL_VERSION,
+      workspaceId: w.id,
+      workspaces: this.persisted.workspaces.map((x) => {
+        const live = records.filter((r) => r.alive && r.workspaceId === x.id)
+        const attention = live.filter((r) => r.claude?.status === 'needs-you' || r.claude?.status === 'your-turn').length
+        // mesmo rótulo da sidebar (sessionLabel): nome dado, título da conversa, "sessão N" ou "terminal N"
+        const item = (r: (typeof live)[number]) => ({
+          id: r.id,
+          label: this.persisted.paneMeta[r.id]?.name ?? (r.claude ? (r.claude.title ?? `sessão ${r.seq}`) : `terminal ${r.seq}`),
+          status: r.claude?.status ?? null,
+        })
+        const byId = new Map(live.map((r) => [r.id, r]))
+        const placed = new Set<string>()
+        const tabs = x.layout.tabs.flatMap((t) => {
+          const panes = leafIds(t.root).flatMap((pid) => {
+            const r = byId.get(pid)
+            if (!r) return []
+            placed.add(pid)
+            return [item(r)]
+          })
+          return panes.length ? [{ id: t.id, name: t.name, panes }] : []
+        })
+        const hidden = live.filter((r) => !placed.has(r.id)).map(item)
+        return { id: x.id, name: x.name, open: x.open, sessions: live.length, attention, tabs, hidden }
+      }),
+      askOnCloseWindow: this.persisted.askOnCloseWindow,
       userHome: this.o.userHome,
-      projects: this.registry.list().map((c) => ({
+      projects: w.projectPaths.flatMap((p) => this.registry.get(p) ?? []).map((c) => ({
         ...c,
         worktrees: this.registry.worktrees(c.path).map((w) => ({ ...w, git: this.monitor.get(w.path) })),
         error: this.registry.error(c.path),
         fetchError: this.monitor.fetchError(c.path),
         conflicts: this.conflicts.get(c.path) ?? null,
       })),
-      panes: this.panes.records().map((r) => ({
+      panes: records.filter((r) => r.workspaceId === w.id).map((r) => ({
         id: r.id,
         seq: r.seq,
         cwd: r.cwd,
@@ -270,9 +316,9 @@ export class Daemon {
         name: this.persisted.paneMeta[r.id]?.name ?? null,
         color: this.persisted.paneMeta[r.id]?.color ?? null,
       })),
-      layout: this.persisted.layout,
+      layout: w.layout,
       accounts: this.persisted.accounts,
-      resumable: this.persisted.resumable,
+      resumable: w.resumable,
       hookWarnings: this.hookWarnings,
       settings: this.persisted.settings,
       usage: this.usage.views(),
@@ -362,10 +408,18 @@ export class Daemon {
     switch (req.t) {
       case 'hello':
         conn.role = req.role
-        if (req.role === 'app') setImmediate(() => conn.send({ t: 'state', state: this.buildState() }))
+        if (req.workspaceId && this.persisted.workspaces.some((w) => w.id === req.workspaceId)) {
+          conn.workspaceId = req.workspaceId
+          // só a janela de um espaço (id explícito) o marca aberto; a conexão de serviço do app não
+          if (req.role === 'app' && !this.ws(conn.workspaceId).open) {
+            this.ws(conn.workspaceId).open = true
+            this.changed()
+          }
+        }
+        if (req.role === 'app') setImmediate(() => conn.send({ t: 'state', state: this.buildState(conn.workspaceId) }))
         return { protocolVersion: PROTOCOL_VERSION, buildId: BUILD_ID }
       case 'state.get':
-        return this.buildState()
+        return this.buildState(conn.workspaceId)
       case 'hook':
         conn.role = 'hook'
         conn.end() // libera o Claude antes de processar (ler título pode demorar)
@@ -387,8 +441,8 @@ export class Daemon {
           // o --resume só acha a conversa na pasta onde ela foi gravada
           if (found.startCwd) req2 = { ...req, cwd: found.startCwd }
         }
-        const rec = this.panes.create(req2)
-        this.persisted.resumable = this.persisted.resumable.filter((r) => r.paneId !== rec.id)
+        const rec = this.panes.create({ ...req2, workspaceId: conn.workspaceId })
+        for (const w of this.persisted.workspaces) w.resumable = w.resumable.filter((r) => r.paneId !== rec.id)
         this.changed()
         return { paneId: rec.id }
       }
@@ -477,14 +531,24 @@ export class Daemon {
         return null
       case 'project.add': {
         const cfg = await this.registry.add(req.path, suggestAccount(this.persisted.accounts, req.path, this.o.userHome))
+        const w = this.ws(conn.workspaceId)
+        if (!w.projectPaths.includes(cfg.path)) w.projectPaths.push(cfg.path)
+        this.changed()
         await this.panes.relocateAll()
         return cfg
       }
-      case 'project.remove':
-        this.registry.remove(req.path)
-        this.conflicts.delete(req.path)
+      case 'project.remove': {
+        const w = this.ws(conn.workspaceId)
+        w.projectPaths = w.projectPaths.filter((p) => p !== req.path)
+        // o cadastro (cor, conta) só sai quando nenhum espaço usa mais o projeto
+        if (!this.persisted.workspaces.some((x) => x.projectPaths.includes(req.path))) {
+          this.registry.remove(req.path)
+          this.conflicts.delete(req.path)
+        }
+        this.changed()
         await this.panes.relocateAll()
         return null
+      }
       case 'project.setAccount':
         this.registry.setAccount(req.path, req.accountId)
         return null
@@ -492,9 +556,10 @@ export class Daemon {
         this.registry.setColor(req.path, req.color)
         return null
       case 'layout.save':
-        this.persisted.layout = req.layout
+        this.ws(conn.workspaceId).layout = req.layout
         {
-          const ids = new Set(req.layout.tabs.flatMap((t) => leafIds(t.root)))
+          // painéis de arquivo são globais: a poda olha o layout de todos os espaços
+          const ids = new Set(this.persisted.workspaces.flatMap((w) => w.layout.tabs.flatMap((t) => leafIds(t.root))))
           for (const id of Object.keys(this.persisted.filePanes)) if (!ids.has(id)) delete this.persisted.filePanes[id]
         }
         this.changed()
@@ -515,11 +580,71 @@ export class Daemon {
         this.changed(false)
         return null
       }
-      case 'resume.dismiss':
-        this.persisted.resumable = this.persisted.resumable.filter((r) => r.paneId !== req.paneId)
+      case 'resume.dismiss': {
+        const w = this.ws(conn.workspaceId)
+        w.resumable = w.resumable.filter((r) => r.paneId !== req.paneId)
         delete this.persisted.paneMeta[req.paneId]
         this.changed()
         return null
+      }
+      case 'workspace.create': {
+        const name = uniqueName(req.name, this.persisted.workspaces.map((w) => w.name))
+        const id = randomUUID()
+        this.persisted.workspaces.push({ id, name, open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] })
+        this.changed()
+        return { id }
+      }
+      case 'workspace.rename': {
+        const w = this.persisted.workspaces.find((x) => x.id === req.id)
+        if (!w) throw new Error(`espaço não encontrado: ${req.id}`)
+        w.name = uniqueName(req.name, this.persisted.workspaces.filter((x) => x !== w).map((x) => x.name))
+        this.changed()
+        return null
+      }
+      case 'workspace.setOpen': {
+        const w = this.persisted.workspaces.find((x) => x.id === req.id)
+        if (w) w.open = req.open
+        this.changed()
+        return null
+      }
+      case 'workspace.setAskOnClose':
+        this.persisted.askOnCloseWindow = req.ask
+        this.changed()
+        return null
+      case 'workspace.list':
+        return this.buildState(conn.workspaceId).workspaces
+      case 'workspace.end': {
+        const w = this.persisted.workspaces.find((x) => x.id === req.id)
+        if (!w) throw new Error(`espaço não encontrado: ${req.id}`)
+        for (const r of this.panes.records().filter((x) => x.alive && x.workspaceId === w.id)) {
+          if (!w.resumable.some((e) => e.paneId === r.id)) w.resumable.push({ paneId: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude', transcriptPath: r.claude?.transcriptPath ?? null })
+          this.panes.kill(r.id)
+        }
+        w.open = false
+        this.changed()
+        return null
+      }
+      case 'pane.moveWorkspace': {
+        const rec = this.panes.records().find((r) => r.id === req.paneId)
+        const to = this.persisted.workspaces.find((x) => x.id === req.to)
+        if (!rec || !to) throw new Error('painel ou espaço não encontrado')
+        if (!rec.projectPath) await this.panes.relocateAll() // sessão recém-criada: projeto ainda não localizado
+        const from = this.ws(rec.workspaceId)
+        rec.workspaceId = to.id
+        // origem: o renderer já tirou a folha antes de pedir; aqui garante para quem não tirou
+        from.layout = { ...from.layout, tabs: from.layout.tabs.map((t) => ({ ...t, root: t.root ? removeLeafFrom(t.root, rec.id) : null })) }
+        // destino: entra na aba ativa de lá (ou numa aba nova)
+        if (!to.layout.tabs.some((t) => leafIds(t.root).includes(rec.id))) {
+          const tab = to.layout.tabs.find((t) => t.id === to.layout.activeTabId) ?? to.layout.tabs[0]
+          const leaf: LayoutNode = { type: 'leaf', paneId: rec.id }
+          if (tab) tab.root = tab.root ? { type: 'split', dir: 'row', sizes: [], children: [tab.root, leaf] } : leaf
+          else to.layout = { tabs: [{ id: randomUUID(), name: 'Aba 1', root: leaf }], activeTabId: null }
+          if (!to.layout.activeTabId) to.layout.activeTabId = to.layout.tabs[0].id
+        }
+        if (rec.projectPath && !to.projectPaths.includes(rec.projectPath)) to.projectPaths.push(rec.projectPath)
+        this.changed()
+        return null
+      }
       case 'daemon.shutdown':
         setImmediate(() => {
           void this.stop(true).then(() => this.o.onShutdown?.())
@@ -532,6 +657,15 @@ export class Daemon {
 function leafIds(n: LayoutNode | null): string[] {
   if (!n) return []
   return n.type === 'leaf' ? [n.paneId] : n.children.flatMap(leafIds)
+}
+
+/** tira a folha do painel; split que fica com um filho vira o filho */
+function removeLeafFrom(n: LayoutNode, id: string): LayoutNode | null {
+  if (n.type === 'leaf') return n.paneId === id ? null : n
+  const children = n.children.map((c) => removeLeafFrom(c, id)).filter((c): c is LayoutNode => c !== null)
+  if (children.length === 0) return null
+  if (children.length === 1) return children[0]
+  return children.length === n.children.length ? n : { ...n, children, sizes: [] }
 }
 
 export const defaultShell = (): string => os.userInfo().shell || process.env.SHELL || '/bin/zsh'

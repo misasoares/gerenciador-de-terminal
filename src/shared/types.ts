@@ -120,10 +120,50 @@ export interface ResumeEntry {
   agent?: AgentKind
   /** caminho do .jsonl visto no hook (Claude); ajuda a localizar a conversa ao retomar */
   transcriptPath?: string | null
+  /** espaço de trabalho de origem (só informativo) */
+  workspaceId?: string
+}
+
+/** espaço de trabalho: uma janela com seus próprios projetos, abas e sessões */
+export interface Workspace {
+  id: string
+  name: string
+  /** estava aberto quando o app fechou */
+  open: boolean
+  /** ordem da sidebar; o cadastro (cor, conta) fica em projects da raiz */
+  projectPaths: string[]
+  layout: Layout
+  resumable: ResumeEntry[]
+}
+
+export interface WorkspaceSummary {
+  id: string
+  name: string
+  open: boolean
+  /** sessões vivas */
+  sessions: number
+  /** sessões vivas esperando você (🟡/🔵): o badge do Dock soma todos os espaços */
+  attention: number
+  /** abas com sessões vivas, na ordem do layout (navegar para outra janela direto na sessão) */
+  tabs: { id: string; name: string; panes: WorkspacePane[] }[]
+  /** sessões vivas fora de qualquer aba */
+  hidden: WorkspacePane[]
+}
+
+/** sessão no resumo de um espaço; status null = terminal sem agente */
+export interface WorkspacePane {
+  id: string
+  label: string
+  status: SessionStatus | null
 }
 
 export interface AppState {
   protocolVersion: number
+  /** espaço desta conexão */
+  workspaceId: string
+  workspaces: WorkspaceSummary[]
+  /** perguntar ao fechar a janela com sessões vivas */
+  askOnCloseWindow: boolean
   userHome: string
   projects: ProjectView[]
   panes: PaneView[]

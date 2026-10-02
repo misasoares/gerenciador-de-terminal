@@ -84,3 +84,23 @@ describe('aviso de versão', () => {
     await link.shutdownDaemon(false)
   })
 })
+
+describe('espaços: uma DaemonLink por janela', () => {
+  it('manda o workspaceId no hello e close() fecha sem reconectar', async () => {
+    const { DaemonLink } = await import('../../src/main/daemon-link')
+    const p = sock()
+    const hellos: unknown[] = []
+    server = await startServer(p, (req) => {
+      if (req.t === 'hello') hellos.push(req.workspaceId)
+      return { protocolVersion: 2, buildId: 'test' }
+    })
+    const events: string[] = []
+    const link = new DaemonLink({ socketPath: p, daemonScript: '/nao/usado', workspaceId: 'ws-1', onEvent: (e) => events.push(e.t), spawnDaemon: () => {} })
+    await link.start()
+    expect(hellos).toEqual(['ws-1'])
+    link.close()
+    await new Promise((r) => setTimeout(r, 1500))
+    expect(server.conns.size).toBe(0)
+    expect(events).not.toContain('disconnected')
+  })
+})

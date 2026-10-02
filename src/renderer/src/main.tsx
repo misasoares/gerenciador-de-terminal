@@ -10,6 +10,8 @@ import { getUi, setUi, showError } from './store'
 import { syncKeybindings } from './shortcuts'
 import { terminals } from './terminals'
 import { emitFileChanged } from './file-events'
+import { mergeIncomingLayout } from './workspaces-model'
+import { ReopenWorkspaces } from './components/ReopenWorkspaces'
 import './styles.css'
 
 let seenFirstState = false
@@ -53,47 +55,63 @@ function onStateArrived(prevPanes: PaneView[] | null): void {
   markSeenIfLooking(getUi().focusedPaneId)
 }
 
-window.gt.onEvent((e) => {
-  switch (e.t) {
-    case 'state': {
-      const prev = getUi().app
-      // depois do primeiro carregamento o layout é do renderer (evita "voltar" com broadcast atrasado)
-      setUi((s) => ({ app: s.app ? { ...e.state, layout: s.app.layout } : e.state, connected: true }))
-      if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) terminals.applySettings(e.state.settings)
-      if (JSON.stringify(e.state.settings.keybindings) !== JSON.stringify(prev?.settings.keybindings)) syncKeybindings(e.state.settings.keybindings)
-      onStateArrived(prev?.panes ?? null)
-      break
-    }
-    case 'pane.data':
-      terminals.onData(e.paneId, e.data, e.seq)
-      break
-    case 'disconnected':
-      setUi({ connected: false })
-      break
-    case 'reconnected':
-      setUi({ connected: true })
-      terminals.reattachAll()
-      break
-    case 'version-mismatch':
-      setUi({ versionMismatch: { daemon: e.daemon, app: e.app } })
-      break
-    case 'file.changed':
-      emitFileChanged(e.path, e.mtimeMs)
-      break
-  }
-})
-window.gt.onMenu(runMenuAction)
-window.addEventListener('focus', () => markSeenIfLooking(getUi().focusedPaneId))
-window.gt.onReveal((paneId) => revealPane(paneId))
-window.gt
-  .request<AppState>({ t: 'state.get' })
-  .then((app) => {
-    setUi((s) => ({ app: s.app ?? app, connected: true }))
-    terminals.applySettings(getUi().app?.settings ?? app.settings)
-    syncKeybindings((getUi().app?.settings ?? app.settings).keybindings)
-    // instalação nova: sem agentes, abre o assistente
-    if ((getUi().app?.accounts ?? app.accounts).length === 0) setUi({ modal: { kind: 'setup' } })
-  })
-  .catch(showError)
+const view = new URLSearchParams(location.search).get('view')
 
-createRoot(document.getElementById('root')!).render(<App />)
+/** janela normal de um espaço: estado, eventos e menus */
+function bootWorkspace(): void {
+  window.gt.onEvent((e) => {
+    switch (e.t) {
+      case 'state': {
+        const prev = getUi().app
+        // depois do primeiro carregamento o layout é do renderer (evita "voltar" com broadcast atrasado);
+        // exceção: sessão movida de outro espaço para cá traz o layout do daemon
+        setUi((s) => ({
+          app: s.app
+            ? { ...e.state, layout: mergeIncomingLayout(s.app.layout, e.state.layout, new Set(s.app.panes.map((p) => p.id)), new Set(e.state.panes.map((p) => p.id))) }
+            : e.state,
+          connected: true,
+        }))
+        if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) terminals.applySettings(e.state.settings)
+        if (JSON.stringify(e.state.settings.keybindings) !== JSON.stringify(prev?.settings.keybindings)) syncKeybindings(e.state.settings.keybindings)
+        onStateArrived(prev?.panes ?? null)
+        break
+      }
+      case 'pane.data':
+        terminals.onData(e.paneId, e.data, e.seq)
+        break
+      case 'disconnected':
+        setUi({ connected: false })
+        break
+      case 'reconnected':
+        setUi({ connected: true })
+        terminals.reattachAll()
+        break
+      case 'version-mismatch':
+        setUi({ versionMismatch: { daemon: e.daemon, app: e.app } })
+        break
+      case 'file.changed':
+        emitFileChanged(e.path, e.mtimeMs)
+        break
+    }
+  })
+  window.gt.onMenu(runMenuAction)
+  window.addEventListener('focus', () => markSeenIfLooking(getUi().focusedPaneId))
+  window.gt.onReveal((paneId) => revealPane(paneId))
+  window.gt
+    .request<AppState>({ t: 'state.get' })
+    .then((app) => {
+      setUi((s) => ({ app: s.app ?? app, connected: true }))
+      terminals.applySettings(getUi().app?.settings ?? app.settings)
+      syncKeybindings((getUi().app?.settings ?? app.settings).keybindings)
+      // instalação nova: sem agentes, abre o assistente
+      if ((getUi().app?.accounts ?? app.accounts).length === 0) setUi({ modal: { kind: 'setup' } })
+    })
+    .catch(showError)
+}
+
+if (view === 'reopen') {
+  createRoot(document.getElementById('root')!).render(<ReopenWorkspaces />)
+} else {
+  bootWorkspace()
+  createRoot(document.getElementById('root')!).render(<App />)
+}
