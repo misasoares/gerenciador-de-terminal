@@ -242,6 +242,8 @@ export class Daemon {
   private buildState(): AppState {
     return {
       protocolVersion: PROTOCOL_VERSION,
+      workspaceId: 'principal',
+      workspaces: [],
       userHome: this.o.userHome,
       projects: this.registry.list().map((c) => ({
         ...c,

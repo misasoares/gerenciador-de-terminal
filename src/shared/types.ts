@@ -116,10 +116,35 @@ export interface ResumeEntry {
   agent?: AgentKind
   /** caminho do .jsonl visto no hook (Claude); ajuda a localizar a conversa ao retomar */
   transcriptPath?: string | null
+  /** espaço de trabalho de origem (só informativo) */
+  workspaceId?: string
+}
+
+/** espaço de trabalho: uma janela com seus próprios projetos, abas e sessões */
+export interface Workspace {
+  id: string
+  name: string
+  /** estava aberto quando o app fechou */
+  open: boolean
+  /** ordem da sidebar; o cadastro (cor, conta) fica em projects da raiz */
+  projectPaths: string[]
+  layout: Layout
+  resumable: ResumeEntry[]
+}
+
+export interface WorkspaceSummary {
+  id: string
+  name: string
+  open: boolean
+  /** sessões vivas */
+  sessions: number
 }
 
 export interface AppState {
   protocolVersion: number
+  /** espaço desta conexão */
+  workspaceId: string
+  workspaces: WorkspaceSummary[]
   userHome: string
   projects: ProjectView[]
   panes: PaneView[]
