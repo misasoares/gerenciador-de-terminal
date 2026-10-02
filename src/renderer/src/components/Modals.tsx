@@ -5,6 +5,7 @@ import { Palette } from './Palette'
 import { SetupWizard } from './SetupWizard'
 import { ConversationsModal } from './ConversationsModal'
 import { FilePicker } from './FilePicker'
+import { WorkspaceNameModal } from './WorkspaceNameModal'
 import { revealPane } from '../actions'
 import { confirmRemove } from '../flows'
 import { headerView } from '../header'
@@ -33,6 +34,22 @@ export function Modals() {
   if (modal.kind === 'setup') return <SetupWizard />
   if (modal.kind === 'conversations') return <ConversationsModal {...modal} />
   if (modal.kind === 'file-picker') return <FilePicker root={modal.root} />
+  if (modal.kind === 'workspace-name') {
+    const current = app.workspaces.find((w) => w.id === app.workspaceId)?.name ?? ''
+    return modal.mode === 'create' ? (
+      <WorkspaceNameModal title="Novo espaço de trabalho" confirmLabel="Criar" onSubmit={(name) => window.gt.createWorkspace(name)} onClose={() => setUi({ modal: null })} />
+    ) : (
+      <WorkspaceNameModal
+        title="Renomear espaço"
+        initial={current}
+        confirmLabel="Renomear"
+        onSubmit={async (name) => {
+          await window.gt.request({ t: 'workspace.rename', id: app.workspaceId, name })
+        }}
+        onClose={() => setUi({ modal: null })}
+      />
+    )
+  }
   const close = () => {
     setDeleteBranch(false)
     setUi({ modal: null })

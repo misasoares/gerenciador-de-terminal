@@ -169,9 +169,16 @@ export class WindowManager {
       this.o.quit()
       return
     }
-    const sum = this.summary.find((w) => w.id === id)
-    const sessions = sum?.sessions ?? 0
+    const list = await link.request<WorkspaceSummary[]>({ t: 'workspace.list' }).catch(() => this.summary)
+    const sum = list.find((w) => w.id === id)
     const name = sum?.name ?? id
+    // "Encerrar espaço" já marcou fechado (as sessões ainda podem estar morrendo): fecha sem perguntar
+    if (sum && !sum.open) {
+      entry.closing = true
+      win.destroy()
+      return
+    }
+    const sessions = sum?.sessions ?? 0
     let end = false
     if (sessions > 0 && this.askOnClose) {
       const r = await dialog.showMessageBox(win, {

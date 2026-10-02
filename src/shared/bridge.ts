@@ -34,4 +34,8 @@ export interface GtApi {
   platform: string
   /** atalhos resolvidos: o processo principal reconstrói o menu */
   setKeybindings(b: Record<string, string | null>): void
+  /** abre as janelas destes espaços (a tela de reabrir fecha em seguida) */
+  openWorkspaces(ids: string[]): Promise<void>
+  /** cria um espaço com este nome e abre a janela dele */
+  createWorkspace(name: string): Promise<void>
 }
