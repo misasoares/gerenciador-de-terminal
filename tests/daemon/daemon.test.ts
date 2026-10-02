@@ -218,6 +218,32 @@ describe('Daemon', () => {
     await app.waitState((s) => !s.filePanes['file:1'])
   })
 
+  it('worktree do agente: 2 escritas em outra worktree viram a efetiva; SessionStart volta; worktree removida volta', async () => {
+    repo = makeRepo()
+    const wt = path.join(repo.dir, '.claude', 'worktrees', 'dev2')
+    repo.git('worktree', 'add', '-b', 'dev2', wt)
+    const { o, app } = await boot()
+    await app.client.request({ t: 'project.add', path: repo.dir })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await app.waitState((s) => s.panes.some((p) => p.id === paneId && p.worktreePath === repo!.dir))
+    const base = { session_id: 's1', cwd: repo.dir }
+    await hook(o, paneId, { ...base, hook_event_name: 'SessionStart', source: 'startup' })
+    await hook(o, paneId, { ...base, hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: `W="${wt}"; git -C "$W" status` } })
+    let st = await app.waitState((s) => s.panes[0]?.claude?.sessionId === 's1')
+    expect(st.panes[0]).toMatchObject({ worktreePath: repo.dir })
+    await hook(o, paneId, { ...base, hook_event_name: 'PreToolUse', tool_name: 'Edit', tool_input: { file_path: path.join(wt, 'a.ts') } })
+    st = await app.waitState((s) => s.panes[0]?.worktreeInferred === true)
+    expect(st.panes[0]).toMatchObject({ worktreePath: wt, shellWorktreePath: repo.dir, projectPath: repo.dir })
+
+    await hook(o, paneId, { ...base, hook_event_name: 'SessionStart', source: 'clear' })
+    await app.waitState((s) => s.panes[0]?.worktreeInferred === false && s.panes[0]?.worktreePath === repo!.dir)
+
+    for (let i = 0; i < 2; i++) await hook(o, paneId, { ...base, hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: path.join(wt, `b${i}.ts`) } })
+    await app.waitState((s) => s.panes[0]?.worktreePath === wt)
+    repo.git('worktree', 'remove', '--force', wt)
+    await app.waitState((s) => s.panes[0]?.worktreePath === repo!.dir && s.panes[0]?.worktreeInferred === false, 15_000)
+  })
+
   it('poller: cd no shell muda a worktree; sessão sem processo claude é encerrada', async () => {
     repo = makeRepo()
     const wt = path.join(repo.root, 'wt b')

@@ -156,7 +156,11 @@ export class Daemon {
       if (p) this.onWorktreeChanged(p)
       this.changed(false)
     }, { pollMs: this.o.gitPollMs ?? 10_000, debounceMs: 300 })
-    this.registry = new ProjectRegistry(p.projects, () => this.changed())
+    // worktrees criadas/removidas: os painéis recalculam onde estão (e desfazem dedução de worktree que sumiu)
+    this.registry = new ProjectRegistry(p.projects, () => {
+      this.changed()
+      void this.panes?.relocateAll()
+    })
     this.panes = new PaneManager({
       accounts: () => this.persisted.accounts,
       registry: this.registry,
@@ -258,8 +262,10 @@ export class Daemon {
         exitCode: r.exitCode,
         accountId: r.accountId,
         claude: r.claude,
-        projectPath: r.projectPath,
-        worktreePath: r.worktreePath,
+        projectPath: this.panes.effectiveProject(r),
+        worktreePath: this.panes.effectiveWorktree(r),
+        shellWorktreePath: r.worktreePath,
+        worktreeInferred: r.inference.inferred !== null,
         agentHooksMissing: r.agentHooksMissing,
         name: this.persisted.paneMeta[r.id]?.name ?? null,
         color: this.persisted.paneMeta[r.id]?.color ?? null,
@@ -290,7 +296,7 @@ export class Daemon {
       mainPath: project.path,
       worktree,
       mainBranch: main?.branch ?? null,
-      hasOpenSession: this.panes.records().some((r) => r.alive && r.worktreePath === p),
+      hasOpenSession: this.panes.records().some((r) => r.alive && (r.worktreePath === p || this.panes.effectiveWorktree(r) === p)),
     })
   }
 
