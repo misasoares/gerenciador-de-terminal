@@ -43,6 +43,7 @@ export type ClientRequest =
   | { t: 'workspace.setOpen'; id: string; open: boolean }
   | { t: 'workspace.end'; id: string }
   | { t: 'workspace.list' }
+  | { t: 'workspace.setAskOnClose'; ask: boolean }
   | { t: 'pane.moveWorkspace'; paneId: string; to: string }
 
 /** id 0 = sem resposta (fire-and-forget) */

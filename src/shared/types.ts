@@ -138,6 +138,8 @@ export interface WorkspaceSummary {
   open: boolean
   /** sessões vivas */
   sessions: number
+  /** sessões vivas esperando você (🟡/🔵): o badge do Dock soma todos os espaços */
+  attention: number
 }
 
 export interface AppState {
@@ -145,6 +147,8 @@ export interface AppState {
   /** espaço desta conexão */
   workspaceId: string
   workspaces: WorkspaceSummary[]
+  /** perguntar ao fechar a janela com sessões vivas */
+  askOnCloseWindow: boolean
   userHome: string
   projects: ProjectView[]
   panes: PaneView[]

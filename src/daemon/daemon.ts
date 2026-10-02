@@ -264,7 +264,12 @@ export class Daemon {
     return {
       protocolVersion: PROTOCOL_VERSION,
       workspaceId: w.id,
-      workspaces: this.persisted.workspaces.map((x) => ({ id: x.id, name: x.name, open: x.open, sessions: records.filter((r) => r.alive && r.workspaceId === x.id).length })),
+      workspaces: this.persisted.workspaces.map((x) => {
+        const live = records.filter((r) => r.alive && r.workspaceId === x.id)
+        const attention = live.filter((r) => r.claude?.status === 'needs-you' || r.claude?.status === 'your-turn').length
+        return { id: x.id, name: x.name, open: x.open, sessions: live.length, attention }
+      }),
+      askOnCloseWindow: this.persisted.askOnCloseWindow,
       userHome: this.o.userHome,
       projects: w.projectPaths.flatMap((p) => this.registry.get(p) ?? []).map((c) => ({
         ...c,
@@ -578,6 +583,10 @@ export class Daemon {
         this.changed()
         return null
       }
+      case 'workspace.setAskOnClose':
+        this.persisted.askOnCloseWindow = req.ask
+        this.changed()
+        return null
       case 'workspace.list':
         return this.buildState(conn.workspaceId).workspaces
       case 'workspace.end': {

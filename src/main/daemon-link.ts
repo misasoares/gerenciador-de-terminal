@@ -40,7 +40,8 @@ export class DaemonLink {
   private quitting = false
   private reconnecting = false
 
-  constructor(private o: { socketPath: string; daemonScript: string; onEvent(e: BridgeEvent): void; spawnDaemon?: () => void }) {}
+  /** workspaceId: espaço da janela dona desta conexão (ausente = conexão de serviço / 'principal') */
+  constructor(private o: { socketPath: string; daemonScript: string; workspaceId?: string; onEvent(e: BridgeEvent): void; spawnDaemon?: () => void }) {}
 
   async start(): Promise<void> {
     await this.connectOnce(false)
@@ -55,6 +56,13 @@ export class DaemonLink {
     this.client?.send(req)
   }
 
+  /** a janela fechou: solta a conexão sem reconectar (o daemon segue vivo) */
+  close(): void {
+    this.quitting = true
+    this.client?.close()
+    this.client = null
+  }
+
   /** restart=false: o app vai sair e não deve reconectar */
   async shutdownDaemon(restart: boolean): Promise<void> {
     if (!restart) this.quitting = true
@@ -65,7 +73,7 @@ export class DaemonLink {
     const client = await ensureDaemon(this.o.socketPath, this.o.spawnDaemon ?? (() => spawnDetached(this.o.daemonScript, process.env)))
     let hello: { protocolVersion: number; buildId?: string }
     try {
-      hello = await client.request<{ protocolVersion: number; buildId?: string }>({ t: 'hello', role: 'app', version: PROTOCOL_VERSION })
+      hello = await client.request<{ protocolVersion: number; buildId?: string }>({ t: 'hello', role: 'app', version: PROTOCOL_VERSION, ...(this.o.workspaceId ? { workspaceId: this.o.workspaceId } : {}) })
     } catch (e) {
       client.close()
       throw e
