@@ -371,7 +371,7 @@ export class Daemon {
     }
     // todas as ferramentas, inclusive listar, são só do líder
     if (meta[caller.id]?.leader !== true) throw new Error('esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão')
-    if (tool === 'listar_sessoes') {
+    if (tool === 'listar_equipe') {
       return inWs().map((r) => {
         const wt = this.panes.effectiveWorktree(r)
         const project = this.panes.effectiveProject(r)
@@ -379,14 +379,14 @@ export class Daemon {
         return { nome: meta[r.id]?.name ?? `sessão ${r.seq}`, status: statusName(r), conta: r.accountId, pasta: r.cwd, branch, criadaPorMim: meta[r.id]?.createdBy === caller.id, eu: r.id === caller.id }
       })
     }
-    if (tool === 'renomear_sessao') {
+    if (tool === 'renomear_dev') {
       const r = byName(args.nome)
       const novo = uniqueDash(checkName(String(args.novo_nome ?? '')), inWs().filter((x) => x !== r).map((x) => meta[x.id]?.name ?? ''))
       meta[r.id] = { ...(meta[r.id] ?? { name: null, color: null }), name: novo }
       this.changed()
       return { nome: novo }
     }
-    if (tool === 'encerrar_sessao') {
+    if (tool === 'demitir_dev') {
       const r = byName(args.nome)
       if (meta[r.id]?.createdBy !== caller.id) throw new Error('só encerra sessões criadas por esta sessão')
       const name = meta[r.id]?.name
@@ -398,7 +398,7 @@ export class Daemon {
       this.changed()
       return { encerrada: name }
     }
-    if (tool === 'criar_sessao') return this.hire(caller, w, args)
+    if (tool === 'contratar_dev') return this.hire(caller, w, args)
     throw new Error(`ferramenta desconhecida: ${tool}`)
   }
 

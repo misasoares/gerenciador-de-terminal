@@ -32,6 +32,8 @@ Fora do escopo:
 
 ## 2. Ferramentas (o que o líder vê)
 
+> **Atualização (teste real, 2026-10-03):** as ferramentas foram renomeadas para o vocabulário do usuário: `criar_sessao` → `contratar_dev`, `listar_sessoes` → `listar_equipe`, `renomear_sessao` → `renomear_dev`, `encerrar_sessao` → `demitir_dev`. Com muitos MCPs o Claude vê só os nomes, e "contrata 3 devs" não achava `criar_sessao`. O servidor também manda `instructions` no `initialize`. Demitir agora tira a sessão da lista e do layout (a worktree, a branch e a conversa ficam).
+
 - **`criar_sessao`**
   - `nome` (obrigatório), `prompt?`, `conta?` (padrão: a do líder), `worktree?` (padrão `true`), `base?` (padrão: branch atual do líder), `onde?` (só `"aba-do-lider"` por enquanto);
   - devolve `{ nome, pasta, branch, conta }` (nome e branch finais, já com número se repetidos).

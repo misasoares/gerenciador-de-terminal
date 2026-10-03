@@ -11,9 +11,9 @@ describe('gt-mcp: protocolo', () => {
     const r = await handleMessage({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, noCall)
     expect(r).toMatchObject({ jsonrpc: '2.0', id: 1, result: { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'gerenciador-terminal', version: '1.0.0' } } })
   })
-  it('initialize manda instruções: "contratar devs" é criar_sessao, não subagente', async () => {
+  it('initialize manda instruções: "contratar devs" é contratar_dev, não subagente', async () => {
     const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
-    for (const k of ['criar_sessao', 'contratar', 'devs', 'subagente', 'SendMessage', 'líder']) expect(r.result.instructions).toContain(k)
+    for (const k of ['contratar_dev', 'demitir_dev', 'listar_equipe', 'contratar', 'demitir', 'devs', 'subagente', 'SendMessage', 'líder']) expect(r.result.instructions).toContain(k)
   })
   it('notificação não tem resposta; método desconhecido dá -32601', async () => {
     expect(await handleMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, noCall)).toBeNull()
@@ -21,18 +21,18 @@ describe('gt-mcp: protocolo', () => {
   })
   it('tools/list traz as 4 ferramentas', async () => {
     const r = (await handleMessage({ jsonrpc: '2.0', id: 3, method: 'tools/list' }, noCall)) as { result: { tools: { name: string }[] } }
-    expect(r.result.tools.map((t) => t.name)).toEqual(['criar_sessao', 'listar_sessoes', 'renomear_sessao', 'encerrar_sessao'])
+    expect(r.result.tools.map((t) => t.name)).toEqual(['contratar_dev', 'listar_equipe', 'renomear_dev', 'demitir_dev'])
     expect(TOOLS[0].inputSchema).toMatchObject({ type: 'object', required: ['nome'] })
   })
   it('tools/call repassa e devolve texto; erro vira isError', async () => {
     const seen: unknown[] = []
-    const ok = await handleMessage({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'listar_sessoes', arguments: {} } }, async (tool, args) => {
+    const ok = await handleMessage({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'listar_equipe', arguments: {} } }, async (tool, args) => {
       seen.push([tool, args])
       return [{ nome: 'dev-1' }]
     })
-    expect(seen).toEqual([['listar_sessoes', {}]])
+    expect(seen).toEqual([['listar_equipe', {}]])
     expect(ok).toEqual({ jsonrpc: '2.0', id: 4, result: { content: [{ type: 'text', text: JSON.stringify([{ nome: 'dev-1' }], null, 2) }] } })
-    const bad = await handleMessage({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'criar_sessao', arguments: { nome: 'x' } } }, async () => {
+    const bad = await handleMessage({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'contratar_dev', arguments: { nome: 'x' } } }, async () => {
       throw new Error('esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão')
     })
     expect(bad).toEqual({ jsonrpc: '2.0', id: 5, result: { content: [{ type: 'text', text: 'esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão' }], isError: true } })

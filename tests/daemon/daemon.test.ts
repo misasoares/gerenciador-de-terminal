@@ -692,11 +692,11 @@ describe('Daemon', () => {
   it('contratar: só o líder cria; worktree, nome, conta, prompt e aba do líder', async () => {
     repo = makeRepo()
     const { o, app, leader, call } = await leaderIn(repo.dir)
-    await expect(call('criar_sessao', { nome: 'dev-1' })).rejects.toThrow('esta sessão não é líder')
-    await expect(call('listar_sessoes', {})).rejects.toThrow('esta sessão não é líder')
+    await expect(call('contratar_dev', { nome: 'dev-1' })).rejects.toThrow('esta sessão não é líder')
+    await expect(call('listar_equipe', {})).rejects.toThrow('esta sessão não é líder')
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
     const base = repo.git('rev-parse', '--abbrev-ref', 'HEAD').trim()
-    const r = await call('criar_sessao', { nome: 'dev-1', prompt: `faça "X" e 'Y'`, conta: 'weboption-max' })
+    const r = await call('contratar_dev', { nome: 'dev-1', prompt: `faça "X" e 'Y'`, conta: 'weboption-max' })
     const dir = path.join(repo.dir, '.claude', 'worktrees', 'dev-1')
     expect(r).toMatchObject({ nome: 'dev-1', pasta: dir, branch: `${base}-dev-1`, conta: 'weboption-max' })
     expect(String(r.comando)).toContain(`-n 'dev-1'`)
@@ -709,9 +709,9 @@ describe('Daemon', () => {
       type: 'split', dir: 'row', sizes: [], children: [{ type: 'leaf', paneId: leader }, { type: 'leaf', paneId: dev.id }],
     })
     // repetido: nome, pasta e branch ganham -2
-    const r2 = await call('criar_sessao', { nome: 'dev-1', worktree: false })
+    const r2 = await call('contratar_dev', { nome: 'dev-1', worktree: false })
     expect(r2).toMatchObject({ nome: 'dev-1-2', pasta: repo.dir, branch: null, conta: 'mslabs' })
-    const r3 = await call('criar_sessao', { nome: 'dev-1-2' })
+    const r3 = await call('contratar_dev', { nome: 'dev-1-2' })
     expect(r3).toMatchObject({ nome: 'dev-1-2-2', branch: `${base}-dev-1-2-2` })
   })
 
@@ -721,17 +721,17 @@ describe('Daemon', () => {
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
     const s0 = (await app.client.request<{ settings: TerminalSettings }>({ t: 'state.get' })).settings
     await app.client.request({ t: 'settings.save', settings: { ...s0, maxHiredPerLeader: 1 } })
-    await call('criar_sessao', { nome: 'dev-1', worktree: false })
-    await expect(call('criar_sessao', { nome: 'dev-2', worktree: false })).rejects.toThrow('limite de 1 sessões atingido; encerre alguma ou aumente o limite nas preferências')
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    await expect(call('contratar_dev', { nome: 'dev-2', worktree: false })).rejects.toThrow('limite de 1 sessões atingido; encerre alguma ou aumente o limite nas preferências')
     const { paneId: mine } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
     await app.client.request({ t: 'pane.meta', paneId: mine, name: 'minha' })
-    const list = (await call('listar_sessoes', {})) as unknown as { nome: string; criadaPorMim: boolean; status: string }[]
+    const list = (await call('listar_equipe', {})) as unknown as { nome: string; criadaPorMim: boolean; status: string }[]
     expect(list.find((x) => x.nome === 'dev-1')).toMatchObject({ criadaPorMim: true })
     expect(list.find((x) => x.nome === 'minha')).toMatchObject({ criadaPorMim: false, status: 'terminal' })
-    await call('renomear_sessao', { nome: 'dev-1', novo_nome: 'dev-a' })
-    await expect(call('encerrar_sessao', { nome: 'minha' })).rejects.toThrow('só encerra sessões criadas por esta sessão')
+    await call('renomear_dev', { nome: 'dev-1', novo_nome: 'dev-a' })
+    await expect(call('demitir_dev', { nome: 'minha' })).rejects.toThrow('só encerra sessões criadas por esta sessão')
     const devId = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-a'))).panes.find((p) => p.name === 'dev-a')!.id
-    await call('encerrar_sessao', { nome: 'dev-a' })
+    await call('demitir_dev', { nome: 'dev-a' })
     // demitido some: sai da lista de sessões e do layout do espaço (a worktree e a conversa ficam)
     await app.waitState((s) => !s.panes.some((p) => p.id === devId))
     const layout = (await app.client.request<{ layout: { tabs: { root: unknown }[] } }>({ t: 'state.get' })).layout
@@ -745,7 +745,7 @@ describe('Daemon', () => {
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
     repo.git('checkout', '--detach')
     await waitFor(async () => ((await app.client.request<{ projects: { worktrees: { branch: string | null }[] }[] }>({ t: 'state.get' })).projects[0].worktrees[0].branch === null ? true : null), 8000)
-    await expect(call('criar_sessao', { nome: 'dev-1' })).rejects.toThrow('HEAD solto')
+    await expect(call('contratar_dev', { nome: 'dev-1' })).rejects.toThrow('HEAD solto')
     expect(app.state()!.panes.some((p) => p.name === 'dev-1')).toBe(false)
   })
 })

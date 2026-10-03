@@ -8,15 +8,16 @@ const str = (description: string) => ({ type: 'string', description })
  * ficam "adiadas" e só o nome aparece, então sem isto "contrata 3 devs" vira subagente.
  */
 export const INSTRUCTIONS = [
-  'Gerenciador de Terminal: o usuário roda várias sessões do Claude Code em terminais desse app.',
-  'Quando o usuário pedir para contratar, chamar, abrir ou criar devs, ajudantes, agentes, sessões ou terminais (ex.: "contrata 3 devs", "abre 2 sessões para X"), use criar_sessao uma vez por sessão: ela abre um terminal novo de verdade, ao lado desta sessão, com nome, conta, worktree git própria e o prompt inicial. Isso NÃO é subagente nem Agent/Task: são sessões independentes que o usuário vê e usa.',
-  'Dê nomes curtos (dev-1, dev-2…) e mande no prompt a tarefa completa de cada um. Depois coordene pelo SendMessage nativo, endereçando pelo nome; use listar_sessoes para ver quem está trabalhando, pedindo permissão ou esperando (sua-vez).',
+  'Gerenciador de Terminal: o usuário roda várias sessões do Claude Code em terminais desse app; uma sessão líder (👑) monta e comanda uma equipe de devs.',
+  'Quando o usuário pedir para contratar, chamar, abrir ou criar devs, ajudantes, agentes, sessões ou terminais (ex.: "contrata 3 devs", "abre 2 sessões para X"), use contratar_dev uma vez por dev: abre um terminal novo de verdade, ao lado desta sessão, com nome, conta, worktree git própria e o prompt inicial. Isso NÃO é subagente nem Agent/Task: são sessões independentes que o usuário vê e usa.',
+  'Dê nomes curtos (dev-1, dev-2…) e mande no prompt a tarefa completa de cada um. Coordene pelo SendMessage nativo, endereçando pelo nome; use listar_equipe para ver quem está trabalhando, pedindo permissão ou esperando (sua-vez).',
+  'Quando pedirem para demitir, dispensar, encerrar ou fechar devs, use demitir_dev: o terminal some da tela, mas a worktree, a branch e a conversa ficam. Antes de demitir quem está no meio de algo, peça pelo SendMessage que commite e avise.',
   'Só a sessão marcada pelo usuário como líder (👑) pode usar estas ferramentas; se vier "esta sessão não é líder", explique ao usuário como marcar (menu da sessão na sidebar → Pode contratar sessões).',
 ].join('\n')
 
 export const TOOLS = [
   {
-    name: 'criar_sessao',
+    name: 'contratar_dev',
     description:
       'Contratar um dev / abrir uma sessão nova: abre um terminal novo do Claude Code no Gerenciador de Terminal, ao lado desta sessão, como se o usuário tivesse aberto, com nome (o SendMessage acha por ele), conta, worktree git própria e prompt inicial. Use para "contrata N devs", "abre sessões para X" (não é subagente). Só funciona se o usuário marcou esta sessão como líder.',
     inputSchema: {
@@ -33,18 +34,18 @@ export const TOOLS = [
     },
   },
   {
-    name: 'listar_sessoes',
-    description: 'Lista as sessões do espaço de trabalho desta sessão: nome, status (trabalhando, pedindo-permissao, sua-vez, ocioso, terminal), conta, pasta, branch e se foi criada por esta sessão.',
+    name: 'listar_equipe',
+    description: 'Lista a equipe: as sessões do espaço de trabalho desta sessão: nome, status (trabalhando, pedindo-permissao, sua-vez, ocioso, terminal), conta, pasta, branch e se foi criada por esta sessão.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
-    name: 'renomear_sessao',
-    description: 'Renomeia uma sessão do espaço desta sessão.',
+    name: 'renomear_dev',
+    description: 'Renomeia um dev (sessão) do espaço desta sessão.',
     inputSchema: { type: 'object', properties: { nome: str('nome atual'), novo_nome: str('novo nome') }, required: ['nome', 'novo_nome'] },
   },
   {
-    name: 'encerrar_sessao',
-    description: 'Encerra uma sessão criada por esta sessão. A worktree fica (o usuário remove pela sidebar).',
+    name: 'demitir_dev',
+    description: 'Demitir / dispensar um dev: encerra uma sessão criada por esta sessão e tira o terminal da tela. A worktree, a branch e a conversa ficam (o usuário remove a worktree pela sidebar).',
     inputSchema: { type: 'object', properties: { nome: str('nome da sessão') }, required: ['nome'] },
   },
 ]
