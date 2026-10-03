@@ -49,7 +49,7 @@ export function headerView(pane: PaneView, app: Pick<AppState, 'projects' | 'acc
     status: pane.claude?.status ?? 'shell',
     account: account ? { label: account.label, color: account.color } : null,
     warning: git?.error ?? project?.fetchError ?? null,
-    label: pane.name ?? pane.claude?.title ?? (pane.claude ? `sessão ${pane.seq}` : `terminal ${pane.seq}`),
+    label: (pane.leader ? '👑 ' : '') + (pane.name ?? pane.claude?.title ?? (pane.claude ? `sessão ${pane.seq}` : `terminal ${pane.seq}`)),
     projectColor: project?.color ?? null,
     sessionColor: pane.color,
     worktreeInferred: !!pane.worktreeInferred,
