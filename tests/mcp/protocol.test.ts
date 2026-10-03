@@ -9,7 +9,11 @@ const noCall = async () => {
 describe('gt-mcp: protocolo', () => {
   it('initialize ecoa a versão pedida e se apresenta', async () => {
     const r = await handleMessage({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, noCall)
-    expect(r).toEqual({ jsonrpc: '2.0', id: 1, result: { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'gerenciador-terminal', version: '1.0.0' } } })
+    expect(r).toMatchObject({ jsonrpc: '2.0', id: 1, result: { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'gerenciador-terminal', version: '1.0.0' } } })
+  })
+  it('initialize manda instruções: "contratar devs" é criar_sessao, não subagente', async () => {
+    const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
+    for (const k of ['criar_sessao', 'contratar', 'devs', 'subagente', 'SendMessage', 'líder']) expect(r.result.instructions).toContain(k)
   })
   it('notificação não tem resposta; método desconhecido dá -32601', async () => {
     expect(await handleMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, noCall)).toBeNull()

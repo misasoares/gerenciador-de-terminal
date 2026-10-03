@@ -3,11 +3,22 @@ export type CallDaemon = (tool: string, args: Record<string, unknown>) => Promis
 
 const str = (description: string) => ({ type: 'string', description })
 
+/**
+ * Vai no prompt de sistema do Claude (MCP Server Instructions), sempre visível: com muitos MCPs as ferramentas
+ * ficam "adiadas" e só o nome aparece, então sem isto "contrata 3 devs" vira subagente.
+ */
+export const INSTRUCTIONS = [
+  'Gerenciador de Terminal: o usuário roda várias sessões do Claude Code em terminais desse app.',
+  'Quando o usuário pedir para contratar, chamar, abrir ou criar devs, ajudantes, agentes, sessões ou terminais (ex.: "contrata 3 devs", "abre 2 sessões para X"), use criar_sessao uma vez por sessão: ela abre um terminal novo de verdade, ao lado desta sessão, com nome, conta, worktree git própria e o prompt inicial. Isso NÃO é subagente nem Agent/Task: são sessões independentes que o usuário vê e usa.',
+  'Dê nomes curtos (dev-1, dev-2…) e mande no prompt a tarefa completa de cada um. Depois coordene pelo SendMessage nativo, endereçando pelo nome; use listar_sessoes para ver quem está trabalhando, pedindo permissão ou esperando (sua-vez).',
+  'Só a sessão marcada pelo usuário como líder (👑) pode usar estas ferramentas; se vier "esta sessão não é líder", explique ao usuário como marcar (menu da sessão na sidebar → Pode contratar sessões).',
+].join('\n')
+
 export const TOOLS = [
   {
     name: 'criar_sessao',
     description:
-      'Abre uma nova sessão do Claude no Gerenciador de Terminal, na aba desta sessão, como se o usuário tivesse aberto: com nome (o SendMessage acha por ele), conta, worktree git própria e prompt inicial. Só funciona se o usuário marcou esta sessão como líder.',
+      'Contratar um dev / abrir uma sessão nova: abre um terminal novo do Claude Code no Gerenciador de Terminal, ao lado desta sessão, como se o usuário tivesse aberto, com nome (o SendMessage acha por ele), conta, worktree git própria e prompt inicial. Use para "contrata N devs", "abre sessões para X" (não é subagente). Só funciona se o usuário marcou esta sessão como líder.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -55,6 +66,7 @@ export async function handleMessage(raw: unknown, call: CallDaemon): Promise<obj
         protocolVersion: typeof msg.params?.protocolVersion === 'string' ? msg.params.protocolVersion : '2025-06-18',
         capabilities: { tools: {} },
         serverInfo: { name: 'gerenciador-terminal', version: '1.0.0' },
+        instructions: INSTRUCTIONS,
       })
     case 'ping':
       return reply({})
