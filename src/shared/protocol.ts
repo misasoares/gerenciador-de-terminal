@@ -38,6 +38,7 @@ export type ClientRequest =
   | { t: 'hooks.install' }
   | { t: 'resume.dismiss'; paneId: string }
   | { t: 'daemon.shutdown' }
+  | { t: 'pane.setLeader'; paneId: string; leader: boolean }
   | { t: 'mcp.call'; callerPaneId: string; tool: string; args: Record<string, unknown> }
   | { t: 'workspace.create'; name: string }
   | { t: 'workspace.rename'; id: string; name: string }

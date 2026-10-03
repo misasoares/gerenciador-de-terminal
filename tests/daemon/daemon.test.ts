@@ -654,4 +654,29 @@ describe('Daemon', () => {
     ])
     expect(w.hidden).toEqual([{ id: c, label: `terminal ${seqOf(c)}`, status: null }])
   })
+  it('contratar: grava mcp.json e toda sessão Claude recebe --mcp-config', async () => {
+    const { o, app } = await boot({ nodeBinary: '/bin/app-x', mcpScriptPath: '/opt/app/gt-mcp.js' })
+    const cfg = JSON.parse(fs.readFileSync(path.join(o.home, 'mcp.json'), 'utf8'))
+    expect(cfg).toEqual({ mcpServers: { 'gerenciador-terminal': { command: '/bin/app-x', args: ['/opt/app/gt-mcp.js'], env: { ELECTRON_RUN_AS_NODE: '1' } } } })
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: o.userHome, accountId: 'mslabs', cols: 200, rows: 24 })
+    // a saída só chega a quem se inscreve: lê o snapshot do terminal até o comando aparecer
+    const screen = await waitFor(async () => {
+      const { snapshot } = await app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
+      return snapshot.includes('--mcp-config') ? snapshot : null
+    }, 8000)
+    expect(screen).toContain(`claude-mslabs --mcp-config '${path.join(o.home, 'mcp.json')}'`)
+  })
+
+  it('contratar: marca de líder aparece no estado e sobrevive a reiniciar o daemon', async () => {
+    const first = await boot()
+    const { paneId } = await first.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: first.o.userHome, accountId: null, cols: 80, rows: 24 })
+    await first.app.client.request({ t: 'pane.setLeader', paneId, leader: true })
+    await first.app.waitState((s) => s.panes.find((p) => p.id === paneId)?.leader === true)
+    await first.d.stop(true)
+    daemons = daemons.filter((x) => x !== first.d)
+    const second = await boot({}, first.home)
+    await second.app.client.request({ t: 'pane.create', paneId, cwd: first.o.userHome, accountId: null, cols: 80, rows: 24 })
+    const st = await second.app.waitState((s) => s.panes.some((p) => p.id === paneId))
+    expect(st.panes.find((p) => p.id === paneId)).toMatchObject({ leader: true, createdBy: null })
+  })
 })

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { focusAfterHide, panesToAutoClose, splitCwd } from '../../src/renderer/src/focus'
 import type { Layout, PaneView } from '../../src/shared/types'
 
-const pane = (id: string, cwd: string, worktreePath: string | null = null): PaneView => ({ id, seq: 1, cwd, alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: null, worktreePath })
+const pane = (id: string, cwd: string, worktreePath: string | null = null): PaneView => ({ id, seq: 1, cwd, alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, leader: false, createdBy: null, accountId: null, claude: null, projectPath: null, worktreePath })
 const layout: Layout = {
   tabs: [
     { id: 't1', name: 'A', root: { type: 'split', dir: 'row', sizes: [], children: [{ type: 'leaf', paneId: 'a' }, { type: 'leaf', paneId: 'b' }] } },
@@ -40,7 +40,7 @@ describe('foco depois de esconder', () => {
 
 describe('panesToAutoClose', () => {
   const pane = (id: string, alive: boolean, exitCode: number | null) =>
-    ({ id, seq: 1, cwd: '/', alive, exitCode, accountId: null, claude: null, projectPath: null, worktreePath: null, name: null, color: null, agentHooksMissing: false }) as PaneView
+    ({ id, seq: 1, cwd: '/', alive, exitCode, accountId: null, claude: null, projectPath: null, worktreePath: null, name: null, color: null, agentHooksMissing: false, leader: false, createdBy: null }) as PaneView
   it('só os que terminaram com código 0 e não são retomáveis', () => {
     const app = {
       panes: [pane('vivo', true, null), pane('ok', false, 0), pane('erro', false, 1), pane('sinal', false, null), pane('retomavel', false, 0)],

@@ -12,6 +12,8 @@ export interface TerminalSettings {
   showGitStatus: boolean
   /** só as alterações de atalho; null = sem atalho */
   keybindings: KeyOverrides
+  /** teto de sessões vivas criadas por um líder pelo MCP */
+  maxHiredPerLeader: number
 }
 
 export const DEFAULT_SETTINGS: TerminalSettings = {
@@ -21,6 +23,7 @@ export const DEFAULT_SETTINGS: TerminalSettings = {
   lineHeight: 1.2,
   showGitStatus: true,
   keybindings: {},
+  maxHiredPerLeader: 10,
 }
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
@@ -54,6 +57,8 @@ export function normalizeSettings(s: Partial<TerminalSettings> | undefined): Ter
     lineHeight: typeof v.lineHeight === 'number' && Number.isFinite(v.lineHeight) ? clamp(Math.round(v.lineHeight * 10) / 10, 1, 1.6) : DEFAULT_SETTINGS.lineHeight,
     showGitStatus: typeof v.showGitStatus === 'boolean' ? v.showGitStatus : DEFAULT_SETTINGS.showGitStatus,
     keybindings: normalizeKeybindings(v.keybindings),
+    maxHiredPerLeader:
+      typeof v.maxHiredPerLeader === 'number' && Number.isFinite(v.maxHiredPerLeader) ? clamp(Math.round(v.maxHiredPerLeader), 1, 50) : DEFAULT_SETTINGS.maxHiredPerLeader,
   }
 }
 

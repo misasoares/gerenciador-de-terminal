@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import fs from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import os from 'node:os'
@@ -43,6 +44,10 @@ export interface DaemonOptions {
   usageRead?: (login: Login) => Promise<ReadResult>
   usageIntervalMs?: number
   onShutdown?: () => void
+  /** script do gt-mcp (padrão: ao lado do daemon.js) */
+  mcpScriptPath?: string
+  /** binário que roda o gt-mcp (padrão: o do app, com ELECTRON_RUN_AS_NODE) */
+  nodeBinary?: string
 }
 
 export class Daemon {
@@ -82,6 +87,14 @@ export class Daemon {
    */
   private get canonicalHookScript(): string {
     return path.join(this.o.userHome, '.gerenciador-terminal', 'bin', 'gt-hook')
+  }
+
+  private get mcpConfigPath(): string {
+    return path.join(this.o.home, 'mcp.json')
+  }
+
+  private get promptsDir(): string {
+    return path.join(this.o.home, 'prompts')
   }
 
   private agentsInUse(): Set<AgentKind> {
@@ -124,6 +137,18 @@ export class Daemon {
   private async init(): Promise<void> {
     writeHookScript(this.o.hookScriptPath)
     if (this.canonicalHookScript !== this.o.hookScriptPath) writeHookScript(this.canonicalHookScript)
+    // config do MCP regravada a cada início: no AppImage o caminho de montagem muda
+    fs.mkdirSync(this.o.home, { recursive: true })
+    fs.writeFileSync(
+      this.mcpConfigPath,
+      JSON.stringify(
+        { mcpServers: { 'gerenciador-terminal': { command: this.o.nodeBinary ?? process.execPath, args: [this.o.mcpScriptPath ?? path.join(__dirname, 'gt-mcp.js')], env: { ELECTRON_RUN_AS_NODE: '1' } } } },
+        null,
+        2,
+      ),
+    )
+    // prompts iniciais de sessões do daemon anterior: nenhuma está viva agora
+    fs.rmSync(this.promptsDir, { recursive: true, force: true })
     const p = loadPersisted(this.o.stateFile)
     this.persisted = p
     // o que estava vivo no daemon anterior vira retomável no seu espaço (mesmo id → o layout continua valendo)
@@ -187,6 +212,7 @@ export class Daemon {
       },
       onChange: () => this.changed(),
       codexHookGraceMs: this.o.codexHookGraceMs ?? 20_000,
+      mcpConfigPath: this.mcpConfigPath,
       onGitHint: (wt) => {
         this.monitor.refresh(wt)
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
@@ -315,6 +341,8 @@ export class Daemon {
         agentHooksMissing: r.agentHooksMissing,
         name: this.persisted.paneMeta[r.id]?.name ?? null,
         color: this.persisted.paneMeta[r.id]?.color ?? null,
+        leader: this.persisted.paneMeta[r.id]?.leader === true,
+        createdBy: this.persisted.paneMeta[r.id]?.createdBy ?? null,
       })),
       layout: w.layout,
       accounts: this.persisted.accounts,
@@ -467,6 +495,7 @@ export class Daemon {
       case 'pane.forget':
         this.panes.forget(req.paneId)
         delete this.persisted.paneMeta[req.paneId]
+        fs.rmSync(path.join(this.promptsDir, `${req.paneId}.txt`), { force: true })
         return null
       case 'pane.meta': {
         const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
@@ -477,6 +506,12 @@ export class Daemon {
           next.color = req.color
         }
         this.persisted.paneMeta[req.paneId] = next
+        this.changed()
+        return null
+      }
+      case 'pane.setLeader': {
+        const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
+        this.persisted.paneMeta[req.paneId] = { ...cur, leader: req.leader || undefined }
         this.changed()
         return null
       }

@@ -15,6 +15,15 @@ export interface PersistedPane {
   workspaceId?: string
 }
 
+export interface PaneMetaEntry {
+  name: string | null
+  color: string | null
+  /** pode contratar sessões pelo MCP (marcado pelo usuário) */
+  leader?: boolean
+  /** paneId do líder que criou esta sessão pelo MCP */
+  createdBy?: string
+}
+
 export interface Persisted {
   version: 1
   projects: ProjectConfig[]
@@ -24,7 +33,7 @@ export interface Persisted {
   panes: PersistedPane[]
   resumable: ResumeEntry[]
   fetchIntervalMin: number
-  paneMeta: Record<string, { name: string | null; color: string | null }>
+  paneMeta: Record<string, PaneMetaEntry>
   settings: TerminalSettings
   /** último CLAUDE_CONFIG_DIR/CODEX_HOME visto por agente ('' = diretório padrão) */
   loginDirs: Record<string, string>
