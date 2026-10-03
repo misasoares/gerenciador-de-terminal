@@ -36,4 +36,17 @@ describe('workspaces-model (renderer)', () => {
     ]
     expect(otherWorkspaces(list, 'cur')).toEqual([{ id: 'a', name: 'TCHEERP', sessions: 2, attention: 1, tabs: [{ id: 't1', name: 'Back', panes: [p('a1', 'needs-you'), p('a2', 'idle')] }], hidden: [] }])
   })
+  it('sessão que saiu do espaço por fora (demitida) sai do layout local', () => {
+    const local = { tabs: [{ id: 't', name: 'A', root: { type: 'split' as const, dir: 'row' as const, sizes: [50, 50], children: [leaf('L'), leaf('d1')] } }], activeTabId: 't' }
+    const incoming = { tabs: [{ id: 't', name: 'A', root: leaf('L') }], activeTabId: 't' }
+    const out = mergeIncomingLayout(local, incoming, new Set(['L', 'd1']), new Set(['L']))
+    expect(out.tabs[0].root).toEqual(leaf('L'))
+    // painel de arquivo nunca está em panes: não é "saída"
+    const withFile = { tabs: [{ id: 't', name: 'A', root: { type: 'split' as const, dir: 'row' as const, sizes: [], children: [leaf('L'), leaf('file:1')] } }], activeTabId: 't' }
+    expect(mergeIncomingLayout(withFile, incoming, new Set(['L']), new Set(['L']))).toBe(withFile)
+  })
+  it('daemon reiniciou (sessões viram retomáveis, layout dele ainda as tem): o layout local fica', () => {
+    const local = { tabs: [{ id: 't', name: 'A', root: { type: 'split' as const, dir: 'row' as const, sizes: [], children: [leaf('a'), leaf('b')] } }], activeTabId: 't' }
+    expect(mergeIncomingLayout(local, local, new Set(['a', 'b']), new Set())).toBe(local)
+  })
 })

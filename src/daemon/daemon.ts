@@ -389,8 +389,14 @@ export class Daemon {
     if (tool === 'encerrar_sessao') {
       const r = byName(args.nome)
       if (meta[r.id]?.createdBy !== caller.id) throw new Error('só encerra sessões criadas por esta sessão')
-      this.panes.kill(r.id)
-      return { encerrada: meta[r.id]?.name }
+      const name = meta[r.id]?.name
+      // demitido some da tela: sai da lista e do layout (worktree, branch e conversa ficam)
+      this.panes.forget(r.id)
+      delete meta[r.id]
+      fs.rmSync(path.join(this.promptsDir, `${r.id}.txt`), { force: true })
+      w.layout = { ...w.layout, tabs: w.layout.tabs.map((t) => ({ ...t, root: t.root ? removeLeafFrom(t.root, r.id) : null })) }
+      this.changed()
+      return { encerrada: name }
     }
     if (tool === 'criar_sessao') return this.hire(caller, w, args)
     throw new Error(`ferramenta desconhecida: ${tool}`)

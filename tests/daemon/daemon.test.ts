@@ -730,8 +730,12 @@ describe('Daemon', () => {
     expect(list.find((x) => x.nome === 'minha')).toMatchObject({ criadaPorMim: false, status: 'terminal' })
     await call('renomear_sessao', { nome: 'dev-1', novo_nome: 'dev-a' })
     await expect(call('encerrar_sessao', { nome: 'minha' })).rejects.toThrow('só encerra sessões criadas por esta sessão')
+    const devId = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-a'))).panes.find((p) => p.name === 'dev-a')!.id
     await call('encerrar_sessao', { nome: 'dev-a' })
-    await app.waitState((s) => s.panes.find((p) => p.name === 'dev-a')?.alive === false)
+    // demitido some: sai da lista de sessões e do layout do espaço (a worktree e a conversa ficam)
+    await app.waitState((s) => !s.panes.some((p) => p.id === devId))
+    const layout = (await app.client.request<{ layout: { tabs: { root: unknown }[] } }>({ t: 'state.get' })).layout
+    expect(JSON.stringify(layout)).not.toContain(devId)
     expect(app.state()!.panes.find((p) => p.id === mine)?.alive).toBe(true)
   })
 
