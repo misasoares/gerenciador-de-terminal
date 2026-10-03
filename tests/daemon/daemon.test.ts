@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import { buildPaneEnv } from '../../src/daemon/panes'
-import { DEFAULT_SETTINGS } from '../../src/shared/settings'
+import { DEFAULT_SETTINGS, type TerminalSettings } from '../../src/shared/settings'
 import { connectApp } from '../helpers/app-client'
 import { RpcClient } from '../../src/shared/rpc-client'
 import { makeRepo, type TestRepo } from '../helpers/repo'
@@ -678,5 +678,69 @@ describe('Daemon', () => {
     await second.app.client.request({ t: 'pane.create', paneId, cwd: first.o.userHome, accountId: null, cols: 80, rows: 24 })
     const st = await second.app.waitState((s) => s.panes.some((p) => p.id === paneId))
     expect(st.panes.find((p) => p.id === paneId)).toMatchObject({ leader: true, createdBy: null })
+  })
+  async function leaderIn(repoDir: string) {
+    const b = await boot()
+    await b.app.client.request({ t: 'project.add', path: repoDir })
+    const { paneId } = await b.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repoDir, accountId: 'mslabs', cols: 80, rows: 24 })
+    await b.app.waitState((s) => s.panes.find((p) => p.id === paneId)?.projectPath === repoDir)
+    await b.app.client.request({ t: 'layout.save', layout: { tabs: [{ id: 't', name: 'Lider', root: { type: 'leaf', paneId } }], activeTabId: 't' } })
+    const call = (tool: string, args: Record<string, unknown>) => b.app.client.request<Record<string, unknown>>({ t: 'mcp.call', callerPaneId: paneId, tool, args })
+    return { ...b, leader: paneId, call }
+  }
+
+  it('contratar: só o líder cria; worktree, nome, conta, prompt e aba do líder', async () => {
+    repo = makeRepo()
+    const { o, app, leader, call } = await leaderIn(repo.dir)
+    await expect(call('criar_sessao', { nome: 'dev-1' })).rejects.toThrow('esta sessão não é líder')
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    const base = repo.git('rev-parse', '--abbrev-ref', 'HEAD').trim()
+    const r = await call('criar_sessao', { nome: 'dev-1', prompt: `faça "X" e 'Y'`, conta: 'weboption-max' })
+    const dir = path.join(repo.dir, '.claude', 'worktrees', 'dev-1')
+    expect(r).toMatchObject({ nome: 'dev-1', pasta: dir, branch: `${base}-dev-1`, conta: 'weboption-max' })
+    expect(String(r.comando)).toContain(`-n 'dev-1'`)
+    expect(fs.existsSync(dir)).toBe(true)
+    const st = await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))
+    const dev = st.panes.find((p) => p.name === 'dev-1')!
+    expect(dev).toMatchObject({ cwd: dir, accountId: 'weboption-max', createdBy: leader, leader: false })
+    expect(fs.readFileSync(path.join(o.home, 'prompts', `${dev.id}.txt`), 'utf8')).toBe(`faça "X" e 'Y'`)
+    expect((await app.client.request<{ layout: { tabs: { root: unknown }[] } }>({ t: 'state.get' })).layout.tabs[0].root).toEqual({
+      type: 'split', dir: 'row', sizes: [], children: [{ type: 'leaf', paneId: leader }, { type: 'leaf', paneId: dev.id }],
+    })
+    // repetido: nome, pasta e branch ganham -2
+    const r2 = await call('criar_sessao', { nome: 'dev-1', worktree: false })
+    expect(r2).toMatchObject({ nome: 'dev-1-2', pasta: repo.dir, branch: null, conta: 'mslabs' })
+    const r3 = await call('criar_sessao', { nome: 'dev-1-2' })
+    expect(r3).toMatchObject({ nome: 'dev-1-2-2', branch: `${base}-dev-1-2-2` })
+  })
+
+  it('contratar: teto, listar, renomear e encerrar só as criadas', async () => {
+    repo = makeRepo()
+    const { app, leader, call } = await leaderIn(repo.dir)
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    const s0 = (await app.client.request<{ settings: TerminalSettings }>({ t: 'state.get' })).settings
+    await app.client.request({ t: 'settings.save', settings: { ...s0, maxHiredPerLeader: 1 } })
+    await call('criar_sessao', { nome: 'dev-1', worktree: false })
+    await expect(call('criar_sessao', { nome: 'dev-2', worktree: false })).rejects.toThrow('limite de 1 sessões atingido; encerre alguma ou aumente o limite nas preferências')
+    const { paneId: mine } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await app.client.request({ t: 'pane.meta', paneId: mine, name: 'minha' })
+    const list = (await call('listar_sessoes', {})) as unknown as { nome: string; criadaPorMim: boolean; status: string }[]
+    expect(list.find((x) => x.nome === 'dev-1')).toMatchObject({ criadaPorMim: true })
+    expect(list.find((x) => x.nome === 'minha')).toMatchObject({ criadaPorMim: false, status: 'terminal' })
+    await call('renomear_sessao', { nome: 'dev-1', novo_nome: 'dev-a' })
+    await expect(call('encerrar_sessao', { nome: 'minha' })).rejects.toThrow('só encerra sessões criadas por esta sessão')
+    await call('encerrar_sessao', { nome: 'dev-a' })
+    await app.waitState((s) => s.panes.find((p) => p.name === 'dev-a')?.alive === false)
+    expect(app.state()!.panes.find((p) => p.id === mine)?.alive).toBe(true)
+  })
+
+  it('contratar: líder em HEAD solto pedindo worktree → erro e nada criado', async () => {
+    repo = makeRepo()
+    const { app, leader, call } = await leaderIn(repo.dir)
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    repo.git('checkout', '--detach')
+    await waitFor(async () => ((await app.client.request<{ projects: { worktrees: { branch: string | null }[] }[] }>({ t: 'state.get' })).projects[0].worktrees[0].branch === null ? true : null), 8000)
+    await expect(call('criar_sessao', { nome: 'dev-1' })).rejects.toThrow('HEAD solto')
+    expect(app.state()!.panes.some((p) => p.name === 'dev-1')).toBe(false)
   })
 })
