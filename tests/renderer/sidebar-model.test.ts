@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { buildSidebar, sessionLabel, splitWorktrees } from '../../src/renderer/src/sidebar-model'
 import type { AppState, PaneView } from '../../src/shared/types'
 
-const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: Number(id.slice(1)), cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
+const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: Number(id.slice(1)), cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, leader: false, createdBy: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
 const claude = (status: 'working' | 'needs-you' | 'idle', title: string | null = null) => ({ sessionId: 's', agent: 'claude' as const, status, statusSince: 0, title, transcriptPath: null })
 
 const app: AppState = {

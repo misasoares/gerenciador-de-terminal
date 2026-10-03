@@ -63,6 +63,10 @@ export function Preferences() {
           <input type="checkbox" checked={draft.showGitStatus} onChange={(e) => update({ showGitStatus: e.target.checked })} />
           Mostrar status do git no cabeçalho (● alterados, ↑↓ commits)
         </label>
+        <div className="field">
+          <div className="field-label">MÁXIMO DE SESSÕES POR LÍDER · {draft.maxHiredPerLeader}</div>
+          <input type="range" min={1} max={50} value={draft.maxHiredPerLeader} onChange={(e) => update({ maxHiredPerLeader: Number(e.target.value) })} />
+        </div>
           </>
         )}
         <div className="modal-actions">

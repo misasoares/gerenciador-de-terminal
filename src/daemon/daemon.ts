@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import fs from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import os from 'node:os'
@@ -7,15 +8,17 @@ import type { AgentKind, AppState, ConflictReport, LayoutNode, Workspace } from 
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
-import { suggestAccount, validateAccounts } from './accounts'
+import { buildCommand, suggestAccount, validateAccounts } from './accounts'
 import { GitMonitor } from './git/monitor'
 import { checkTargets, CLAUDE_HOOK_EVENTS, CODEX_HOOK_EVENTS, hookCommand, hookTargets, installHooks, writeHookScript } from './hooks'
-import { PaneManager, buildPaneEnv } from './panes'
+import { PaneManager, buildPaneEnv, type PaneRecord } from './panes'
 import { loadPersisted, savePersisted, type Persisted } from './persist'
 import { ProjectRegistry } from './projects'
 import { startServer, type Conn, type RpcServer } from './server'
 import { checkRemove, removeWorktree } from './worktree-remove'
 import { uniqueName } from './workspaces'
+import { checkName, insertBeside, pickAccount, statusName, uniqueDash } from './hire'
+import { git } from './git/run'
 import { UsageMonitor } from './usage/monitor'
 import { ConversationIndex } from './conversations/index'
 import { existing, FileWatcher, listFiles, readFile, writeFile } from './files'
@@ -43,6 +46,10 @@ export interface DaemonOptions {
   usageRead?: (login: Login) => Promise<ReadResult>
   usageIntervalMs?: number
   onShutdown?: () => void
+  /** script do gt-mcp (padrão: ao lado do daemon.js) */
+  mcpScriptPath?: string
+  /** binário que roda o gt-mcp (padrão: o do app, com ELECTRON_RUN_AS_NODE) */
+  nodeBinary?: string
 }
 
 export class Daemon {
@@ -82,6 +89,14 @@ export class Daemon {
    */
   private get canonicalHookScript(): string {
     return path.join(this.o.userHome, '.gerenciador-terminal', 'bin', 'gt-hook')
+  }
+
+  private get mcpConfigPath(): string {
+    return path.join(this.o.home, 'mcp.json')
+  }
+
+  private get promptsDir(): string {
+    return path.join(this.o.home, 'prompts')
   }
 
   private agentsInUse(): Set<AgentKind> {
@@ -124,6 +139,18 @@ export class Daemon {
   private async init(): Promise<void> {
     writeHookScript(this.o.hookScriptPath)
     if (this.canonicalHookScript !== this.o.hookScriptPath) writeHookScript(this.canonicalHookScript)
+    // config do MCP regravada a cada início: no AppImage o caminho de montagem muda
+    fs.mkdirSync(this.o.home, { recursive: true })
+    fs.writeFileSync(
+      this.mcpConfigPath,
+      JSON.stringify(
+        { mcpServers: { 'gerenciador-terminal': { command: this.o.nodeBinary ?? process.execPath, args: [this.o.mcpScriptPath ?? path.join(__dirname, 'gt-mcp.js')], env: { ELECTRON_RUN_AS_NODE: '1' } } } },
+        null,
+        2,
+      ),
+    )
+    // prompts iniciais de sessões do daemon anterior: nenhuma está viva agora
+    fs.rmSync(this.promptsDir, { recursive: true, force: true })
     const p = loadPersisted(this.o.stateFile)
     this.persisted = p
     // o que estava vivo no daemon anterior vira retomável no seu espaço (mesmo id → o layout continua valendo)
@@ -187,6 +214,7 @@ export class Daemon {
       },
       onChange: () => this.changed(),
       codexHookGraceMs: this.o.codexHookGraceMs ?? 20_000,
+      mcpConfigPath: this.mcpConfigPath,
       onGitHint: (wt) => {
         this.monitor.refresh(wt)
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
@@ -315,6 +343,8 @@ export class Daemon {
         agentHooksMissing: r.agentHooksMissing,
         name: this.persisted.paneMeta[r.id]?.name ?? null,
         color: this.persisted.paneMeta[r.id]?.color ?? null,
+        leader: this.persisted.paneMeta[r.id]?.leader === true,
+        createdBy: this.persisted.paneMeta[r.id]?.createdBy ?? null,
       })),
       layout: w.layout,
       accounts: this.persisted.accounts,
@@ -325,6 +355,90 @@ export class Daemon {
       filePanes: this.persisted.filePanes,
       usageHints: { ...missingLoginHints(this.persisted.accounts, this.logins), ...this.usage.hints() },
     }
+  }
+
+  /** ferramentas do MCP do líder; o espaço é o do líder */
+  private async mcpCall(callerId: string, tool: string, args: Record<string, unknown>): Promise<unknown> {
+    const caller = this.panes.records().find((r) => r.id === callerId && r.alive)
+    if (!caller) throw new Error('sessão de origem não encontrada')
+    const meta = this.persisted.paneMeta
+    const w = this.ws(caller.workspaceId)
+    const inWs = () => this.panes.records().filter((r) => r.alive && r.workspaceId === w.id)
+    const byName = (n: unknown) => {
+      const r = inWs().find((x) => meta[x.id]?.name === String(n ?? ''))
+      if (!r) throw new Error(`sessão não encontrada neste espaço: ${String(n ?? '')}`)
+      return r
+    }
+    // todas as ferramentas, inclusive listar, são só do líder
+    if (meta[caller.id]?.leader !== true) throw new Error('esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão')
+    if (tool === 'listar_equipe') {
+      return inWs().map((r) => {
+        const wt = this.panes.effectiveWorktree(r)
+        const project = this.panes.effectiveProject(r)
+        const branch = project && wt ? (this.registry.worktrees(project).find((x) => x.path === wt)?.branch ?? null) : null
+        return { nome: meta[r.id]?.name ?? `sessão ${r.seq}`, status: statusName(r), conta: r.accountId, pasta: r.cwd, branch, criadaPorMim: meta[r.id]?.createdBy === caller.id, eu: r.id === caller.id }
+      })
+    }
+    if (tool === 'renomear_dev') {
+      const r = byName(args.nome)
+      const novo = uniqueDash(checkName(String(args.novo_nome ?? '')), inWs().filter((x) => x !== r).map((x) => meta[x.id]?.name ?? ''))
+      meta[r.id] = { ...(meta[r.id] ?? { name: null, color: null }), name: novo }
+      this.changed()
+      return { nome: novo }
+    }
+    if (tool === 'demitir_dev') {
+      const r = byName(args.nome)
+      if (meta[r.id]?.createdBy !== caller.id) throw new Error('só encerra sessões criadas por esta sessão')
+      const name = meta[r.id]?.name
+      // demitido some da tela: sai da lista e do layout (worktree, branch e conversa ficam)
+      this.panes.forget(r.id)
+      delete meta[r.id]
+      fs.rmSync(path.join(this.promptsDir, `${r.id}.txt`), { force: true })
+      w.layout = { ...w.layout, tabs: w.layout.tabs.map((t) => ({ ...t, root: t.root ? removeLeafFrom(t.root, r.id) : null })) }
+      this.changed()
+      return { encerrada: name }
+    }
+    if (tool === 'contratar_dev') return this.hire(caller, w, args)
+    throw new Error(`ferramenta desconhecida: ${tool}`)
+  }
+
+  private async hire(caller: PaneRecord, w: Workspace, args: Record<string, unknown>) {
+    const meta = this.persisted.paneMeta
+    const max = this.persisted.settings.maxHiredPerLeader
+    const live = this.panes.records().filter((r) => r.alive)
+    if (live.filter((r) => meta[r.id]?.createdBy === caller.id).length >= max) throw new Error(`limite de ${max} sessões atingido; encerre alguma ou aumente o limite nas preferências`)
+    const name = uniqueDash(checkName(String(args.nome ?? '')), live.filter((r) => r.workspaceId === w.id).map((r) => meta[r.id]?.name ?? ''))
+    const account = pickAccount(this.persisted.accounts, args.conta, caller.accountId)
+    let cwd = caller.cwd
+    let branch: string | null = null
+    if (args.worktree !== false) {
+      const project = this.panes.effectiveProject(caller)
+      if (!project) throw new Error('a sessão líder não está num repositório git conhecido; use worktree: false')
+      const wtPath = this.panes.effectiveWorktree(caller)
+      const own = this.registry.worktrees(project).find((x) => x.path === wtPath)
+      const base = typeof args.base === 'string' && args.base.trim() ? args.base.trim() : own?.branch
+      if (!base) throw new Error('a sessão líder está sem branch (HEAD solto); passe base explícita ou use worktree: false')
+      const refs = await git(project, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'])
+      branch = uniqueDash(`${base}-${name}`, refs.stdout.split('\n').filter(Boolean))
+      const parent = path.join(project, '.claude', 'worktrees')
+      const dirName = uniqueDash(name, fs.existsSync(parent) ? fs.readdirSync(parent) : [])
+      cwd = path.join(parent, dirName)
+      const r = await git(project, ['worktree', 'add', '-b', branch, cwd, base], 60_000)
+      if (!r.ok) throw new Error(`git worktree add falhou: ${r.stderr.trim()}`)
+      await this.registry.refresh(project)
+    }
+    const id = randomUUID()
+    let promptFile: string | undefined
+    if (typeof args.prompt === 'string' && args.prompt) {
+      fs.mkdirSync(this.promptsDir, { recursive: true, mode: 0o700 })
+      promptFile = path.join(this.promptsDir, `${id}.txt`)
+      fs.writeFileSync(promptFile, args.prompt, { mode: 0o600 })
+    }
+    meta[id] = { name, color: null, createdBy: caller.id }
+    this.panes.create({ paneId: id, cwd, accountId: account.id, cols: 120, rows: 30, workspaceId: w.id, agentName: name, promptFile })
+    w.layout = insertBeside(w.layout, caller.id, id)
+    this.changed()
+    return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcpConfig: this.mcpConfigPath, name, promptFile }) }
   }
 
   private findWorktree(p: string) {
@@ -467,6 +581,7 @@ export class Daemon {
       case 'pane.forget':
         this.panes.forget(req.paneId)
         delete this.persisted.paneMeta[req.paneId]
+        fs.rmSync(path.join(this.promptsDir, `${req.paneId}.txt`), { force: true })
         return null
       case 'pane.meta': {
         const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
@@ -477,6 +592,14 @@ export class Daemon {
           next.color = req.color
         }
         this.persisted.paneMeta[req.paneId] = next
+        this.changed()
+        return null
+      }
+      case 'mcp.call':
+        return this.mcpCall(req.callerPaneId, req.tool, req.args ?? {})
+      case 'pane.setLeader': {
+        const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
+        this.persisted.paneMeta[req.paneId] = { ...cur, leader: req.leader || undefined }
         this.changed()
         return null
       }

@@ -43,6 +43,10 @@ export interface CreatePane {
   accountId: string | null
   resumeSessionId?: string
   resumeAgent?: AgentKind
+  /** -n do Claude (sessão criada pelo líder) */
+  agentName?: string
+  /** prompt inicial (arquivo) */
+  promptFile?: string
   cols: number
   rows: number
 }
@@ -59,6 +63,8 @@ export interface PaneManagerDeps {
   onChange(): void
   onGitHint(worktreePath: string): void
   codexHookGraceMs: number
+  /** --mcp-config que toda sessão Claude recebe (null = sem MCP) */
+  mcpConfigPath: string | null
 }
 
 // o daemon pode ter nascido dentro de uma sessão do Claude, do VS Code ou do npm: nada disso vai para os terminais
@@ -128,7 +134,7 @@ export class PaneManager {
     let account = o.accountId ? accounts.find((a) => a.id === o.accountId) : undefined
     if (o.accountId && !account) throw new Error(`conta desconhecida: ${o.accountId}`)
     if (!account && o.resumeSessionId) account = resumeAccount(accounts, o.resumeAgent ?? 'claude')
-    const command = account ? buildCommand(account, o.resumeSessionId) : null
+    const command = account ? buildCommand(account, o.resumeSessionId, { mcpConfig: this.d.mcpConfigPath, name: o.agentName, promptFile: o.promptFile }) : null
     const cwd = fs.existsSync(o.cwd) ? o.cwd : this.d.fallbackCwd
     const env = { ...this.d.baseEnv, GT_PANE_ID: id, GT_SOCKET: this.d.socketPath }
     this.host.spawn({ id, shell: this.d.shell, args: this.d.shellArgs, cwd, cols: o.cols, rows: o.rows, env })

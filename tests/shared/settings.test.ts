@@ -28,4 +28,10 @@ describe('preferências', () => {
     expect(normalizeSettings({ showGitStatus: false }).showGitStatus).toBe(false)
     expect(normalizeSettings({ showGitStatus: 'não' as never }).showGitStatus).toBe(true)
   })
+  it('máximo de sessões por líder: padrão 10, entre 1 e 50', () => {
+    expect(normalizeSettings(undefined).maxHiredPerLeader).toBe(10)
+    expect(normalizeSettings({ maxHiredPerLeader: 0 }).maxHiredPerLeader).toBe(1)
+    expect(normalizeSettings({ maxHiredPerLeader: 99 }).maxHiredPerLeader).toBe(50)
+    expect(normalizeSettings({ maxHiredPerLeader: 7.4 }).maxHiredPerLeader).toBe(7)
+  })
 })

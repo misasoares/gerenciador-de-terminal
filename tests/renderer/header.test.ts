@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { gitBadges, headerView, sharesContext, tildify } from '../../src/renderer/src/header'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
+import { sessionLabel } from '../../src/renderer/src/sidebar-model'
 import type { Layout, PaneView, ProjectView } from '../../src/shared/types'
 
 const project: ProjectView = {
@@ -10,7 +11,7 @@ const project: ProjectView = {
     { path: '/r/api/.claude/worktrees/auth', head: 'b', branch: 'feat/auth', isMain: false, locked: false, prunable: false, git: { branch: 'feat/auth', upstream: null, ahead: 2, behind: 0, changed: 5, error: null } },
   ],
 }
-const pane = (over: Partial<PaneView>): PaneView => ({ id: 'p', seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
+const pane = (over: Partial<PaneView>): PaneView => ({ id: 'p', seq: 1, cwd: '/r/api', alive: true, exitCode: null, name: null, color: null, agentHooksMissing: false, leader: false, createdBy: null, accountId: null, claude: null, projectPath: '/r/api', worktreePath: '/r/api', ...over })
 const app = { projects: [project], accounts: DEFAULT_ACCOUNTS, userHome: '/Users/u' }
 
 describe('headerView', () => {
@@ -102,5 +103,15 @@ describe('sharesContext', () => {
   it('painel de arquivo na aba não desfaz o "discreto" dos terminais', () => {
     const l: Layout = { tabs: [{ id: 't', name: 't', root: { type: 'split', dir: 'row', sizes: [], children: [leaf('a'), leaf('b'), leaf('file:1')] } }], activeTabId: 't' }
     expect(sharesContext('a', l, [pane({ id: 'a' }), pane({ id: 'b' })])).toBe(true)
+  })
+})
+
+describe('líder', () => {
+  it('ganha 👑 na sidebar e no cabeçalho', () => {
+    const p = pane({ name: 'Techlead', leader: true })
+    expect(sessionLabel(p)).toBe('👑 Techlead')
+    expect(headerView(p, app).label).toBe('👑 Techlead')
+    expect(sessionLabel({ ...p, leader: false })).toBe('Techlead')
+    expect(sessionLabel(pane({ leader: true }))).toBe('👑 terminal 1')
   })
 })

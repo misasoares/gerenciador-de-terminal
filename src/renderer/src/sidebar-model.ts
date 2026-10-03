@@ -39,9 +39,11 @@ export interface ProjectItem {
 
 export function sessionLabel(p: PaneView): string {
   if (!p.alive) return `encerrado ${p.seq}`
-  if (p.name) return p.name
-  if (p.claude) return p.claude.title ?? `sessão ${p.seq}`
-  return `terminal ${p.seq}`
+  // 👑 = pode contratar sessões pelo MCP
+  const crown = p.leader ? '👑 ' : ''
+  if (p.name) return crown + p.name
+  if (p.claude) return crown + (p.claude.title ?? `sessão ${p.seq}`)
+  return `${crown}terminal ${p.seq}`
 }
 
 

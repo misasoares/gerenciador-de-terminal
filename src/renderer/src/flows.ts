@@ -111,6 +111,7 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
   const tabs = getUi().app?.layout.tabs ?? []
   const app = getUi().app
   const others = (app?.workspaces ?? []).filter((w) => w.id !== app?.workspaceId)
+  const pane = app?.panes.find((p) => p.id === s.paneId)
   const choice = await window.gt.contextMenu(
     s.alive
       ? [
@@ -123,6 +124,8 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
           { id: 'rename', label: 'Renomear…' },
           { id: 'color:', label: 'Cor: nenhuma' },
           ...SESSION_COLORS.map((c) => ({ id: `color:${c.hex}`, label: `Cor: ${c.label}` })),
+          { id: '-', label: '' },
+          { id: 'leader', label: `${pane?.leader ? '✓ ' : ''}Pode contratar sessões (líder)` },
           { id: '-', label: '' },
           { id: 'kill', label: 'Encerrar sessão…' },
         ]
@@ -137,6 +140,7 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
     setUi({ renamingPaneId: s.paneId })
   } else if (choice?.startsWith('color:')) window.gt.request({ t: 'pane.meta', paneId: s.paneId, color: choice.slice(6) || null }).catch(showError)
   else if (choice?.startsWith('tab:')) moveToTab(s.paneId, choice.slice(4))
+  else if (choice === 'leader') window.gt.request({ t: 'pane.setLeader', paneId: s.paneId, leader: !pane?.leader }).catch(showError)
   else if (choice?.startsWith('ws:')) {
     // sai do layout daqui antes: o próximo layout.save desta janela já vem sem o painel
     hidePane(s.paneId)

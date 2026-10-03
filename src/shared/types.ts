@@ -90,6 +90,10 @@ export interface PaneView {
   worktreeInferred?: boolean
   name: string | null
   color: string | null
+  /** pode contratar sessões (👑) */
+  leader: boolean
+  /** líder que criou esta sessão pelo MCP */
+  createdBy: string | null
   /** processo Codex rodando há um tempo sem mandar hooks (não aprovados no /hooks) */
   agentHooksMissing: boolean
 }
