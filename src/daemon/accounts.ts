@@ -1,5 +1,6 @@
 import path from 'node:path'
 import type { Account, AgentKind } from '../shared/types'
+import { shq } from './shell-quote'
 
 export const DEFAULT_ACCOUNTS: Account[] = [
   { agent: 'claude', id: 'misa', label: 'misa', command: 'claude', color: '#4fc1ff', configDirMatch: ['1-misasoaresms2'], isDefault: true, settingsMatch: null, pathPrefix: null },
@@ -18,11 +19,27 @@ export function detectAccount(accounts: Account[], agent: AgentKind, configDir: 
 
 const SESSION_ID_RE = /^[0-9a-f-]{8,64}$/i
 
-export function buildCommand(account: Account, resumeSessionId?: string): string {
-  if (!resumeSessionId) return account.command
-  if (!SESSION_ID_RE.test(resumeSessionId)) throw new Error(`session id inválido: ${resumeSessionId}`)
-  // Claude: --resume <id>; Codex: subcomando (codex --yolo resume <id>)
-  return account.agent === 'codex' ? `${account.command} resume ${resumeSessionId}` : `${account.command} --resume ${resumeSessionId}`
+export interface CommandExtras {
+  /** --mcp-config do Gerenciador (só Claude) */
+  mcpConfig?: string | null
+  /** -n: nome de exibição da sessão (o SendMessage acha por ele) */
+  name?: string
+  /** arquivo com o prompt inicial: vai como "$(cat …)" para aspas e quebras chegarem intactas */
+  promptFile?: string
+}
+
+export function buildCommand(account: Account, resumeSessionId?: string, extra: CommandExtras = {}): string {
+  let cmd = account.command
+  if (resumeSessionId) {
+    if (!SESSION_ID_RE.test(resumeSessionId)) throw new Error(`session id inválido: ${resumeSessionId}`)
+    // Claude: --resume <id>; Codex: subcomando (codex --yolo resume <id>)
+    cmd = account.agent === 'codex' ? `${cmd} resume ${resumeSessionId}` : `${cmd} --resume ${resumeSessionId}`
+  }
+  if (account.agent !== 'claude') return cmd
+  if (extra.mcpConfig) cmd += ` --mcp-config ${shq(extra.mcpConfig)}`
+  if (extra.name) cmd += ` -n ${shq(extra.name)}`
+  if (extra.promptFile) cmd += ` "$(cat ${shq(extra.promptFile)})"`
+  return cmd
 }
 
 /** agente usado para retomar sem conta: o padrão daquele tipo, ou o CLI puro */
