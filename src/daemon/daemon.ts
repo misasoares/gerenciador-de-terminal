@@ -369,6 +369,8 @@ export class Daemon {
       if (!r) throw new Error(`sessão não encontrada neste espaço: ${String(n ?? '')}`)
       return r
     }
+    // todas as ferramentas, inclusive listar, são só do líder
+    if (meta[caller.id]?.leader !== true) throw new Error('esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão')
     if (tool === 'listar_sessoes') {
       return inWs().map((r) => {
         const wt = this.panes.effectiveWorktree(r)
@@ -377,7 +379,6 @@ export class Daemon {
         return { nome: meta[r.id]?.name ?? `sessão ${r.seq}`, status: statusName(r), conta: r.accountId, pasta: r.cwd, branch, criadaPorMim: meta[r.id]?.createdBy === caller.id, eu: r.id === caller.id }
       })
     }
-    if (meta[caller.id]?.leader !== true) throw new Error('esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão')
     if (tool === 'renomear_sessao') {
       const r = byName(args.nome)
       const novo = uniqueDash(checkName(String(args.novo_nome ?? '')), inWs().filter((x) => x !== r).map((x) => meta[x.id]?.name ?? ''))

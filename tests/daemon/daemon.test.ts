@@ -693,6 +693,7 @@ describe('Daemon', () => {
     repo = makeRepo()
     const { o, app, leader, call } = await leaderIn(repo.dir)
     await expect(call('criar_sessao', { nome: 'dev-1' })).rejects.toThrow('esta sessão não é líder')
+    await expect(call('listar_sessoes', {})).rejects.toThrow('esta sessão não é líder')
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
     const base = repo.git('rev-parse', '--abbrev-ref', 'HEAD').trim()
     const r = await call('criar_sessao', { nome: 'dev-1', prompt: `faça "X" e 'Y'`, conta: 'weboption-max' })
