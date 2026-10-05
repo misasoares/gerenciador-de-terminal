@@ -48,6 +48,8 @@ export interface GtApi {
   revealIn(workspaceId: string, paneId: string | null): Promise<void>
   /** traz a janela flutuante do painel para a frente; false se ele não flutua */
   focusFloat(paneId: string): Promise<boolean>
+  /** esquema claro/escuro do tema efetivo (follow = automático) e fundo para janelas novas */
+  setAppearance(o: { scheme: 'light' | 'dark'; follow: boolean; bg: string }): void
   /** (flutuante) manda o pedido para a janela do espaço, trazendo-a para a frente */
   toWorkspace(cmd: WorkspaceCommand): Promise<void>
   /** (janela do espaço) pedidos vindos das flutuantes */

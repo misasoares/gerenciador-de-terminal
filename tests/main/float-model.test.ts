@@ -18,20 +18,23 @@ describe('float-model', () => {
     expect(r.update).toEqual([{ ...spec('p1', { opacity: 0.5 }), wsId: 'a' }])
   })
   it('janelas aceitam o primeiro clique (⌘+clique numa janela inativa chega ao terminal)', () => {
-    expect(floatWindowOptions({ x: 0, y: 0, width: 640, height: 400 }, false)).toMatchObject({ acceptFirstMouse: true })
+    expect(floatWindowOptions({ x: 0, y: 0, width: 640, height: 400 }, false, '#1e1e1e')).toMatchObject({ acceptFirstMouse: true })
   })
   it('mac: janela transparente para o Liquid Glass (sem vibrancy, que o borraria); linux sem vidro', () => {
     const b = { x: 0, y: 0, width: 640, height: 400 }
-    expect(floatWindowOptions(b, true)).toMatchObject({ transparent: true, backgroundColor: '#00000000' })
-    expect(floatWindowOptions(b, true)).not.toHaveProperty('vibrancy')
-    expect(floatWindowOptions(b, false)).not.toHaveProperty('vibrancy')
-    expect(floatWindowOptions(b, false)).toMatchObject({ backgroundColor: '#1e1e1e' })
+    expect(floatWindowOptions(b, true, '#1e1e1e')).toMatchObject({ transparent: true, backgroundColor: '#00000000' })
+    expect(floatWindowOptions(b, true, '#1e1e1e')).not.toHaveProperty('vibrancy')
+    expect(floatWindowOptions(b, false, '#1e1e1e')).not.toHaveProperty('vibrancy')
+    expect(floatWindowOptions(b, false, '#1e1e1e')).toMatchObject({ backgroundColor: '#1e1e1e' })
   })
   it('opacidade: no mac é do fundo (a janela fica inteira); no linux é da janela, com piso', () => {
     expect(windowOpacity(0, true)).toBe(1)
     expect(windowOpacity(0.5, true)).toBe(1)
     expect(windowOpacity(0.5, false)).toBe(0.5)
     expect(windowOpacity(0, false)).toBe(0.3)
+  })
+  it('linux: fundo da janela vem do tema (sem retângulo escuro no Claro)', () => {
+    expect(floatWindowOptions({ x: 0, y: 0, width: 640, height: 400 }, false, '#ffffff')).toMatchObject({ backgroundColor: '#ffffff' })
   })
   it('fitBounds: fora de qualquer monitor volta ao padrão', () => {
     const screen = { x: 0, y: 0, width: 1440, height: 900 }
@@ -45,7 +48,7 @@ describe('float-model', () => {
     expect(floatHome({ x: 0, y: 0, width: 1440, height: 900 }, { x: 0, y: 0, width: 1440, height: 900 }, 0)).toEqual({ x: 776, y: 24, width: 640, height: 400 })
   })
   it('janela flutuante nunca vira tela cheia (sem moldura não teria como sair)', () => {
-    const o = floatWindowOptions({ x: 1, y: 2, width: 640, height: 400 }, true)
+    const o = floatWindowOptions({ x: 1, y: 2, width: 640, height: 400 }, true, '#1e1e1e')
     expect(o).toMatchObject({ x: 1, y: 2, width: 640, height: 400, frame: false, fullscreenable: false, minWidth: 320, minHeight: 180 })
   })
 })

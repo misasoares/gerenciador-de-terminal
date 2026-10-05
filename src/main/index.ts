@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, Notification, shell } from 'electron'
 import os from 'node:os'
 import path from 'node:path'
 import type { ClientRequest } from '../shared/protocol'
@@ -183,6 +183,11 @@ ipcMain.handle('gt:openWorkspaces', async (e, ids: string[]) => {
   if (manager.isChooser(e)) manager.closeChooser()
 })
 ipcMain.handle('gt:focusFloat', (_e, paneId: string) => manager.focusFloat(paneId))
+// tema do app: elementos nativos (rolagem, players, pdf, vidro) no mesmo esquema; janelas novas com o fundo do tema
+ipcMain.on('gt:appearance', (_e, o: { scheme: 'light' | 'dark'; follow: boolean; bg: string }) => {
+  nativeTheme.themeSource = o.follow ? 'system' : o.scheme
+  if (/^#[0-9a-f]{6}$/i.test(o.bg)) manager.background = o.bg
+})
 ipcMain.handle('gt:toWorkspace', (e, cmd: WorkspaceCommand) => manager.toWorkspace(e, cmd))
 ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
   if (paneId) await manager.reveal(workspaceId, paneId)

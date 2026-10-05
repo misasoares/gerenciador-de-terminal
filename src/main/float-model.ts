@@ -41,9 +41,9 @@ export function floatHome(workspaceWin: Bounds | null, screen: Bounds, n: number
  * mac: janela transparente para o Liquid Glass (glass.ts) ficar por trás — o borrão do que está embaixo; o renderer
  * põe o fundo com a opacidade escolhida por cima dele. Sem vibrancy: ela cobriria o vidro e borraria demais.
  */
-export function floatWindowOptions(bounds: Bounds, mac: boolean) {
+export function floatWindowOptions(bounds: Bounds, mac: boolean, bg: string) {
   const base = { ...bounds, minWidth: 320, minHeight: 180, frame: false, fullscreenable: false, acceptFirstMouse: true }
-  return mac ? { ...base, transparent: true, backgroundColor: '#00000000' } : { ...base, backgroundColor: '#1e1e1e' }
+  return mac ? { ...base, transparent: true, backgroundColor: '#00000000' } : { ...base, backgroundColor: bg }
 }
 
 /** linux não tem vidro: a opacidade vale para a janela inteira, com piso para não sumir */

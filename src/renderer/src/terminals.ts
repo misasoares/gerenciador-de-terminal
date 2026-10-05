@@ -6,7 +6,7 @@ import { fileLinkProvider } from './file-link-provider'
 import '@xterm/xterm/css/xterm.css'
 import { decideKey, SHIFT_ENTER_SEQUENCE } from './keys'
 import { setUi } from './store'
-import { DEFAULT_SETTINGS, type TerminalSettings } from '../../shared/settings'
+import { DEFAULT_SETTINGS, type TerminalSettings, type ThemeId } from '../../shared/settings'
 import { THEMES } from './themes'
 import { GLASS } from './view'
 import { acceptData } from './seq'
@@ -34,9 +34,11 @@ const BASE_OPTIONS = {
   allowProposedApi: true,
 }
 let current: TerminalSettings = DEFAULT_SETTINGS
+/** tema de terminal efetivo (o par do tema do app ou o fixado), resolvido em appearance.ts */
+let currentTerminal: ThemeId = 'vscode-dark'
 
-function optionsFor(s: TerminalSettings) {
-  const theme = THEMES[s.terminalTheme === 'match' ? 'vscode-dark' : s.terminalTheme].xterm
+function optionsFor(s: TerminalSettings, terminal: ThemeId) {
+  const theme = THEMES[terminal].xterm
   // flutuante com vidro: o fundo vem do CSS (translúcido); o terminal não pinta o dele
   if (GLASS) return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme: { ...theme, background: '#00000000' }, allowTransparency: true }
   return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme }
@@ -52,11 +54,12 @@ class TerminalRegistry {
     return true
   }
 
-  applySettings(s: TerminalSettings): void {
+  applySettings(s: TerminalSettings, terminal: ThemeId): void {
     current = s
-    document.documentElement.style.setProperty('--term-bg', THEMES[s.terminalTheme === 'match' ? 'vscode-dark' : s.terminalTheme].xterm.background ?? '#1e1e1e')
+    currentTerminal = terminal
+    document.documentElement.style.setProperty('--term-bg', THEMES[terminal].xterm.background ?? '#1e1e1e')
     for (const [id, e] of this.entries) {
-      Object.assign(e.term.options, optionsFor(s))
+      Object.assign(e.term.options, optionsFor(s, terminal))
       this.fit(id)
     }
   }
@@ -116,7 +119,7 @@ class TerminalRegistry {
     if (found) return found
     const el = document.createElement('div')
     el.className = 'term-host'
-    const term = new Terminal({ ...BASE_OPTIONS, ...optionsFor(current) })
+    const term = new Terminal({ ...BASE_OPTIONS, ...optionsFor(current, currentTerminal) })
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.loadAddon(new WebLinksAddon((_ev, uri) => void window.gt.openExternal(uri)))

@@ -50,6 +50,8 @@ export class WindowManager {
   /** resumo mais recente de todos os espaços (vem da conexão de serviço) */
   summary: WorkspaceSummary[] = []
   askOnClose = true
+  /** fundo das janelas novas: o do tema efetivo (o renderer avisa por gt:appearance) */
+  background = '#1e1e1e'
   /** encerrando o app: as janelas fecham sem perguntar e os espaços continuam "abertos" para a próxima vez */
   quitting = false
 
@@ -116,7 +118,7 @@ export class WindowManager {
     const win = new BrowserWindow({
       width: 1440,
       height: 900,
-      backgroundColor: '#1e1e1e',
+      backgroundColor: this.background,
       // ⌘+clique vindo da flutuante: no mac a janela inativa não ativa e, sem isso, o clique se perde
       acceptFirstMouse: true,
       title: `${TITLE} — ${this.nameOf(id)}`,
@@ -172,7 +174,7 @@ export class WindowManager {
       width: 480,
       height: 420,
       resizable: false,
-      backgroundColor: '#1e1e1e',
+      backgroundColor: this.background,
       title: 'Reabrir espaços de trabalho',
       webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
     })
@@ -292,7 +294,7 @@ export class WindowManager {
     const home = floatHome(wsWin && !wsWin.isDestroyed() ? wsWin.getBounds() : null, screen.getPrimaryDisplay().workArea, n)
     const bounds = fitBounds(f.bounds, screen.getAllDisplays().map((d) => d.workArea), home)
     const win = new BrowserWindow({
-      ...floatWindowOptions(bounds, process.platform === 'darwin'),
+      ...floatWindowOptions(bounds, process.platform === 'darwin', this.background),
       title: `${TITLE} — flutuante`,
       webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false, plugins: true }, // plugins: visualizador de PDF do painel de arquivo
     })

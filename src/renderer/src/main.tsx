@@ -14,7 +14,11 @@ import { mergeIncomingLayout } from './workspaces-model'
 import { ReopenWorkspaces } from './components/ReopenWorkspaces'
 import { FloatView } from './components/FloatView'
 import { FLOAT_PANE } from './view'
+import { applyAppearance, initAppearance } from './appearance'
 import './styles.css'
+
+// antes de tudo: pinta o último tema (sem piscar), inclusive na tela de reabrir
+initAppearance()
 
 let seenFirstState = false
 const sentNotices = new Map<string, number>()
@@ -83,7 +87,7 @@ function bootWorkspace(): void {
             : e.state,
           connected: true,
         }))
-        if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) terminals.applySettings(e.state.settings)
+        if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) applyAppearance(e.state.settings)
         if (JSON.stringify(e.state.settings.keybindings) !== JSON.stringify(prev?.settings.keybindings)) syncKeybindings(e.state.settings.keybindings)
         onStateArrived(prev?.panes ?? null)
         break
@@ -118,7 +122,7 @@ function bootWorkspace(): void {
     .request<AppState>({ t: 'state.get' })
     .then((app) => {
       setUi((s) => ({ app: s.app ?? app, connected: true }))
-      terminals.applySettings(getUi().app?.settings ?? app.settings)
+      applyAppearance(getUi().app?.settings ?? app.settings)
       syncKeybindings((getUi().app?.settings ?? app.settings).keybindings)
       // instalação nova: sem agentes, abre o assistente
       if ((getUi().app?.accounts ?? app.accounts).length === 0) setUi({ modal: { kind: 'setup' } })
@@ -135,7 +139,7 @@ function bootFloat(paneId: string): void {
       case 'state': {
         const prev = getUi().app
         setUi({ app: e.state, connected: true })
-        if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) terminals.applySettings(e.state.settings)
+        if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) applyAppearance(e.state.settings)
         break
       }
       case 'pane.data':
@@ -159,7 +163,7 @@ function bootFloat(paneId: string): void {
     .request<AppState>({ t: 'state.get' })
     .then((app) => {
       setUi((s) => ({ app: s.app ?? app, connected: true }))
-      terminals.applySettings(getUi().app?.settings ?? app.settings)
+      applyAppearance(getUi().app?.settings ?? app.settings)
     })
     .catch(showError)
 }
