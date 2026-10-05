@@ -45,6 +45,7 @@ const manager = new WindowManager({
 
 function onSummary(list: WorkspaceSummary[], askOnClose: boolean): void {
   manager.summary = list
+  manager.syncFloats(list)
   manager.askOnClose = askOnClose
   app.dock?.setBadge(badgeTotal(list))
   const key = JSON.stringify(list.map((w) => [w.id, w.name, w.open]))
@@ -180,6 +181,7 @@ ipcMain.handle('gt:openWorkspaces', async (e, ids: string[]) => {
   for (const id of ids) await manager.open(id)
   if (manager.isChooser(e)) manager.closeChooser()
 })
+ipcMain.handle('gt:focusFloat', (_e, paneId: string) => manager.focusFloat(paneId))
 ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
   if (paneId) await manager.reveal(workspaceId, paneId)
   else await manager.open(workspaceId)

@@ -63,6 +63,7 @@ export function menuTemplate(o: MenuOptions): MenuItemConstructorOptions[] {
         item('split-right'),
         item('split-down'),
         item('hide-pane'),
+        item('toggle-float'),
         item('next-attention'),
         item('palette'),
         { type: 'separator' },

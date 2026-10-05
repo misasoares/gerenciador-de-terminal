@@ -35,6 +35,7 @@ const api: GtApi = {
   openWorkspaces: (ids: string[]) => ipcRenderer.invoke('gt:openWorkspaces', ids),
   createWorkspace: (name: string) => ipcRenderer.invoke('gt:createWorkspace', name),
   revealIn: (workspaceId: string, paneId: string | null) => ipcRenderer.invoke('gt:revealIn', workspaceId, paneId),
+  focusFloat: (paneId: string) => ipcRenderer.invoke('gt:focusFloat', paneId),
 }
 
 contextBridge.exposeInMainWorld('gt', api)

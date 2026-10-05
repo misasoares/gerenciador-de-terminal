@@ -53,4 +53,10 @@ describe('menuTemplate', () => {
     const dock = dockTemplate({ workspaces, openWorkspace: (id) => opened.push(id), newWorkspace: () => sent.push('new-workspace') })
     expect(dock.map((i) => i.label)).toEqual(['TCHEERP', 'Pessoal', undefined, 'Novo espaço de trabalho…'])
   })
+  it('Flutuar / encaixar no menu Sessão: ⇧⌘F no mac, Ctrl+Shift+F no Linux', () => {
+    expect(accelOf(build('mac'), 'Flutuar / encaixar painel')).toBe('Cmd+Shift+F')
+    expect(accelOf(build('linux'), 'Flutuar / encaixar painel')).toBe('Ctrl+Shift+F')
+    const sessao = menuTemplate({ send: () => {}, quitAll: () => {}, platform: 'mac', bindings: resolveBindings('mac', {}) }).find((m) => m.label === 'Sessão')!
+    expect((sessao.submenu as MenuItemConstructorOptions[]).some((i) => i.label === 'Flutuar / encaixar painel')).toBe(true)
+  })
 })
