@@ -101,6 +101,7 @@
         "libatspi2.0-0",
         "libuuid1",
         "libsecret-1-0",
+        "libasound2 | libasound2t64",
         "git",
         "netcat-openbsd",
         "procps"
@@ -116,6 +117,7 @@
         "xdg-utils",
         "at-spi2-core",
         "(libuuid or libuuid1)",
+        "alsa-lib",
         "git",
         "nmap-ncat",
         "procps-ng"
