@@ -20,9 +20,10 @@ describe('float-model', () => {
   it('janelas aceitam o primeiro clique (⌘+clique numa janela inativa chega ao terminal)', () => {
     expect(floatWindowOptions({ x: 0, y: 0, width: 640, height: 400 }, false)).toMatchObject({ acceptFirstMouse: true })
   })
-  it('mac: vidro sempre ativo por trás (mesmo sem foco) e fundo da janela transparente; linux sem vidro', () => {
+  it('mac: janela transparente para o Liquid Glass (sem vibrancy, que o borraria); linux sem vidro', () => {
     const b = { x: 0, y: 0, width: 640, height: 400 }
-    expect(floatWindowOptions(b, true)).toMatchObject({ vibrancy: 'under-window', visualEffectState: 'active', backgroundColor: '#00000000' })
+    expect(floatWindowOptions(b, true)).toMatchObject({ transparent: true, backgroundColor: '#00000000' })
+    expect(floatWindowOptions(b, true)).not.toHaveProperty('vibrancy')
     expect(floatWindowOptions(b, false)).not.toHaveProperty('vibrancy')
     expect(floatWindowOptions(b, false)).toMatchObject({ backgroundColor: '#1e1e1e' })
   })

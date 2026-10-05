@@ -55,7 +55,8 @@
       "package.json"
     ],
     "asarUnpack": [
-      "node_modules/node-pty/**"
+      "node_modules/node-pty/**",
+      "node_modules/electron-liquid-glass/**"
     ],
     "mac": {
       "target": "dir",
@@ -124,5 +125,8 @@
       ]
     }
   },
-  "author": "misasoares"
+  "author": "misasoares",
+  "optionalDependencies": {
+    "electron-liquid-glass": "^1.1.1"
+  }
 }

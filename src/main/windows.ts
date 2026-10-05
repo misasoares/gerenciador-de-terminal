@@ -3,6 +3,7 @@ import path from 'node:path'
 import type { WorkspaceCommand } from '../shared/bridge'
 import type { FloatSpec, WorkspaceSummary } from '../shared/types'
 import { fitBounds, floatHome, floatWindowOptions, syncFloats, windowOpacity } from './float-model'
+import { applyGlass, type GlassLib } from './glass'
 import { DaemonLink } from './daemon-link'
 import { NotifyKeeper } from './notify-keeper'
 import { closeDialogText, closedNoticeText } from './workspaces-model'
@@ -327,6 +328,13 @@ export class WindowManager {
       if (this.floats.get(f.paneId) === entry) this.floats.delete(f.paneId)
     })
     this.load(win, { view: 'float', ws: wsId, pane: f.paneId })
+    // mac: Liquid Glass atrás do conteúdo; se o módulo não carregar, o vidro clássico
+    if (process.platform === 'darwin') {
+      win.webContents.once('did-finish-load', () => {
+        if (win.isDestroyed()) return
+        if (!applyGlass(win, () => require('electron-liquid-glass') as GlassLib)) win.setVibrancy('under-window')
+      })
+    }
     void link.start().catch(() => {})
   }
 
