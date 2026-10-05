@@ -88,9 +88,11 @@ export async function handleMessage(raw: unknown, call: CallDaemon): Promise<obj
   }
 }
 
-export function serveLines(input: NodeJS.ReadableStream, output: NodeJS.WritableStream, call: CallDaemon): void {
+/** onEnd: a entrada fechou (o Claude saiu) — o processo deve encerrar para não ficar órfão */
+export function serveLines(input: NodeJS.ReadableStream, output: NodeJS.WritableStream, call: CallDaemon, onEnd: () => void = () => {}): void {
   let buf = ''
   input.setEncoding?.('utf8')
+  input.on('end', onEnd)
   input.on('data', (chunk: string | Buffer) => {
     buf += String(chunk)
     let i: number

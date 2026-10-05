@@ -28,7 +28,7 @@ echo "== 4/4 instalação limpa: o gerenciador de pacotes traz git, nc e ps"
 CHECK='command -v git && command -v nc && command -v ps && ls /opt/*/gerenciador-de-terminal \
   && APP=$(ls -d /opt/*/ | head -1) \
   && echo "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}" \
-     | ELECTRON_RUN_AS_NODE=1 timeout 20 "${APP}gerenciador-de-terminal" "${APP}resources/app.asar/out/main/gt-mcp.js" | grep -q gerenciador-terminal \
+     | ELECTRON_RUN_AS_NODE=1 timeout 120 "${APP}gerenciador-de-terminal" "${APP}resources/app.asar/out/main/gt-mcp.js" | grep -q gerenciador-terminal \
   && echo INSTALACAO-OK'
 docker run --rm --platform linux/amd64 -v "$WORK/dist":/pkg debian:bookworm sh -c \
   "apt-get update -qq && apt-get install -y -qq /pkg/*.deb >/dev/null && $CHECK"

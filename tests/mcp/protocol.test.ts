@@ -47,4 +47,14 @@ describe('gt-mcp: protocolo', () => {
     await new Promise((r) => setTimeout(r, 50))
     expect(JSON.parse(lines[0]).result.tools).toHaveLength(4)
   })
+  it('stdio: quando a entrada fecha (o Claude saiu), avisa para o processo encerrar', async () => {
+    const input = new PassThrough()
+    let ended = false
+    serveLines(input, new PassThrough(), noCall, () => {
+      ended = true
+    })
+    input.end()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(ended).toBe(true)
+  })
 })
