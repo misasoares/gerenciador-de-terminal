@@ -10,8 +10,10 @@ export interface SessionItem {
   cwd: string
   /** número (1-based) da aba em que o painel aparece; null = fora da tela */
   tab: number | null
-  /** vivo mas fora de qualquer aba */
+  /** vivo mas fora de qualquer aba (e não flutuando) */
   hidden: boolean
+  /** numa janela flutuante (⧉) */
+  floating: boolean
   color: string | null
 }
 
@@ -52,7 +54,8 @@ export function buildSidebar(app: AppState): { projects: ProjectItem[]; outside:
   app.layout.tabs.forEach((t, i) => leaves(t.root).forEach((id) => tabOf.set(id, i + 1)))
   const toItem = (p: PaneView): SessionItem => {
     const tab = tabOf.get(p.id) ?? null
-    return { paneId: p.id, label: sessionLabel(p), status: p.claude?.status ?? 'shell', alive: p.alive, cwd: p.cwd, tab, hidden: p.alive && tab === null, color: p.color }
+    const floating = app.floating.includes(p.id)
+    return { paneId: p.id, label: sessionLabel(p), status: p.claude?.status ?? 'shell', alive: p.alive, cwd: p.cwd, tab, hidden: p.alive && tab === null && !floating, floating, color: p.color }
   }
   const used = new Set<string>()
   const projects = app.projects.map((p): ProjectItem => {

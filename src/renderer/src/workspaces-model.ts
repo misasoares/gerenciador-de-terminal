@@ -27,9 +27,10 @@ export function reopenRows(list: WorkspaceSummary[]): ReopenRow[] {
  *   somem da lista mas continuam no layout dele, para retomar → nada sai.)
  * Broadcast atrasado com painel que o usuário acabou de esconder não o traz de volta; painel de arquivo nunca conta.
  */
-export function mergeIncomingLayout(local: Layout, incoming: Layout, prevPaneIds: Set<string>, nextPaneIds: Set<string>): Layout {
+export function mergeIncomingLayout(local: Layout, incoming: Layout, prevPaneIds: Set<string>, nextPaneIds: Set<string>, docked: Set<string> = new Set()): Layout {
   const mine = new Set(local.tabs.flatMap((t) => leaves(t.root)))
-  const arrived = (id: string) => !mine.has(id) && nextPaneIds.has(id) && !prevPaneIds.has(id)
+  // chegou: sessão nova neste espaço, ou painel que acabou de sair das flutuantes (encaixe)
+  const arrived = (id: string) => !mine.has(id) && ((nextPaneIds.has(id) && !prevPaneIds.has(id)) || docked.has(id))
   if (incoming.tabs.some((t) => leaves(t.root).some(arrived))) return incoming
   const theirs = new Set(incoming.tabs.flatMap((t) => leaves(t.root)))
   const departed = [...mine].filter((id) => prevPaneIds.has(id) && !nextPaneIds.has(id) && !theirs.has(id))

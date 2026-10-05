@@ -49,4 +49,10 @@ describe('workspaces-model (renderer)', () => {
     const local = { tabs: [{ id: 't', name: 'A', root: { type: 'split' as const, dir: 'row' as const, sizes: [], children: [leaf('a'), leaf('b')] } }], activeTabId: 't' }
     expect(mergeIncomingLayout(local, local, new Set(['a', 'b']), new Set())).toBe(local)
   })
+  it('encaixe: folha do daemon para painel que saiu das flutuantes entra', () => {
+    const local = { tabs: [{ id: 't', name: 'A', root: leaf('a') }], activeTabId: 't' }
+    const docked = { tabs: [{ id: 't', name: 'A', root: { type: 'split' as const, dir: 'row' as const, sizes: [], children: [leaf('a'), leaf('f')] } }], activeTabId: 't' }
+    expect(mergeIncomingLayout(local, docked, new Set(['a', 'f']), new Set(['a', 'f']), new Set(['f']))).toBe(docked)
+    expect(mergeIncomingLayout(local, docked, new Set(['a', 'f']), new Set(['a', 'f']))).toBe(local)
+  })
 })

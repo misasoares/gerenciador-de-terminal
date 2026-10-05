@@ -59,4 +59,10 @@ describe('splitWorktrees', () => {
     expect(r.visible.map((w) => w.path)).toEqual(['main', 'dev2', 'gate'])
     expect(r.hidden.map((w) => w.path)).toEqual(['dev1', 'velha'])
   })
+  it('flutuante: ⧉ em vez de oculta', () => {
+    const m = buildSidebar({ ...app, floating: ['p3'] })
+    const main = m.projects[0].worktrees[0]
+    expect(main.sessions.find((s) => s.paneId === 'p3')).toMatchObject({ floating: true, hidden: false })
+    expect(main.sessions.find((s) => s.paneId === 'p1')).toMatchObject({ floating: false, hidden: true })
+  })
 })
