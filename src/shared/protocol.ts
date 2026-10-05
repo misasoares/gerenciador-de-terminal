@@ -39,7 +39,7 @@ export type ClientRequest =
   | { t: 'resume.dismiss'; paneId: string }
   | { t: 'daemon.shutdown' }
   | { t: 'float.set'; paneId: string; mode: 'float' | 'dock' | 'hide' }
-  | { t: 'float.prefs'; paneId: string; bounds?: Bounds | null; onTop?: boolean; allDesks?: boolean }
+  | { t: 'float.prefs'; paneId: string; bounds?: Bounds | null; onTop?: boolean; allDesks?: boolean; opacity?: number }
   | { t: 'pane.setLeader'; paneId: string; leader: boolean }
   | { t: 'mcp.call'; callerPaneId: string; tool: string; args: Record<string, unknown> }
   | { t: 'workspace.create'; name: string }

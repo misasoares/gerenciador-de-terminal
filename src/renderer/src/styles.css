@@ -324,6 +324,17 @@ button.link:hover { background: none; text-decoration: underline; }
 .float-controls { display: flex; gap: 2px; flex-shrink: 0; -webkit-app-region: no-drag; }
 .float-controls button { background: none; padding: 2px 5px; opacity: 0.45; }
 @container (max-width: 440px) { .float-dim { display: none; } }
+.float-opacity { position: fixed; top: 34px; right: 6px; z-index: 50; display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-bar); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); -webkit-app-region: no-drag; }
+.float-opacity input { width: 120px; }
+/* vidro (mac): só o fundo fica translúcido, o vidro do sistema borra o que está atrás; texto inteiro */
+html.glass, html.glass body, html.glass #root { background: transparent; }
+html.glass .float-root { background: rgb(from var(--term-bg, var(--bg)) r g b / var(--glass-alpha, 1)); }
+html.glass .float-header, html.glass .file-header.float-drag { background: rgb(from var(--bg-bar) r g b / var(--glass-alpha, 1)); }
+html.glass .float-body, html.glass .float-body .pane, html.glass .term-container, html.glass .xterm .xterm-viewport, html.glass .xterm .xterm-screen { background: transparent !important; }
+html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !important; }
+/* a barra nativa do viewport sobra (o xterm 6 desenha a dele) e no mac aparece como faixa clara */
+.float-root .xterm .xterm-viewport { scrollbar-width: none; }
+.float-opacity-val { min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--fg-dim); font-size: 11.5px; }
 .float-controls button:hover { background: var(--bg-hover); opacity: 1; }
 .float-controls button.on { opacity: 1; }
 .float-body { flex: 1; min-height: 0; display: flex; }

@@ -628,6 +628,7 @@ export class Daemon {
         if (req.bounds !== undefined) f.bounds = req.bounds
         if (req.onTop !== undefined) f.onTop = req.onTop
         if (req.allDesks !== undefined) f.allDesks = req.allDesks
+        if (req.opacity !== undefined && Number.isFinite(req.opacity)) f.opacity = Math.min(1, Math.max(0, req.opacity))
         this.persisted.paneMeta[req.paneId] = { ...cur, float: f }
         this.changed()
         return null

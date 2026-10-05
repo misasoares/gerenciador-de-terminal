@@ -8,6 +8,7 @@ import { decideKey, SHIFT_ENTER_SEQUENCE } from './keys'
 import { setUi } from './store'
 import { DEFAULT_SETTINGS, type TerminalSettings } from '../../shared/settings'
 import { THEMES } from './themes'
+import { GLASS } from './view'
 import { acceptData } from './seq'
 import { PendingFocus } from './pending-focus'
 
@@ -35,7 +36,10 @@ const BASE_OPTIONS = {
 let current: TerminalSettings = DEFAULT_SETTINGS
 
 function optionsFor(s: TerminalSettings) {
-  return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme: THEMES[s.theme].xterm }
+  const theme = THEMES[s.theme].xterm
+  // flutuante com vidro: o fundo vem do CSS (translúcido); o terminal não pinta o dele
+  if (GLASS) return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme: { ...theme, background: '#00000000' }, allowTransparency: true }
+  return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme }
 }
 
 class TerminalRegistry {

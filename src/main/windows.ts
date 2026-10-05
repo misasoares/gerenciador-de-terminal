@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, Notification, screen, type IpcMainEvent, type Ip
 import path from 'node:path'
 import type { WorkspaceCommand } from '../shared/bridge'
 import type { FloatSpec, WorkspaceSummary } from '../shared/types'
-import { fitBounds, floatHome, floatWindowOptions, syncFloats } from './float-model'
+import { fitBounds, floatHome, floatWindowOptions, syncFloats, windowOpacity } from './float-model'
 import { DaemonLink } from './daemon-link'
 import { NotifyKeeper } from './notify-keeper'
 import { closeDialogText, closedNoticeText } from './workspaces-model'
@@ -263,7 +263,7 @@ export class WindowManager {
     else w.webContents.send('gt:wsCommand', cmd)
   }
 
-  /** o resumo do daemon manda: abre as flutuantes que faltam, fecha as que saíram, aplica 📌/🌐 */
+  /** o resumo do daemon manda: abre as flutuantes que faltam, fecha as que saíram, aplica 📌/🌐/◐ */
   syncFloats(summary: WorkspaceSummary[]): void {
     const r = syncFloats(summary, this.active, new Map([...this.floats].map(([k, v]) => [k, v.spec])))
     for (const id of r.close) {
@@ -276,7 +276,7 @@ export class WindowManager {
       const cur = this.floats.get(f.paneId)
       if (!cur) continue
       cur.spec = f
-      applyLevel(cur.win, f)
+      applyPrefs(cur.win, f)
     }
     const fresh = new Map<string, number>()
     for (const f of r.open) {
@@ -291,11 +291,11 @@ export class WindowManager {
     const home = floatHome(wsWin && !wsWin.isDestroyed() ? wsWin.getBounds() : null, screen.getPrimaryDisplay().workArea, n)
     const bounds = fitBounds(f.bounds, screen.getAllDisplays().map((d) => d.workArea), home)
     const win = new BrowserWindow({
-      ...floatWindowOptions(bounds),
+      ...floatWindowOptions(bounds, process.platform === 'darwin'),
       title: `${TITLE} — flutuante`,
       webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
     })
-    applyLevel(win, f)
+    applyPrefs(win, f)
     const link = new DaemonLink({
       socketPath: this.o.socketPath,
       daemonScript: this.o.daemonScript,
@@ -356,8 +356,9 @@ export class WindowManager {
   }
 }
 
-/** 📌 por cima de tudo; 🌐 em todas as mesas (com nível acima de apps em tela cheia) */
-function applyLevel(win: BrowserWindow, f: FloatSpec): void {
+/** 📌 por cima de tudo; 🌐 em todas as mesas (com nível acima de apps em tela cheia); ◐ opacidade (só linux; no mac é o fundo, no renderer) */
+function applyPrefs(win: BrowserWindow, f: FloatSpec): void {
   win.setAlwaysOnTop(f.onTop, f.allDesks ? 'screen-saver' : 'floating')
   win.setVisibleOnAllWorkspaces(f.allDesks, { visibleOnFullScreen: true })
+  win.setOpacity(windowOpacity(f.opacity, process.platform === 'darwin'))
 }

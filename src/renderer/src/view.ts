@@ -3,3 +3,5 @@ const q = new URLSearchParams(typeof location === 'undefined' ? '' : location.se
 export const VIEW = q.get('view')
 /** painel mostrado por esta janela flutuante (null fora dela) */
 export const FLOAT_PANE = VIEW === 'float' ? q.get('pane') : null
+/** flutuante no mac: fundo translúcido sobre o vidro do sistema (borrão do que está atrás) */
+export const GLASS = FLOAT_PANE !== null && typeof window !== 'undefined' && window.gt?.platform === 'darwin'

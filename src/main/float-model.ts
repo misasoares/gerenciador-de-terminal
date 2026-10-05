@@ -1,7 +1,7 @@
 import type { Bounds, FloatSpec, WorkspaceSummary } from '../shared/types'
 
 type Placed = FloatSpec & { wsId: string }
-const same = (a: FloatSpec, b: FloatSpec) => a.onTop === b.onTop && a.allDesks === b.allDesks
+const same = (a: FloatSpec, b: FloatSpec) => a.onTop === b.onTop && a.allDesks === b.allDesks && a.opacity === b.opacity
 
 /** o resumo do daemon manda; só espaços ativados nesta execução mostram flutuantes */
 export function syncFloats(summary: WorkspaceSummary[], activeWs: Set<string>, openNow: Map<string, FloatSpec>) {
@@ -38,7 +38,20 @@ export function floatHome(workspaceWin: Bounds | null, screen: Bounds, n: number
  * Opções da janela flutuante. fullscreenable: false — sem moldura não há como sair da tela cheia, e o macOS
  * a punha numa mesa própria ao arrastá-la para outra mesa estando sobre um app em tela cheia.
  * acceptFirstMouse: no mac o ⌘+clique numa janela inativa não a ativa e, sem isso, o clique se perde.
+ * mac: vidro do sistema por trás (borrão do que está embaixo), ativo mesmo sem foco; o renderer põe o fundo
+ * com a opacidade escolhida por cima dele.
  */
-export function floatWindowOptions(bounds: Bounds) {
-  return { ...bounds, minWidth: 320, minHeight: 180, frame: false, fullscreenable: false, acceptFirstMouse: true, backgroundColor: '#1e1e1e' }
+export function floatWindowOptions(bounds: Bounds, mac: boolean) {
+  const base = { ...bounds, minWidth: 320, minHeight: 180, frame: false, fullscreenable: false, acceptFirstMouse: true }
+  return mac
+    ? { ...base, vibrancy: 'under-window' as const, visualEffectState: 'active' as const, backgroundColor: '#00000000' }
+    : { ...base, backgroundColor: '#1e1e1e' }
+}
+
+/** linux não tem vidro: a opacidade vale para a janela inteira, com piso para não sumir */
+const LINUX_MIN_OPACITY = 0.3
+
+/** opacidade da janela: no mac fica inteira (a opacidade é só do fundo, sobre o vidro) */
+export function windowOpacity(opacity: number, mac: boolean): number {
+  return mac ? 1 : Math.max(LINUX_MIN_OPACITY, opacity)
 }

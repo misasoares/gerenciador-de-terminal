@@ -156,11 +156,14 @@ export interface FloatPrefs {
   onTop: boolean
   /** em todas as mesas (🌐) */
   allDesks: boolean
+  /** opacidade do fundo (◐), de 0 a 1: no mac sobre o vidro (o texto fica inteiro); no linux, da janela */
+  opacity: number
 }
 
 export type FloatSpec = { paneId: string } & FloatPrefs
 
-export const DEFAULT_FLOAT: FloatPrefs = { bounds: null, onTop: true, allDesks: false }
+export const DEFAULT_FLOAT: FloatPrefs = { bounds: null, onTop: true, allDesks: false, opacity: 1 }
+
 
 export interface WorkspaceSummary {
   id: string
