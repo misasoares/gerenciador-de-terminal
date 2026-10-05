@@ -14,6 +14,12 @@ export interface MenuItemSpec {
   enabled?: boolean
 }
 
+/** pedido da janela flutuante para a janela do espaço dela */
+export type WorkspaceCommand =
+  | { t: 'menu'; action: string }
+  | { t: 'open-file'; path: string; line: number | null }
+  | { t: 'pick-file'; root: string }
+
 export interface GtApi {
   request<T = unknown>(req: ClientRequest): Promise<T>
   send(req: ClientRequest): void
@@ -42,4 +48,8 @@ export interface GtApi {
   revealIn(workspaceId: string, paneId: string | null): Promise<void>
   /** traz a janela flutuante do painel para a frente; false se ele não flutua */
   focusFloat(paneId: string): Promise<boolean>
+  /** (flutuante) manda o pedido para a janela do espaço, trazendo-a para a frente */
+  toWorkspace(cmd: WorkspaceCommand): Promise<void>
+  /** (janela do espaço) pedidos vindos das flutuantes */
+  onWorkspaceCommand(cb: (cmd: WorkspaceCommand) => void): () => void
 }

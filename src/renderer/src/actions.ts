@@ -251,10 +251,12 @@ export async function hideFloat(paneId: string): Promise<void> {
 }
 
 export function runMenuAction(action: string): void {
-  // janela flutuante: ⌘W esconde, ⇧⌘F encaixa; o resto das ações de grade não se aplica
+  // janela flutuante: ⌘W esconde, ⇧⌘F encaixa; o resto vai para a janela do espaço (aqui não há grade nem modais)
   if (FLOAT_PANE) {
     if (action === 'hide-pane') void hideFloat(FLOAT_PANE)
     else if (action === 'toggle-float') dockFloat(FLOAT_PANE)
+    else if (action === 'open-file') openFilePicker()
+    else void window.gt.toWorkspace({ t: 'menu', action }).catch(showError)
     return
   }
   if (action === 'toggle-float') {
@@ -310,6 +312,8 @@ export const dirtyFiles = new Set<string>()
 export const pendingLine = new Map<string, number>()
 
 export async function openFile(path: string, o: { line?: number | null; besideId?: string | null } = {}): Promise<void> {
+  // na flutuante o arquivo abre na grade da janela do espaço
+  if (FLOAT_PANE) return window.gt.toWorkspace({ t: 'open-file', path, line: o.line ?? null }).catch(showError)
   const app = getUi().app
   if (!app) return
   const open = findFilePane(app.filePanes, app.layout, path)
@@ -338,5 +342,7 @@ export async function requestCloseFile(id: string): Promise<void> {
 export function openFilePicker(root?: string): void {
   const app = getUi().app
   if (!app) return
-  setUi({ modal: { kind: 'file-picker', root: root ?? pickerRoot(app, getUi().focusedPaneId) } })
+  const r = root ?? pickerRoot(app, getUi().focusedPaneId)
+  if (FLOAT_PANE) void window.gt.toWorkspace({ t: 'pick-file', root: r }).catch(showError)
+  else setUi({ modal: { kind: 'file-picker', root: r } })
 }

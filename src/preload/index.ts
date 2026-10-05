@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { BridgeEvent, ClientRequest } from '../shared/protocol'
-import type { ConfirmOptions, GtApi, MenuItemSpec } from '../shared/bridge'
+import type { ConfirmOptions, GtApi, MenuItemSpec, WorkspaceCommand } from '../shared/bridge'
 
 const api: GtApi = {
   request: (req: ClientRequest) => ipcRenderer.invoke('gt:request', req),
@@ -36,6 +36,12 @@ const api: GtApi = {
   createWorkspace: (name: string) => ipcRenderer.invoke('gt:createWorkspace', name),
   revealIn: (workspaceId: string, paneId: string | null) => ipcRenderer.invoke('gt:revealIn', workspaceId, paneId),
   focusFloat: (paneId: string) => ipcRenderer.invoke('gt:focusFloat', paneId),
+  toWorkspace: (cmd: WorkspaceCommand) => ipcRenderer.invoke('gt:toWorkspace', cmd),
+  onWorkspaceCommand: (cb) => {
+    const l = (_e: unknown, cmd: WorkspaceCommand) => cb(cmd)
+    ipcRenderer.on('gt:wsCommand', l)
+    return () => ipcRenderer.removeListener('gt:wsCommand', l)
+  },
 }
 
 contextBridge.exposeInMainWorld('gt', api)

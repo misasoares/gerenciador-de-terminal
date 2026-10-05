@@ -1,5 +1,6 @@
 import { BrowserWindow, dialog, Notification, screen, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
+import type { WorkspaceCommand } from '../shared/bridge'
 import type { FloatSpec, WorkspaceSummary } from '../shared/types'
 import { fitBounds, floatHome, floatWindowOptions, syncFloats } from './float-model'
 import { DaemonLink } from './daemon-link'
@@ -247,6 +248,17 @@ export class WindowManager {
     if (!e) return
     const ready = existed && !e.win.webContents.isLoading()
     e.keeper.reveal(paneId, ready, (p) => e.win.webContents.send('gt:reveal', p))
+  }
+
+  /** a flutuante não tem grade nem modais: arquivos, ⌘P e o menu vão para a janela do espaço dela (que vem para a frente) */
+  async toWorkspace(e: IpcMainInvokeEvent, cmd: WorkspaceCommand): Promise<void> {
+    const id = this.wsOf(e)
+    if (!id) return
+    await this.open(id)
+    const w = this.entries.get(id)?.win
+    if (!w || w.isDestroyed()) return
+    if (w.webContents.isLoading()) w.webContents.once('did-finish-load', () => w.webContents.send('gt:wsCommand', cmd))
+    else w.webContents.send('gt:wsCommand', cmd)
   }
 
   /** o resumo do daemon manda: abre as flutuantes que faltam, fecha as que saíram, aplica 📌/🌐 */

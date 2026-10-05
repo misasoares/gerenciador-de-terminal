@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import type { AppState, PaneView } from '../../shared/types'
-import { closeDeadPane, markSeenIfLooking, revealPane, runMenuAction } from './actions'
+import { closeDeadPane, markSeenIfLooking, openFile, openFilePicker, revealPane, runMenuAction } from './actions'
 import { App } from './App'
 import { dockBadge, noticesFor, throttleNotices } from './attention'
 import { panesToAutoClose } from './focus'
@@ -107,6 +107,11 @@ function bootWorkspace(): void {
     }
   })
   window.gt.onMenu(runMenuAction)
+  window.gt.onWorkspaceCommand((cmd) => {
+    if (cmd.t === 'menu') runMenuAction(cmd.action)
+    else if (cmd.t === 'open-file') void openFile(cmd.path, { line: cmd.line })
+    else openFilePicker(cmd.root)
+  })
   window.addEventListener('focus', () => markSeenIfLooking(getUi().focusedPaneId))
   window.gt.onReveal((paneId) => revealPane(paneId))
   window.gt

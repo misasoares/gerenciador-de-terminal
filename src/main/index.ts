@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, shell } from '
 import os from 'node:os'
 import path from 'node:path'
 import type { ClientRequest } from '../shared/protocol'
-import type { ConfirmOptions, MenuItemSpec } from '../shared/bridge'
+import type { ConfirmOptions, MenuItemSpec, WorkspaceCommand } from '../shared/bridge'
 import type { WorkspaceSummary } from '../shared/types'
 import { DaemonLink } from './daemon-link'
 import { buildMenu } from './menu'
@@ -182,6 +182,7 @@ ipcMain.handle('gt:openWorkspaces', async (e, ids: string[]) => {
   if (manager.isChooser(e)) manager.closeChooser()
 })
 ipcMain.handle('gt:focusFloat', (_e, paneId: string) => manager.focusFloat(paneId))
+ipcMain.handle('gt:toWorkspace', (e, cmd: WorkspaceCommand) => manager.toWorkspace(e, cmd))
 ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
   if (paneId) await manager.reveal(workspaceId, paneId)
   else await manager.open(workspaceId)
