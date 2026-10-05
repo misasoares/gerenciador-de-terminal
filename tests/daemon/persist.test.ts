@@ -57,4 +57,10 @@ describe('persistência', () => {
   it('estado novo começa com o espaço Principal vazio', () => {
     expect(defaultPersisted().workspaces).toEqual([{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] }])
   })
+  it('flutuantes: espaço antigo sem floating carrega com lista vazia', () => {
+    const f = path.join(tmp(), 'state.json')
+    fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [], workspaces: [{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] }], panes: [] }))
+    expect(loadPersisted(f).workspaces[0].floating).toEqual([])
+    expect(defaultPersisted().workspaces[0].floating).toEqual([])
+  })
 })

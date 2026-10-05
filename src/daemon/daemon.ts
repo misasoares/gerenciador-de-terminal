@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
-import type { AgentKind, AppState, ConflictReport, LayoutNode, Workspace } from '../shared/types'
+import { DEFAULT_FLOAT, type AgentKind, type AppState, type ConflictReport, type LayoutNode, type Workspace } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
@@ -296,6 +296,7 @@ export class Daemon {
     return {
       protocolVersion: PROTOCOL_VERSION,
       workspaceId: w.id,
+      floating: w.floating,
       workspaces: this.persisted.workspaces.map((x) => {
         const live = records.filter((r) => r.alive && r.workspaceId === x.id)
         const attention = live.filter((r) => r.claude?.status === 'needs-you' || r.claude?.status === 'your-turn').length
@@ -317,7 +318,8 @@ export class Daemon {
           return panes.length ? [{ id: t.id, name: t.name, panes }] : []
         })
         const hidden = live.filter((r) => !placed.has(r.id)).map(item)
-        return { id: x.id, name: x.name, open: x.open, sessions: live.length, attention, tabs, hidden }
+        const floating = x.floating.map((paneId) => ({ paneId, ...DEFAULT_FLOAT, ...this.persisted.paneMeta[paneId]?.float }))
+        return { id: x.id, name: x.name, open: x.open, sessions: live.length, attention, tabs, hidden, floating }
       }),
       askOnCloseWindow: this.persisted.askOnCloseWindow,
       userHome: this.o.userHome,
@@ -436,9 +438,16 @@ export class Daemon {
     }
     meta[id] = { name, color: null, createdBy: caller.id }
     this.panes.create({ paneId: id, cwd, accountId: account.id, cols: 120, rows: 30, workspaceId: w.id, agentName: name, promptFile })
-    w.layout = insertBeside(w.layout, caller.id, id)
+    if (args.onde === 'flutuante') w.floating.push(id)
+    else w.layout = insertBeside(w.layout, caller.id, id)
     this.changed()
     return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcpConfig: this.mcpConfigPath, name, promptFile }) }
+  }
+
+  /** espaço dono de um painel: o da sessão; painel de arquivo (sem sessão) é do espaço de quem pediu */
+  private floatOwner(paneId: string, connWs: string): Workspace {
+    const rec = this.panes.records().find((r) => r.id === paneId)
+    return this.ws(rec?.workspaceId ?? connWs)
   }
 
   private findWorktree(p: string) {
@@ -597,6 +606,30 @@ export class Daemon {
       }
       case 'mcp.call':
         return this.mcpCall(req.callerPaneId, req.tool, req.args ?? {})
+      case 'float.set': {
+        const w = this.floatOwner(req.paneId, conn.workspaceId)
+        for (const x of this.persisted.workspaces) x.floating = x.floating.filter((id) => id !== req.paneId)
+        if (req.mode === 'float') {
+          w.floating.push(req.paneId)
+          // a janela de origem já tirou a folha; aqui garante para quem não tirou (contratar, outra janela)
+          w.layout = { ...w.layout, tabs: w.layout.tabs.map((t) => ({ ...t, root: t.root ? removeLeafFrom(t.root, req.paneId) : null })) }
+        } else if (req.mode === 'dock') {
+          // âncora inexistente: entra ao lado do último painel da aba ativa
+          w.layout = insertBeside(w.layout, '', req.paneId)
+        }
+        this.changed()
+        return null
+      }
+      case 'float.prefs': {
+        const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
+        const f = { ...DEFAULT_FLOAT, ...cur.float }
+        if (req.bounds !== undefined) f.bounds = req.bounds
+        if (req.onTop !== undefined) f.onTop = req.onTop
+        if (req.allDesks !== undefined) f.allDesks = req.allDesks
+        this.persisted.paneMeta[req.paneId] = { ...cur, float: f }
+        this.changed()
+        return null
+      }
       case 'pane.setLeader': {
         const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
         this.persisted.paneMeta[req.paneId] = { ...cur, leader: req.leader || undefined }
@@ -682,7 +715,7 @@ export class Daemon {
         this.ws(conn.workspaceId).layout = req.layout
         {
           // painéis de arquivo são globais: a poda olha o layout de todos os espaços
-          const ids = new Set(this.persisted.workspaces.flatMap((w) => w.layout.tabs.flatMap((t) => leafIds(t.root))))
+          const ids = new Set(this.persisted.workspaces.flatMap((w) => [...w.layout.tabs.flatMap((t) => leafIds(t.root)), ...w.floating]))
           for (const id of Object.keys(this.persisted.filePanes)) if (!ids.has(id)) delete this.persisted.filePanes[id]
         }
         this.changed()
@@ -713,7 +746,7 @@ export class Daemon {
       case 'workspace.create': {
         const name = uniqueName(req.name, this.persisted.workspaces.map((w) => w.name))
         const id = randomUUID()
-        this.persisted.workspaces.push({ id, name, open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] })
+        this.persisted.workspaces.push({ id, name, open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [], floating: [] })
         this.changed()
         return { id }
       }

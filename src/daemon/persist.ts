@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Account, AgentKind, Layout, ProjectConfig, ResumeEntry, FilePaneMeta, Workspace } from '../shared/types'
+import type { Account, AgentKind, Layout, ProjectConfig, ResumeEntry, FilePaneMeta, FloatPrefs, Workspace } from '../shared/types'
 import { migrateAccounts } from './accounts'
 import { DEFAULT_SETTINGS, normalizeSettings, type TerminalSettings } from '../shared/settings'
 
@@ -22,6 +22,8 @@ export interface PaneMetaEntry {
   leader?: boolean
   /** paneId do líder que criou esta sessão pelo MCP */
   createdBy?: string
+  /** preferências de janela flutuante (lembradas depois de encaixar/esconder) */
+  float?: FloatPrefs
 }
 
 export interface Persisted {
@@ -65,7 +67,7 @@ export function defaultPersisted(): Persisted {
     claudeProfiles: [],
     codexHomes: [],
     filePanes: {},
-    workspaces: [{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] }],
+    workspaces: [{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [], floating: [] }],
     askOnCloseWindow: true,
   }
 }
@@ -75,7 +77,7 @@ export function migrateWorkspaces(p: Persisted): Persisted {
   if (Array.isArray(p.workspaces) && p.workspaces.length > 0) return p
   return {
     ...p,
-    workspaces: [{ id: 'principal', name: 'Principal', open: true, projectPaths: p.projects.map((c) => c.path), layout: p.layout, resumable: p.resumable }],
+    workspaces: [{ id: 'principal', name: 'Principal', open: true, projectPaths: p.projects.map((c) => c.path), layout: p.layout, resumable: p.resumable, floating: [] }],
   }
 }
 
@@ -101,7 +103,7 @@ export function loadPersisted(file: string): Persisted {
       claudeProfiles: Array.isArray(parsed.claudeProfiles) ? parsed.claudeProfiles.filter((x) => typeof x === 'string') : [],
       codexHomes: Array.isArray(parsed.codexHomes) ? parsed.codexHomes.filter((x) => typeof x === 'string') : [],
       filePanes: parsed.filePanes && typeof parsed.filePanes === 'object' ? parsed.filePanes : {},
-      workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : [],
+      workspaces: (Array.isArray(parsed.workspaces) ? parsed.workspaces : []).map((w) => ({ ...w, floating: Array.isArray(w.floating) ? w.floating.filter((x) => typeof x === 'string') : [] })),
       askOnCloseWindow: parsed.askOnCloseWindow !== false,
     })
   } catch {

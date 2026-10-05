@@ -138,7 +138,29 @@ export interface Workspace {
   projectPaths: string[]
   layout: Layout
   resumable: ResumeEntry[]
+  /** painéis flutuando agora (janela própria) */
+  floating: string[]
 }
+
+export interface Bounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** preferências de janela flutuante, lembradas por painel */
+export interface FloatPrefs {
+  bounds: Bounds | null
+  /** por cima de tudo (📌) */
+  onTop: boolean
+  /** em todas as mesas (🌐) */
+  allDesks: boolean
+}
+
+export type FloatSpec = { paneId: string } & FloatPrefs
+
+export const DEFAULT_FLOAT: FloatPrefs = { bounds: null, onTop: true, allDesks: false }
 
 export interface WorkspaceSummary {
   id: string
@@ -152,6 +174,8 @@ export interface WorkspaceSummary {
   tabs: { id: string; name: string; panes: WorkspacePane[] }[]
   /** sessões vivas fora de qualquer aba */
   hidden: WorkspacePane[]
+  /** flutuantes do espaço, com as preferências (o processo principal sincroniza as janelas por aqui) */
+  floating: FloatSpec[]
 }
 
 /** sessão no resumo de um espaço; status null = terminal sem agente */
@@ -166,6 +190,8 @@ export interface AppState {
   /** espaço desta conexão */
   workspaceId: string
   workspaces: WorkspaceSummary[]
+  /** painéis flutuando neste espaço */
+  floating: string[]
   /** perguntar ao fechar a janela com sessões vivas */
   askOnCloseWindow: boolean
   userHome: string

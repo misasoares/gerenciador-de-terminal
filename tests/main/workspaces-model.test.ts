@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { badgeTotal, closeDialogText, closedNoticeText, decideStartup } from '../../src/main/workspaces-model'
 
-const ws = (id: string, open = true, sessions = 0, attention = 0) => ({ id, name: id, open, sessions, attention, tabs: [], hidden: [] })
+const ws = (id: string, open = true, sessions = 0, attention = 0) => ({ id, name: id, open, sessions, attention, tabs: [], hidden: [], floating: [] })
 
 describe('workspaces-model', () => {
   it('início: 1 espaço abre direto; 2+ mostram a tela de reabrir', () => {
