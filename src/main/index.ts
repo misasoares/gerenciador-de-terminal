@@ -11,6 +11,7 @@ import { platformOf, resolveBindings, type Bindings } from '../shared/keybinding
 import { NotifyKeeper } from './notify-keeper'
 import { WindowManager } from './windows'
 import { handleMediaProtocol, registerMediaScheme } from './media-protocol'
+import { readWindowBg, writeWindowBg } from './window-bg'
 import { badgeTotal, decideStartup } from './workspaces-model'
 
 const notifications = new NotifyKeeper()
@@ -43,6 +44,9 @@ const manager = new WindowManager({
   quit: () => app.quit(),
   notifications,
 })
+/** fundo do último tema: a primeira janela da abertura já nasce na cor certa (sem retângulo escuro no Claro) */
+const windowBgFile = path.join(home, 'window-bg')
+manager.background = readWindowBg(windowBgFile)
 
 function onSummary(list: WorkspaceSummary[], askOnClose: boolean): void {
   manager.summary = list
@@ -186,7 +190,10 @@ ipcMain.handle('gt:focusFloat', (_e, paneId: string) => manager.focusFloat(paneI
 // tema do app: elementos nativos (rolagem, players, pdf, vidro) no mesmo esquema; janelas novas com o fundo do tema
 ipcMain.on('gt:appearance', (_e, o: { scheme: 'light' | 'dark'; follow: boolean; bg: string }) => {
   nativeTheme.themeSource = o.follow ? 'system' : o.scheme
-  if (/^#[0-9a-f]{6}$/i.test(o.bg)) manager.background = o.bg
+  if (/^#[0-9a-f]{6}$/i.test(o.bg) && o.bg !== manager.background) {
+    manager.background = o.bg
+    writeWindowBg(windowBgFile, o.bg)
+  }
 })
 ipcMain.handle('gt:toWorkspace', (e, cmd: WorkspaceCommand) => manager.toWorkspace(e, cmd))
 ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
