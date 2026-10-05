@@ -792,4 +792,12 @@ describe('Daemon', () => {
     await app.waitState((s) => s.floating.includes(id))
     expect(JSON.stringify((await app.client.request<{ layout: unknown }>({ t: 'state.get' })).layout)).not.toContain(id)
   })
+  it('flutuante: painel esquecido (processo terminou e foi fechado) sai das flutuantes', async () => {
+    const { app } = await boot()
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: '/', accountId: null, cols: 80, rows: 24 })
+    await app.client.request({ t: 'float.set', paneId, mode: 'float' })
+    await app.waitState((s) => s.floating.includes(paneId))
+    await app.client.request({ t: 'pane.forget', paneId })
+    await app.waitState((s) => !s.floating.includes(paneId))
+  })
 })

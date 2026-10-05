@@ -590,6 +590,8 @@ export class Daemon {
       case 'pane.forget':
         this.panes.forget(req.paneId)
         delete this.persisted.paneMeta[req.paneId]
+        // flutuante de um painel esquecido fecharia mostrando "painel indisponível" para sempre
+        for (const w of this.persisted.workspaces) w.floating = w.floating.filter((id) => id !== req.paneId)
         fs.rmSync(path.join(this.promptsDir, `${req.paneId}.txt`), { force: true })
         return null
       case 'pane.meta': {
