@@ -49,13 +49,13 @@ describe('persistência', () => {
     const layout = { tabs: [{ id: 't', name: 'A', root: { type: 'leaf' as const, paneId: 'p1' } }], activeTabId: 't' }
     fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [{ path: '/r/a', name: 'a', defaultAccountId: null }], layout, resumable: [{ paneId: 'p1', cwd: '/r/a', accountId: null, sessionId: null }], panes: [] }))
     const p = loadPersisted(f)
-    expect(p.workspaces).toEqual([{ id: 'principal', name: 'Principal', open: true, projectPaths: ['/r/a'], layout, resumable: [{ paneId: 'p1', cwd: '/r/a', accountId: null, sessionId: null }] }])
+    expect(p.workspaces).toEqual([{ id: 'principal', name: 'Principal', open: true, projectPaths: ['/r/a'], layout, resumable: [{ paneId: 'p1', cwd: '/r/a', accountId: null, sessionId: null }], floating: [] }])
     expect(p.askOnCloseWindow).toBe(true)
     expect(migrateWorkspaces(p)).toEqual(p)
   })
 
   it('estado novo começa com o espaço Principal vazio', () => {
-    expect(defaultPersisted().workspaces).toEqual([{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [] }])
+    expect(defaultPersisted().workspaces).toEqual([{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [], floating: [] }])
   })
   it('flutuantes: espaço antigo sem floating carrega com lista vazia', () => {
     const f = path.join(tmp(), 'state.json')
