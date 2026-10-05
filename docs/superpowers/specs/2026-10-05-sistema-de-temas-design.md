@@ -30,22 +30,28 @@ Fora do escopo desta parte: os temas Premium, Vidro, Minimal e Retrô (partes 2 
 Nomes viram variáveis CSS `--<nome>`. O `styles.css` passa a usar só variáveis (exceto `transparent`, `currentColor` e `inherit`).
 
 **Cores (por papel):**
-- superfícies: `bg`, `bg-side`, `bg-bar`, `bg-raised` (modais/menus), `bg-hover`, `bg-selected`
-- texto: `fg`, `fg-dim`, `fg-on-accent`
+- superfícies: `bg`, `bg-side`, `bg-bar`, `bg-raised` (modais/menus), `bg-sunken` (blocos de código, cartões), `bg-hover`, `bg-selected`, `bg-status` (barra de status)
+- controles: `bg-control`, `bg-control-hover` (botões, teclas), `bg-input`, `border-input` (campos)
+- texto: `fg`, `fg-dim`, `fg-on-accent`, `link`
 - linhas: `border`, `border-strong`
-- destaque: `accent`, `accent-soft`
-- avisos: `warn`, `error`, `success`
-- estados das sessões: `state-needs-you` (🟡), `state-your-turn` (🔵), `state-working`
-- etiquetas fixas: `chip-project-bg`, `chip-project-fg`, `chip-worktree-bg`, `chip-worktree-fg`
-- sombra e véu: `shadow-color`, `scrim`
+- destaque: `accent`, `accent-soft`, `flash` (o "piscar" ao revelar um painel)
+- avisos: `warn`, `error`, `success`, `conflict` (laranja dos conflitos), `danger` (botão destrutivo)
+- banners: `banner-warn-bg`, `banner-warn-fg`, `banner-warn-border`, `banner-ok-bg`, `banner-ok-fg`
+- estados das sessões: `state-needs-you` (🟡), `state-your-turn` (🔵)
+- etiquetas fixas: `chip-project-bg`, `chip-project-fg`, `chip-worktree-bg`, `chip-worktree-fg`, `chip-unknown-bg`, `chip-unknown-fg`
+- abas coloridas (véu sobre a cor escolhida): `tab-colored-dim`, `tab-colored-dim-hover`, `tab-colored-fg`
+- mídia: `checker-a`, `checker-b` (xadrez atrás de imagens transparentes)
+- véu dos modais: `scrim`
 
-**Forma:** `radius-sm`, `radius-md`, `radius-lg`; `shadow-sm`, `shadow-md`, `shadow-lg`.
+**Forma:** `radius-sm` (3px), `radius-md` (4px), `radius-lg` (6px), `radius-xl` (8px); `shadow-sm`, `shadow-side` (barra lateral solta), `shadow-lg`.
 
-**Tipografia:** `font-ui`, `font-mono`; `text-xs`, `text-sm`, `text-md`, `text-lg`.
+**Tipografia:** `font-ui`, `font-mono`; `text-xs` (10px), `text-sm` (11,5px), `text-md` (12px), `text-base` (13px), `text-lg` (15px) — os 12 tamanhos de hoje (9 a 16px) viram 5.
 
-**Densidade:** `space`, `row-height`, `header-height`.
+**Densidade:** `tabbar-height` (32px), `header-height` (26px, linha do cabeçalho de painel).
 
-**Movimento:** `dur-fast`, `dur-base`, `dur-slow`; `ease-standard`, `ease-spring`. Com "reduzir movimento" do macOS (`prefers-reduced-motion`), as durações valem 0.
+**Movimento:** `dur-fast`, `dur-base`, `dur-slow`; `ease-standard`, `ease-spring`. Como os tokens são gravados direto no elemento raiz (e venceriam qualquer `@media`), quem grava os tokens zera as durações quando `prefers-reduced-motion: reduce` está ativo.
+
+Notas de fidelidade do Padrão: além do `fg-dim` (seção 6), unificam-se dois amarelos quase iguais de "precisa de você" (`#eab308` da moldura da flutuante passa a `#e2a500`, o do resto do app) e raios de 2px viram 3px — diferenças imperceptíveis, declaradas.
 
 **Fora do tema** (iguais em todos): cores escolhidas pelo usuário para sessões, projetos e contas; cores de marca dos agentes (Claude, Codex); o contraste calculado do texto sobre essas cores.
 
