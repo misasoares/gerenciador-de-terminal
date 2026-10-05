@@ -1,4 +1,5 @@
 import { Terminal } from '@xterm/xterm'
+import { SizeTracker } from './size-tracker'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { fileLinkProvider } from './file-link-provider'
@@ -16,7 +17,8 @@ interface Entry {
   el: HTMLDivElement
   state: 'idle' | 'attaching' | 'live'
   pending: string[]
-  lastSize: string
+  /** último tamanho mandado ao terminal por esta janela */
+  size: SizeTracker
   /** seq do attach em vigor; dados de attach antigo (ex.: depois de ⌘R) são descartados */
   seq: number
 }
@@ -58,6 +60,8 @@ class TerminalRegistry {
   mount(paneId: string, container: HTMLElement): void {
     const e = this.ensure(paneId)
     container.appendChild(e.el)
+    // voltou para a tela (ex.: encaixado depois de flutuar): a outra janela pode ter mudado o tamanho do terminal
+    e.size.reset()
     this.pendingFocus.ready(paneId, this.tryFocus)
     requestAnimationFrame(() => {
       if (e.state === 'idle') void this.attach(paneId)
@@ -74,9 +78,7 @@ class TerminalRegistry {
     const e = this.entries.get(paneId)
     if (!e || e.state !== 'live' || !e.el.isConnected || e.el.clientWidth === 0) return
     e.fit.fit()
-    const size = `${e.term.cols}x${e.term.rows}`
-    if (size === e.lastSize) return
-    e.lastSize = size
+    if (!e.size.changed(e.term.cols, e.term.rows)) return
     window.gt.send({ t: 'pane.resize', paneId, cols: e.term.cols, rows: e.term.rows })
   }
 
@@ -126,7 +128,7 @@ class TerminalRegistry {
       setUi({ focusedPaneId: paneId })
       void import('./actions').then((a) => a.markSeenIfLooking(paneId))
     })
-    const entry: Entry = { term, fit, el, state: 'idle', pending: [], lastSize: '', seq: 0 }
+    const entry: Entry = { term, fit, el, state: 'idle', pending: [], size: new SizeTracker(), seq: 0 }
     this.entries.set(paneId, entry)
     return entry
   }
@@ -149,7 +151,7 @@ class TerminalRegistry {
       e.pending = []
       e.state = 'live'
       this.pendingFocus.ready(paneId, this.tryFocus)
-      e.lastSize = `${e.term.cols}x${e.term.rows}`
+      e.size.changed(e.term.cols, e.term.rows) // o attach já mandou este tamanho
       this.fit(paneId)
     } catch {
       if (e.seq === seq) e.state = 'idle' // painel morreu ou daemon caiu; tenta de novo no próximo mount/reconnect
