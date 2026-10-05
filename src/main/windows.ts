@@ -120,7 +120,7 @@ export class WindowManager {
       // ⌘+clique vindo da flutuante: no mac a janela inativa não ativa e, sem isso, o clique se perde
       acceptFirstMouse: true,
       title: `${TITLE} — ${this.nameOf(id)}`,
-      webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
+      webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false, plugins: true }, // plugins: visualizador de PDF do painel de arquivo
     })
     win.on('page-title-updated', (ev) => ev.preventDefault())
     const keeper = new NotifyKeeper()
@@ -294,7 +294,7 @@ export class WindowManager {
     const win = new BrowserWindow({
       ...floatWindowOptions(bounds, process.platform === 'darwin'),
       title: `${TITLE} — flutuante`,
-      webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
+      webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false, plugins: true }, // plugins: visualizador de PDF do painel de arquivo
     })
     applyPrefs(win, f)
     const link = new DaemonLink({

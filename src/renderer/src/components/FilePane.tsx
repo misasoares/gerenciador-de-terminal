@@ -12,6 +12,8 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { dirtyFiles, dropOnPane, floatPane, focusPane, openFile, PANE_MIME, pendingLine, requestCloseFile } from '../actions'
 import { FloatControls } from './FloatControls'
+import { MediaView } from './MediaView'
+import { mediaKind } from '../../../shared/media'
 import { dropZone, type DropZone } from '../layout'
 import type React from 'react'
 import { errorMessage } from '../api'
@@ -41,6 +43,8 @@ const theme = EditorView.theme(
 
 type Problem = null | 'missing' | 'cannot-open' | string
 
+const KIND_ICON = { text: '📄', image: '🖼', video: '🎬', audio: '🎵', pdf: '📕' } as const
+
 export function FilePane({ paneId, floating }: { paneId: string; floating?: boolean }) {
   const meta = useUi((s) => s.app?.filePanes[paneId])
   const focused = useUi((s) => s.focusedPaneId === paneId)
@@ -63,6 +67,11 @@ export function FilePane({ paneId, floating }: { paneId: string; floating?: bool
   }
   const path = meta?.path ?? ''
   const mode = meta?.mode ?? 'edit'
+  /** mídia: mostrada pelo protocolo gt-file, sem ler o conteúdo como texto */
+  const kind = mediaKind(path)
+  const [version, setVersion] = useState(0)
+  const [fit, setFit] = useState(true)
+  const player = useRef<HTMLMediaElement | null>(null)
 
   const markDirty = (d: boolean) => {
     setDirty(d)
@@ -108,10 +117,20 @@ export function FilePane({ paneId, floating }: { paneId: string; floating?: bool
 
   useEffect(() => {
     if (!path) return
-    void load()
+    if (!kind) void load()
+    else setProblem(null)
     void window.gt.request({ t: 'file.watch', path })
     const off = onFileChanged(path, (m) => {
       if (m === null) return setProblem('missing')
+      if (kind) {
+        // mídia: recarrega sozinha (vídeo/áudio tocando ficam como estão até a próxima mudança)
+        if (player.current && !player.current.paused) return
+        setProblem(null)
+        setVersion(m)
+        setFlash(true)
+        setTimeout(() => setFlash(false), 2000)
+        return
+      }
       if (m === mtime.current || Date.now() < ownWriteUntil.current) return
       if (!dirtyFiles.has(paneId)) {
         void load().then(() => {
@@ -125,7 +144,7 @@ export function FilePane({ paneId, floating }: { paneId: string; floating?: bool
       void window.gt.request({ t: 'file.unwatch', path })
       dirtyFiles.delete(paneId)
     }
-  }, [path])
+  }, [path, kind])
 
   // editor: recriado quando o conteúdo é (re)carregado ou o modo muda
   useEffect(() => {
@@ -191,11 +210,16 @@ export function FilePane({ paneId, floating }: { paneId: string; floating?: bool
         draggable={!floating}
         onDragStart={(e) => !floating && e.dataTransfer.setData(PANE_MIME, paneId)}
       >
-        <span className="file-name">📄 {baseName(path)}</span>
+        <span className="file-name">{KIND_ICON[kind ?? 'text']} {baseName(path)}</span>
         <span className="file-path" title={path}>{relativeTo(root, path)}</span>
         {dirty && <span className="file-dirty">● não salvo</span>}
         {flash && <span className="file-flash">atualizado do disco</span>}
         <span className="ph-spacer" />
+        {kind === 'image' && (
+          <button className="st-btn" title="Alternar entre ajustar ao painel e tamanho real" onClick={() => setFit((v) => !v)}>
+            {fit ? '100%' : 'Ajustar'}
+          </button>
+        )}
         {isMd && (
           <button className="st-btn" onClick={() => void setMode(mode === 'view' ? 'edit' : 'view')}>
             {mode === 'view' ? 'Editar' : 'Visualizar'}
@@ -240,7 +264,9 @@ export function FilePane({ paneId, floating }: { paneId: string; floating?: bool
       ) : problem ? (
         <div className="file-banner error">{problem}</div>
       ) : null}
-      {problem !== 'cannot-open' && (problem !== 'missing' || mode === 'edit') && (
+      {kind && !problem ? (
+        <MediaView kind={kind} path={path} version={version} fit={fit} onToggleFit={() => setFit((v) => !v)} playerRef={player} onError={() => setProblem('cannot-open')} />
+      ) : !kind && problem !== 'cannot-open' && (problem !== 'missing' || mode === 'edit') && (
         mode === 'view' ? (
           <div
             className="file-md"
