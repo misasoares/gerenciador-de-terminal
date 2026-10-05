@@ -10,6 +10,7 @@ import { dockTemplate } from './menu-template'
 import { platformOf, resolveBindings, type Bindings } from '../shared/keybindings'
 import { NotifyKeeper } from './notify-keeper'
 import { WindowManager } from './windows'
+import { handleMediaProtocol, registerMediaScheme } from './media-protocol'
 import { badgeTotal, decideStartup } from './workspaces-model'
 
 const notifications = new NotifyKeeper()
@@ -216,7 +217,11 @@ app.on('before-quit', () => {
   manager.quitting = true
 })
 
+// mídia no painel de arquivo (imagem, vídeo, áudio, pdf): o esquema tem de existir antes do app ficar pronto
+registerMediaScheme()
+
 app.whenReady().then(async () => {
+  handleMediaProtocol()
   try {
     await service.start()
     applyMenu()
