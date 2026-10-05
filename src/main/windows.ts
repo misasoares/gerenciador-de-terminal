@@ -1,7 +1,7 @@
 import { BrowserWindow, dialog, Notification, screen, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import type { FloatSpec, WorkspaceSummary } from '../shared/types'
-import { fitBounds, floatHome, syncFloats } from './float-model'
+import { fitBounds, floatHome, floatWindowOptions, syncFloats } from './float-model'
 import { DaemonLink } from './daemon-link'
 import { NotifyKeeper } from './notify-keeper'
 import { closeDialogText, closedNoticeText } from './workspaces-model'
@@ -277,11 +277,7 @@ export class WindowManager {
     const home = floatHome(wsWin && !wsWin.isDestroyed() ? wsWin.getBounds() : null, screen.getPrimaryDisplay().workArea, n)
     const bounds = fitBounds(f.bounds, screen.getAllDisplays().map((d) => d.workArea), home)
     const win = new BrowserWindow({
-      ...bounds,
-      minWidth: 320,
-      minHeight: 180,
-      frame: false,
-      backgroundColor: '#1e1e1e',
+      ...floatWindowOptions(bounds),
       title: `${TITLE} — flutuante`,
       webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
     })

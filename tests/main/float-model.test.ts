@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cascade, fitBounds, floatHome, syncFloats } from '../../src/main/float-model'
+import { cascade, fitBounds, floatHome, floatWindowOptions, syncFloats } from '../../src/main/float-model'
 
 const spec = (paneId: string, over = {}) => ({ paneId, bounds: null, onTop: true, allDesks: false, ...over })
 const ws = (id: string, floating: ReturnType<typeof spec>[]) => ({ id, name: id, open: true, sessions: 0, attention: 0, tabs: [], hidden: [], floating })
@@ -23,5 +23,9 @@ describe('float-model', () => {
   it('cascata e posição inicial no canto superior direito', () => {
     expect(cascade({ x: 0, y: 0, width: 640, height: 400 }, 2)).toEqual({ x: 60, y: 60, width: 640, height: 400 })
     expect(floatHome({ x: 0, y: 0, width: 1440, height: 900 }, { x: 0, y: 0, width: 1440, height: 900 }, 0)).toEqual({ x: 776, y: 24, width: 640, height: 400 })
+  })
+  it('janela flutuante nunca vira tela cheia (sem moldura não teria como sair)', () => {
+    const o = floatWindowOptions({ x: 1, y: 2, width: 640, height: 400 })
+    expect(o).toMatchObject({ x: 1, y: 2, width: 640, height: 400, frame: false, fullscreenable: false, minWidth: 320, minHeight: 180 })
   })
 })

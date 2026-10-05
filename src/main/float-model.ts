@@ -33,3 +33,11 @@ export function floatHome(workspaceWin: Bounds | null, screen: Bounds, n: number
   const area = workspaceWin ?? screen
   return cascade({ x: area.x + area.width - 640 - 24, y: area.y + 24, width: 640, height: 400 }, n)
 }
+
+/**
+ * Opções da janela flutuante. fullscreenable: false — sem moldura não há como sair da tela cheia, e o macOS
+ * a punha numa mesa própria ao arrastá-la para outra mesa estando sobre um app em tela cheia.
+ */
+export function floatWindowOptions(bounds: Bounds) {
+  return { ...bounds, minWidth: 320, minHeight: 180, frame: false, fullscreenable: false, backgroundColor: '#1e1e1e' }
+}
