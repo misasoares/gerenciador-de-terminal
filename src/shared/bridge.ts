@@ -40,4 +40,6 @@ export interface GtApi {
   createWorkspace(name: string): Promise<void>
   /** vai para a janela do espaço (trocando de mesa) e, com paneId, abre a aba e foca o terminal */
   revealIn(workspaceId: string, paneId: string | null): Promise<void>
+  /** traz a janela flutuante do painel para a frente; false se ele não flutua */
+  focusFloat(paneId: string): Promise<boolean>
 }

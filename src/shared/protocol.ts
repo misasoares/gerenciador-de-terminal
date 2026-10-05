@@ -1,4 +1,4 @@
-import type { Account, AgentKind, AppState, HookPayload, Layout, FilePaneMeta } from './types'
+import type { Account, AgentKind, AppState, Bounds, HookPayload, Layout, FilePaneMeta } from './types'
 import type { TerminalSettings } from './settings'
 
 export const PROTOCOL_VERSION = 2
@@ -38,6 +38,8 @@ export type ClientRequest =
   | { t: 'hooks.install' }
   | { t: 'resume.dismiss'; paneId: string }
   | { t: 'daemon.shutdown' }
+  | { t: 'float.set'; paneId: string; mode: 'float' | 'dock' | 'hide' }
+  | { t: 'float.prefs'; paneId: string; bounds?: Bounds | null; onTop?: boolean; allDesks?: boolean }
   | { t: 'pane.setLeader'; paneId: string; leader: boolean }
   | { t: 'mcp.call'; callerPaneId: string; tool: string; args: Record<string, unknown> }
   | { t: 'workspace.create'; name: string }

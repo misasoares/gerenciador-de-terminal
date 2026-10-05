@@ -26,6 +26,7 @@ export const ACTIONS: readonly ActionDef[] = [
   { id: 'split-right', label: 'Dividir à direita', group: 'sessao', mac: 'Cmd+D', linux: 'Ctrl+Shift+D' },
   { id: 'split-down', label: 'Dividir abaixo', group: 'sessao', mac: 'Cmd+Shift+D', linux: 'Ctrl+Shift+E' },
   { id: 'hide-pane', label: 'Esconder painel', group: 'sessao', mac: 'Cmd+W', linux: 'Ctrl+Shift+W' },
+  { id: 'toggle-float', label: 'Flutuar / encaixar painel', group: 'sessao', mac: 'Cmd+Shift+F', linux: 'Ctrl+Shift+F' },
   { id: 'next-attention', label: 'Próxima que precisa de mim', group: 'sessao', mac: 'Cmd+J', linux: 'Ctrl+Shift+J' },
   { id: 'palette', label: 'Buscar…', group: 'sessao', mac: 'Cmd+K', linux: 'Ctrl+Shift+K' },
   { id: 'open-file', label: 'Abrir arquivo…', group: 'sessao', mac: 'Cmd+P', linux: 'Ctrl+Shift+P' },

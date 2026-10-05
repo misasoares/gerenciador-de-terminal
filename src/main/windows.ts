@@ -1,9 +1,19 @@
-import { BrowserWindow, dialog, Notification, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import { BrowserWindow, dialog, Notification, screen, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
-import type { WorkspaceSummary } from '../shared/types'
+import type { FloatSpec, WorkspaceSummary } from '../shared/types'
+import { fitBounds, floatHome, syncFloats } from './float-model'
 import { DaemonLink } from './daemon-link'
 import { NotifyKeeper } from './notify-keeper'
 import { closeDialogText, closedNoticeText } from './workspaces-model'
+
+interface FloatEntry {
+  win: BrowserWindow
+  link: DaemonLink
+  spec: FloatSpec
+  wsId: string
+  /** liberada para fechar sem virar "esconder" (sincronização ou encerrando o app) */
+  closing: boolean
+}
 
 interface Entry {
   id: string
@@ -31,6 +41,9 @@ const TITLE = 'Gerenciador de Terminal'
 /** uma janela (e uma conexão com o daemon) por espaço de trabalho aberto */
 export class WindowManager {
   private entries = new Map<string, Entry>()
+  private floats = new Map<string, FloatEntry>()
+  /** espaços abertos ao menos uma vez nesta execução: só eles mostram flutuantes */
+  private active = new Set<string>()
   private chooser: BrowserWindow | null = null
   /** resumo mais recente de todos os espaços (vem da conexão de serviço) */
   summary: WorkspaceSummary[] = []
@@ -49,12 +62,21 @@ export class WindowManager {
   }
 
   windows(): BrowserWindow[] {
-    return [...[...this.entries.values()].map((e) => e.win), ...(this.chooser ? [this.chooser] : [])]
+    return [...[...this.entries.values()].map((e) => e.win), ...[...this.floats.values()].map((f) => f.win), ...(this.chooser ? [this.chooser] : [])]
   }
 
   /** a conexão de quem mandou o IPC; a tela de reabrir usa a de serviço */
   linkFor(e: IpcMainEvent | IpcMainInvokeEvent): DaemonLink {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    for (const f of this.floats.values()) if (f.win === win) return f.link
     return this.entryOf(e)?.link ?? this.o.service
+  }
+
+  /** espaço da janela que mandou o IPC (espaço ou flutuante) */
+  wsOf(e: IpcMainEvent | IpcMainInvokeEvent): string | null {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    for (const f of this.floats.values()) if (f.win === win) return f.wsId
+    return this.entryOf(e)?.id ?? null
   }
 
   entryOf(e: IpcMainEvent | IpcMainInvokeEvent): Entry | null {
@@ -79,6 +101,7 @@ export class WindowManager {
 
   /** abre a janela do espaço; se já estiver aberta, só a traz para a frente (nunca duas do mesmo espaço) */
   async open(id: string): Promise<void> {
+    this.active.add(id)
     const cur = this.entries.get(id)
     if (cur) {
       if (cur.win.isMinimized()) cur.win.restore()
@@ -112,6 +135,8 @@ export class WindowManager {
     })
     const entry: Entry = { id, win, link, keeper, closing: false }
     this.entries.set(id, entry)
+    // flutuantes do espaço aparecem junto com a primeira abertura nesta execução (perto da janela dele)
+    this.syncFloats(this.summary)
     win.webContents.on('did-finish-load', () => keeper.loaded((paneId) => win.webContents.send('gt:reveal', paneId)))
     win.on('close', (ev) => {
       if (this.quitting || entry.closing) return
@@ -224,9 +249,91 @@ export class WindowManager {
     e.keeper.reveal(paneId, ready, (p) => e.win.webContents.send('gt:reveal', p))
   }
 
+  /** o resumo do daemon manda: abre as flutuantes que faltam, fecha as que saíram, aplica 📌/🌐 */
+  syncFloats(summary: WorkspaceSummary[]): void {
+    const r = syncFloats(summary, this.active, new Map([...this.floats].map(([k, v]) => [k, v.spec])))
+    for (const id of r.close) {
+      const f = this.floats.get(id)
+      if (!f) continue
+      f.closing = true
+      f.win.close()
+    }
+    for (const f of r.update) {
+      const cur = this.floats.get(f.paneId)
+      if (!cur) continue
+      cur.spec = f
+      applyLevel(cur.win, f)
+    }
+    const fresh = new Map<string, number>()
+    for (const f of r.open) {
+      const n = f.bounds ? 0 : (fresh.get(f.wsId) ?? 0)
+      if (!f.bounds) fresh.set(f.wsId, n + 1)
+      this.openFloat(f, f.wsId, n)
+    }
+  }
+
+  private openFloat(f: FloatSpec, wsId: string, n: number): void {
+    const wsWin = this.entries.get(wsId)?.win
+    const home = floatHome(wsWin && !wsWin.isDestroyed() ? wsWin.getBounds() : null, screen.getPrimaryDisplay().workArea, n)
+    const bounds = fitBounds(f.bounds, screen.getAllDisplays().map((d) => d.workArea), home)
+    const win = new BrowserWindow({
+      ...bounds,
+      minWidth: 320,
+      minHeight: 180,
+      frame: false,
+      backgroundColor: '#1e1e1e',
+      title: `${TITLE} — flutuante`,
+      webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
+    })
+    applyLevel(win, f)
+    const link = new DaemonLink({
+      socketPath: this.o.socketPath,
+      daemonScript: this.o.daemonScript,
+      workspaceId: wsId,
+      onEvent: (e) => {
+        if (e.t !== 'usage.alert' && !win.isDestroyed()) win.webContents.send('gt:event', e)
+      },
+    })
+    const entry: FloatEntry = { win, link, spec: f, wsId, closing: false }
+    this.floats.set(f.paneId, entry)
+    let t: NodeJS.Timeout | null = null
+    const save = () => {
+      if (t) clearTimeout(t)
+      t = setTimeout(() => {
+        if (!win.isDestroyed()) void link.request({ t: 'float.prefs', paneId: f.paneId, bounds: win.getBounds() }).catch(() => {})
+      }, 400)
+    }
+    win.on('move', save)
+    win.on('resize', save)
+    win.on('close', (ev) => {
+      if (this.quitting || entry.closing) return
+      // fechar pelo sistema = esconder (a sessão segue viva)
+      ev.preventDefault()
+      void link.request({ t: 'float.set', paneId: f.paneId, mode: 'hide' }).catch(() => {})
+    })
+    win.on('closed', () => {
+      if (t) clearTimeout(t)
+      link.close()
+      if (this.floats.get(f.paneId) === entry) this.floats.delete(f.paneId)
+    })
+    this.load(win, { view: 'float', ws: wsId, pane: f.paneId })
+    void link.start().catch(() => {})
+  }
+
+  /** traz a flutuante para a frente (trocando de mesa); false se o painel não flutua nesta execução */
+  focusFloat(paneId: string): boolean {
+    const f = this.floats.get(paneId)
+    if (!f || f.win.isDestroyed()) return false
+    f.win.show()
+    f.win.moveTop()
+    f.win.focus()
+    return true
+  }
+
   /** "Encerrar tudo": solta as conexões das janelas antes de derrubar o daemon (senão elas o religam) */
   detachAll(): void {
     for (const e of this.entries.values()) e.link.close()
+    for (const f of this.floats.values()) f.link.close()
   }
 
   /** manda a ação do menu para a janela em foco (ou a primeira) */
@@ -237,4 +344,10 @@ export class WindowManager {
     target.webContents.send('gt:menu', action)
     return true
   }
+}
+
+/** 📌 por cima de tudo; 🌐 em todas as mesas (com nível acima de apps em tela cheia) */
+function applyLevel(win: BrowserWindow, f: FloatSpec): void {
+  win.setAlwaysOnTop(f.onTop, f.allDesks ? 'screen-saver' : 'floating')
+  win.setVisibleOnAllWorkspaces(f.allDesks, { visibleOnFullScreen: true })
 }

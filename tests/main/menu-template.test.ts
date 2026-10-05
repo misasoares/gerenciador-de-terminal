@@ -39,7 +39,7 @@ describe('menuTemplate', () => {
   it('menu Janela: novo, renomear, encerrar e a lista de espaços com ✓ nos abertos', () => {
     const opened: string[] = []
     const sent: string[] = []
-    const workspaces = [{ id: 'a', name: 'TCHEERP', open: true, sessions: 2, attention: 0, tabs: [], hidden: [] }, { id: 'b', name: 'Pessoal', open: false, sessions: 0, attention: 0, tabs: [], hidden: [] }]
+    const workspaces = [{ id: 'a', name: 'TCHEERP', open: true, sessions: 2, attention: 0, tabs: [], hidden: [], floating: [] }, { id: 'b', name: 'Pessoal', open: false, sessions: 0, attention: 0, tabs: [], hidden: [], floating: [] }]
     const m = flat(menuTemplate({ send: (a) => sent.push(a), quitAll: () => {}, platform: 'mac', bindings: resolveBindings('mac', {}), workspaces, openWorkspace: (id) => opened.push(id) }))
     expect(accelOf(m, 'Novo espaço de trabalho…')).toBe('Cmd+Shift+N')
     expect(m.some((i) => i.label === 'Renomear espaço…')).toBe(true)
@@ -52,5 +52,11 @@ describe('menuTemplate', () => {
     expect(accelOf(build('linux'), 'Novo espaço de trabalho…')).toBe('Ctrl+Alt+N')
     const dock = dockTemplate({ workspaces, openWorkspace: (id) => opened.push(id), newWorkspace: () => sent.push('new-workspace') })
     expect(dock.map((i) => i.label)).toEqual(['TCHEERP', 'Pessoal', undefined, 'Novo espaço de trabalho…'])
+  })
+  it('Flutuar / encaixar no menu Sessão: ⇧⌘F no mac, Ctrl+Shift+F no Linux', () => {
+    expect(accelOf(build('mac'), 'Flutuar / encaixar painel')).toBe('Cmd+Shift+F')
+    expect(accelOf(build('linux'), 'Flutuar / encaixar painel')).toBe('Ctrl+Shift+F')
+    const sessao = menuTemplate({ send: () => {}, quitAll: () => {}, platform: 'mac', bindings: resolveBindings('mac', {}) }).find((m) => m.label === 'Sessão')!
+    expect((sessao.submenu as MenuItemConstructorOptions[]).some((i) => i.label === 'Flutuar / encaixar painel')).toBe(true)
   })
 })

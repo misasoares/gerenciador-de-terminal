@@ -10,7 +10,8 @@ import { javascript } from '@codemirror/lang-javascript'
 import { properties } from '@codemirror/legacy-modes/mode/properties'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { dirtyFiles, dropOnPane, focusPane, openFile, PANE_MIME, pendingLine, requestCloseFile } from '../actions'
+import { dirtyFiles, dropOnPane, floatPane, focusPane, openFile, PANE_MIME, pendingLine, requestCloseFile } from '../actions'
+import { FloatControls } from './FloatControls'
 import { dropZone, type DropZone } from '../layout'
 import type React from 'react'
 import { errorMessage } from '../api'
@@ -40,7 +41,7 @@ const theme = EditorView.theme(
 
 type Problem = null | 'missing' | 'cannot-open' | string
 
-export function FilePane({ paneId }: { paneId: string }) {
+export function FilePane({ paneId, floating }: { paneId: string; floating?: boolean }) {
   const meta = useUi((s) => s.app?.filePanes[paneId])
   const focused = useUi((s) => s.focusedPaneId === paneId)
   const root = useUi((s) => (s.app ? pickerRoot(s.app, paneId) : null))
@@ -171,7 +172,7 @@ export function FilePane({ paneId }: { paneId: string }) {
       className={`pane file-pane${focused ? ' focused' : ''}`}
       onMouseDown={() => focusPane(paneId)}
       onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes(PANE_MIME)) return
+        if (floating || !e.dataTransfer.types.includes(PANE_MIME)) return
         e.preventDefault()
         setZone(zoneAt(e))
       }}
@@ -179,13 +180,17 @@ export function FilePane({ paneId }: { paneId: string }) {
       onDrop={(e) => {
         const dragged = e.dataTransfer.getData(PANE_MIME)
         setZone(null)
-        if (!dragged || dragged === paneId) return
+        if (floating || !dragged || dragged === paneId) return
         e.preventDefault()
         dropOnPane(dragged, paneId, zoneAt(e))
       }}
     >
       {zone && <div className={`drop-zone drop-${zone}`} />}
-      <div className="pane-header file-header" draggable onDragStart={(e) => e.dataTransfer.setData(PANE_MIME, paneId)}>
+      <div
+        className={`pane-header file-header${floating ? ' float-drag' : ''}`}
+        draggable={!floating}
+        onDragStart={(e) => !floating && e.dataTransfer.setData(PANE_MIME, paneId)}
+      >
         <span className="file-name">📄 {baseName(path)}</span>
         <span className="file-path" title={path}>{relativeTo(root, path)}</span>
         {dirty && <span className="file-dirty">● não salvo</span>}
@@ -196,9 +201,18 @@ export function FilePane({ paneId }: { paneId: string }) {
             {mode === 'view' ? 'Editar' : 'Visualizar'}
           </button>
         )}
-        <button className="ph-close" title="Fechar arquivo" onClick={() => void requestCloseFile(paneId)}>
-          ✕
-        </button>
+        {floating ? (
+          <FloatControls paneId={paneId} />
+        ) : (
+          <>
+            <button className="ph-close" title="Flutuar · ⇧⌘F" onClick={() => floatPane(paneId)}>
+              ⧉
+            </button>
+            <button className="ph-close" title="Fechar arquivo" onClick={() => void requestCloseFile(paneId)}>
+              ✕
+            </button>
+          </>
+        )}
       </div>
       {external && (
         <div className="file-banner">

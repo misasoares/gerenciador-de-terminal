@@ -309,3 +309,19 @@ button.link:hover { background: none; text-decoration: underline; }
 .sb-ws-attn { color: var(--warn); font-weight: 400; font-size: 11px; }
 .sb-ws-tabname { padding: 2px 8px 0 22px; font-size: 11px; color: var(--fg-dim); }
 .sb-ws-tab .sb-session { padding-left: 30px; }
+
+/* janela flutuante */
+.float-root { display: flex; flex-direction: column; height: 100vh; background: var(--bg); }
+.float-root.needs-you { box-shadow: inset 0 0 0 2px #eab308; }
+.float-root.your-turn { box-shadow: inset 0 0 0 2px #3b82f6; }
+.float-header { -webkit-app-region: drag; display: flex; align-items: center; gap: 8px; height: 30px; flex-shrink: 0; padding: 0 8px; background: var(--bg-bar); border-bottom: 1px solid var(--border); font-size: 12px; user-select: none; }
+.float-title { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.float-dim { color: var(--fg-dim); }
+.float-controls { display: flex; gap: 2px; -webkit-app-region: no-drag; }
+.float-controls button { background: none; padding: 2px 6px; opacity: 0.45; }
+.float-controls button:hover { background: var(--bg-hover); opacity: 1; }
+.float-controls button.on { opacity: 1; }
+.float-body { flex: 1; min-height: 0; display: flex; }
+.float-body > .pane { flex: 1; }
+.file-header.float-drag { -webkit-app-region: drag; }
+.file-header.float-drag button { -webkit-app-region: no-drag; }

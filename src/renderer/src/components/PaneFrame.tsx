@@ -11,7 +11,7 @@ import { TerminalView } from './TerminalView'
 
 const COMPACT_BELOW = 320
 
-export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProject?: (dir: string) => void }) {
+export function PaneFrame({ paneId, onAddProject, floating }: { paneId: string; onAddProject?: (dir: string) => void; floating?: boolean }) {
   const pane = useUi((s) => s.app?.panes.find((p) => p.id === paneId))
   const focused = useUi((s) => s.focusedPaneId === paneId)
   const flashing = useUi((s) => s.flashPaneId === paneId)
@@ -55,7 +55,7 @@ export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProje
       data-pane-id={paneId}
       onMouseDown={() => focusPane(paneId)}
       onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes(PANE_MIME)) return
+        if (floating || !e.dataTransfer.types.includes(PANE_MIME)) return
         e.preventDefault()
         setZone(zoneAt(e))
       }}
@@ -63,12 +63,12 @@ export function PaneFrame({ paneId, onAddProject }: { paneId: string; onAddProje
       onDrop={(e) => {
         const dragged = e.dataTransfer.getData(PANE_MIME)
         setZone(null)
-        if (!dragged || dragged === paneId) return
+        if (floating || !dragged || dragged === paneId) return
         e.preventDefault()
         dropOnPane(dragged, paneId, zoneAt(e))
       }}
     >
-      {pane && <PaneHeader pane={pane} compact={compact} onAddProject={onAddProject} />}
+      {pane && !floating && <PaneHeader pane={pane} compact={compact} onAddProject={onAddProject} />}
       {pane?.alive ? (
         <TerminalView paneId={paneId} />
       ) : resumable ? (

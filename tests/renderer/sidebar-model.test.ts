@@ -7,7 +7,7 @@ const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: Numb
 const claude = (status: 'working' | 'needs-you' | 'idle', title: string | null = null) => ({ sessionId: 's', agent: 'claude' as const, status, statusSince: 0, title, transcriptPath: null })
 
 const app: AppState = {
-  protocolVersion: 1, workspaceId: 'principal', workspaces: [], askOnCloseWindow: true, userHome: '/u', accounts: [], resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {}, layout: { tabs: [], activeTabId: null },
+  protocolVersion: 1, workspaceId: 'principal', workspaces: [], floating: [], askOnCloseWindow: true, userHome: '/u', accounts: [], resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {}, layout: { tabs: [], activeTabId: null },
   projects: [{
     path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null,
     worktrees: [
@@ -58,5 +58,11 @@ describe('splitWorktrees', () => {
     const r = splitWorktrees(list as never, new Set(['gate']))
     expect(r.visible.map((w) => w.path)).toEqual(['main', 'dev2', 'gate'])
     expect(r.hidden.map((w) => w.path)).toEqual(['dev1', 'velha'])
+  })
+  it('flutuante: ⧉ em vez de oculta', () => {
+    const m = buildSidebar({ ...app, floating: ['p3'] })
+    const main = m.projects[0].worktrees[0]
+    expect(main.sessions.find((s) => s.paneId === 'p3')).toMatchObject({ floating: true, hidden: false })
+    expect(main.sessions.find((s) => s.paneId === 'p1')).toMatchObject({ floating: false, hidden: true })
   })
 })

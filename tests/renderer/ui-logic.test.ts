@@ -41,7 +41,7 @@ const pane = (id: string, over: Partial<PaneView>): PaneView => ({ id, seq: 1, c
 const claude = (status: 'working' | 'needs-you' | 'idle') => ({ sessionId: 's', agent: 'claude' as const, status, statusSince: 0, title: null, transcriptPath: null })
 
 const app = (over: Partial<AppState> = {}): AppState => ({
-  protocolVersion: 1, workspaceId: 'principal', workspaces: [], askOnCloseWindow: true, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {},
+  protocolVersion: 1, workspaceId: 'principal', workspaces: [], floating: [], askOnCloseWindow: true, userHome: '/Users/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {},
   layout: { tabs: [{ id: 't1', name: 'A', root: leaf('p1') }, { id: 't2', name: 'B', root: leaf('p2') }], activeTabId: 't1' },
   projects: [{ path: '/r/api', name: 'api', defaultAccountId: null, error: null, fetchError: null, conflicts: null, worktrees: [{ path: '/r/api', head: null, branch: 'main', isMain: true, locked: false, prunable: false, git: null }] }],
   panes: [pane('p1', { claude: claude('working') }), pane('p2', { claude: claude('needs-you') }), pane('p3', { claude: claude('idle') })],

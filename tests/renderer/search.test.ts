@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '../../src/shared/settings'
 import type { AppState } from '../../src/shared/types'
 
 const app: AppState = {
-  protocolVersion: 2, workspaceId: 'principal', workspaces: [], askOnCloseWindow: true, userHome: '/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {},
+  protocolVersion: 2, workspaceId: 'principal', workspaces: [], floating: [], askOnCloseWindow: true, userHome: '/u', accounts: DEFAULT_ACCOUNTS, resumable: [], hookWarnings: [], settings: DEFAULT_SETTINGS, usage: [], usageHints: {}, filePanes: {},
   layout: { tabs: [], activeTabId: null },
   projects: [{ path: '/r/tcheerp', name: 'tcheerp', defaultAccountId: null, error: null, fetchError: null, conflicts: null, worktrees: [
     { path: '/r/tcheerp', head: null, branch: 'main', isMain: true, locked: false, prunable: false, git: null },

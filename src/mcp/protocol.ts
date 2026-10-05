@@ -28,7 +28,7 @@ export const TOOLS = [
         conta: str('conta do agente (id ou rótulo); padrão: a desta sessão'),
         worktree: { type: 'boolean', description: 'criar worktree git nova em .claude/worktrees/<nome> (padrão true)' },
         base: str('branch de partida da worktree; padrão: a branch atual desta sessão'),
-        onde: { type: 'string', enum: ['aba-do-lider'], description: 'onde a sessão aparece (padrão aba-do-lider)' },
+        onde: { type: 'string', enum: ['aba-do-lider', 'flutuante'], description: 'onde a sessão aparece: aba-do-lider (padrão, divide a aba) ou flutuante (janela própria por cima de tudo)' },
       },
       required: ['nome'],
     },

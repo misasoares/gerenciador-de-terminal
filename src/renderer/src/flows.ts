@@ -1,7 +1,7 @@
 import type { ConversationInfo, RemoveCheck, Tab } from '../../shared/types'
 import { isMissing } from './conversations-model'
 import { SESSION_COLORS } from '../../shared/settings'
-import { closeDeadPane, closeTab, setTabColor, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane, openFilePicker, hidePane } from './actions'
+import { closeDeadPane, closeTab, setTabColor, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane, openFilePicker, hidePane, floatPane, dockFloat } from './actions'
 import type { ProjectItem, SessionItem, WorktreeItem } from './sidebar-model'
 import { getUi, setUi, showError } from './store'
 
@@ -117,6 +117,7 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
       ? [
           { id: 'focus', label: 'Focar painel' },
           { id: 'toggle', label: s.hidden ? 'Mostrar' : 'Esconder  ⌘W' },
+          { id: 'float', label: s.floating ? 'Encaixar' : 'Flutuar' },
           { id: '-', label: '' },
           ...tabs.map((t, i) => ({ id: `tab:${t.id}`, label: `Mover para aba ${i + 1} · ${t.name}`, enabled: s.tab !== i + 1 })),
           ...(others.length ? [{ id: '-', label: '' }, ...others.map((w) => ({ id: `ws:${w.id}`, label: `Mover para espaço ▸ ${w.name}` }))] : []),
@@ -140,7 +141,10 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
     setUi({ renamingPaneId: s.paneId })
   } else if (choice?.startsWith('color:')) window.gt.request({ t: 'pane.meta', paneId: s.paneId, color: choice.slice(6) || null }).catch(showError)
   else if (choice?.startsWith('tab:')) moveToTab(s.paneId, choice.slice(4))
-  else if (choice === 'leader') window.gt.request({ t: 'pane.setLeader', paneId: s.paneId, leader: !pane?.leader }).catch(showError)
+  else if (choice === 'float') {
+    if (s.floating) dockFloat(s.paneId)
+    else floatPane(s.paneId)
+  } else if (choice === 'leader') window.gt.request({ t: 'pane.setLeader', paneId: s.paneId, leader: !pane?.leader }).catch(showError)
   else if (choice?.startsWith('ws:')) {
     // sai do layout daqui antes: o próximo layout.save desta janela já vem sem o painel
     hidePane(s.paneId)
