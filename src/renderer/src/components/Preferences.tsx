@@ -39,7 +39,8 @@ export function Preferences() {
           <>
         <div className="field">
           <div className="field-label">TEMA DO TERMINAL</div>
-          <select value={draft.theme} onChange={(e) => update({ theme: e.target.value as TerminalSettings['theme'] })}>
+          <select value={draft.terminalTheme} onChange={(e) => update({ terminalTheme: e.target.value as TerminalSettings['terminalTheme'] })}>
+            <option value="match">Acompanhar o tema</option>
             {THEME_IDS.map((id) => (
               <option key={id} value={id}>
                 {THEMES[id].label}

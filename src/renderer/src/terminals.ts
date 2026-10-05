@@ -36,7 +36,7 @@ const BASE_OPTIONS = {
 let current: TerminalSettings = DEFAULT_SETTINGS
 
 function optionsFor(s: TerminalSettings) {
-  const theme = THEMES[s.theme].xterm
+  const theme = THEMES[s.terminalTheme === 'match' ? 'vscode-dark' : s.terminalTheme].xterm
   // flutuante com vidro: o fundo vem do CSS (translúcido); o terminal não pinta o dele
   if (GLASS) return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme: { ...theme, background: '#00000000' }, allowTransparency: true }
   return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme }
@@ -54,7 +54,7 @@ class TerminalRegistry {
 
   applySettings(s: TerminalSettings): void {
     current = s
-    document.documentElement.style.setProperty('--term-bg', THEMES[s.theme].xterm.background ?? '#1e1e1e')
+    document.documentElement.style.setProperty('--term-bg', THEMES[s.terminalTheme === 'match' ? 'vscode-dark' : s.terminalTheme].xterm.background ?? '#1e1e1e')
     for (const [id, e] of this.entries) {
       Object.assign(e.term.options, optionsFor(s))
       this.fit(id)

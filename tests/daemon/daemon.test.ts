@@ -398,15 +398,15 @@ describe('Daemon', () => {
     await first.app.client.request({ t: 'pane.meta', paneId, name: '   ' })
     await first.app.waitState((s) => s.panes[0]?.name === null)
     await first.app.client.request({ t: 'pane.meta', paneId, name })
-    await first.app.client.request({ t: 'settings.save', settings: { ...DEFAULT_SETTINGS, theme: 'dracula', fontFamily: 'JetBrains Mono', fontSize: 99, lineHeight: 1.3 } })
-    await first.app.waitState((s) => s.settings.theme === 'dracula' && s.settings.fontSize === 24)
+    await first.app.client.request({ t: 'settings.save', settings: { ...DEFAULT_SETTINGS, terminalTheme: 'dracula', fontFamily: 'JetBrains Mono', fontSize: 99, lineHeight: 1.3 } })
+    await first.app.waitState((s) => s.settings.terminalTheme === 'dracula' && s.settings.fontSize === 24)
     await new Promise((r) => setTimeout(r, 400))
     first.app.client.close()
     await first.d.stop(true)
     daemons = []
     const second = await boot({}, first.home)
     const st = await second.app.waitState((s) => s.resumable.length === 1)
-    expect(st.settings).toMatchObject({ theme: 'dracula', fontFamily: 'JetBrains Mono', fontSize: 24 })
+    expect(st.settings).toMatchObject({ terminalTheme: 'dracula', fontFamily: 'JetBrains Mono', fontSize: 24 })
     // o painel retomado com o mesmo id recupera nome e cor
     await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
     await second.app.waitState((s) => s.panes[0]?.name === name && s.panes[0]?.color === '#3b82f6')

@@ -1,10 +1,24 @@
 import { ACTIONS, parseAccel, type KeyOverrides } from './keybindings'
 
-export const THEME_IDS = ['vscode-dark', 'one-dark', 'dracula', 'solarized-dark', 'github-dark', 'nord'] as const
+export const THEME_IDS = ['vscode-dark', 'one-dark', 'dracula', 'solarized-dark', 'github-dark', 'nord', 'github-light'] as const
 export type ThemeId = (typeof THEME_IDS)[number]
 
+/** temas do app (cores + estilo visual); ids estáveis, nomes de tela em app-themes.ts */
+export const APP_THEME_IDS = ['padrao', 'claro'] as const
+export type AppThemeId = (typeof APP_THEME_IDS)[number]
+
+export interface Appearance {
+  /** fixed: um tema só; auto: segue a aparência do macOS */
+  mode: 'fixed' | 'auto'
+  theme: AppThemeId
+  light: AppThemeId
+  dark: AppThemeId
+}
+
 export interface TerminalSettings {
-  theme: ThemeId
+  appearance: Appearance
+  /** 'match' = acompanha o tema do app */
+  terminalTheme: 'match' | ThemeId
   fontFamily: string
   fontSize: number
   lineHeight: number
@@ -17,7 +31,8 @@ export interface TerminalSettings {
 }
 
 export const DEFAULT_SETTINGS: TerminalSettings = {
-  theme: 'vscode-dark',
+  appearance: { mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao' },
+  terminalTheme: 'match',
   fontFamily: 'Menlo, Monaco, "Courier New", monospace',
   fontSize: 13,
   lineHeight: 1.2,
@@ -48,10 +63,31 @@ export function normalizeKeybindings(v: unknown): KeyOverrides {
   return out
 }
 
+const isApp = (v: unknown): v is AppThemeId => APP_THEME_IDS.includes(v as AppThemeId)
+
+function normalizeAppearance(v: unknown): Appearance {
+  const d = DEFAULT_SETTINGS.appearance
+  const a = v && typeof v === 'object' ? (v as Record<string, unknown>) : {}
+  return {
+    mode: a.mode === 'auto' || a.mode === 'fixed' ? a.mode : d.mode,
+    theme: isApp(a.theme) ? a.theme : d.theme,
+    light: isApp(a.light) ? a.light : d.light,
+    dark: isApp(a.dark) ? a.dark : d.dark,
+  }
+}
+
+/** terminalTheme novo; senão o `theme` antigo (o padrão antigo vira 'match', outro fica fixado) */
+function normalizeTerminalTheme(v: Record<string, unknown>): 'match' | ThemeId {
+  if (v.terminalTheme === 'match' || THEME_IDS.includes(v.terminalTheme as ThemeId)) return v.terminalTheme as 'match' | ThemeId
+  if (v.terminalTheme === undefined && THEME_IDS.includes(v.theme as ThemeId) && v.theme !== 'vscode-dark') return v.theme as ThemeId
+  return 'match'
+}
+
 export function normalizeSettings(s: Partial<TerminalSettings> | undefined): TerminalSettings {
   const v = s ?? {}
   return {
-    theme: THEME_IDS.includes(v.theme as ThemeId) ? (v.theme as ThemeId) : DEFAULT_SETTINGS.theme,
+    appearance: normalizeAppearance(v.appearance),
+    terminalTheme: normalizeTerminalTheme(v as Record<string, unknown>),
     fontFamily: typeof v.fontFamily === 'string' && v.fontFamily.trim() ? v.fontFamily.trim() : DEFAULT_SETTINGS.fontFamily,
     fontSize: typeof v.fontSize === 'number' && Number.isFinite(v.fontSize) ? clamp(Math.round(v.fontSize), 10, 24) : DEFAULT_SETTINGS.fontSize,
     lineHeight: typeof v.lineHeight === 'number' && Number.isFinite(v.lineHeight) ? clamp(Math.round(v.lineHeight * 10) / 10, 1, 1.6) : DEFAULT_SETTINGS.lineHeight,
