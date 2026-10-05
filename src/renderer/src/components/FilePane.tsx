@@ -35,7 +35,7 @@ const theme = EditorView.theme(
   {
     '&': { height: '100%', fontSize: '13px', backgroundColor: 'var(--bg)', color: 'var(--fg)' },
     '.cm-gutters': { backgroundColor: 'var(--bg)', color: 'var(--fg-dim)', border: 'none' },
-    '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'rgba(255,255,255,0.04)' },
+    '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--bg-hover)' },
     '.cm-content': { caretColor: 'var(--fg)' },
   },
   { dark: true },
