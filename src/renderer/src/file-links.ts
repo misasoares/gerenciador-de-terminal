@@ -1,3 +1,5 @@
+import { MEDIA_EXT } from '../../shared/media'
+
 export interface PathCandidate {
   text: string
   path: string
@@ -6,7 +8,7 @@ export interface PathCandidate {
   end: number
 }
 
-const EXT = /\.(md|mdx|txt|env|json|jsonc|ya?ml|toml|ini|cfg|conf|ts|tsx|js|jsx|mjs|cjs|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|sh|zsh|bash|sql|html|css|scss|xml|csv|log|lock|gradle|properties|dart|vue|svelte|tf)$/i
+const EXT = new RegExp(`\\.(${MEDIA_EXT}|md|mdx|txt|env|json|jsonc|ya?ml|toml|ini|cfg|conf|ts|tsx|js|jsx|mjs|cjs|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|sh|zsh|bash|sql|html|css|scss|xml|csv|log|lock|gradle|properties|dart|vue|svelte|tf)$`, 'i')
 const TRAIL = /[.,:;)!?\]}>'"]+$/
 const LEAD = /^[(\[{<'"]+/
 

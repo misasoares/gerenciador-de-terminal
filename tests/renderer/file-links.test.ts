@@ -4,6 +4,9 @@ import { findPathCandidates, linkRange } from '../../src/renderer/src/file-links
 const paths = (s: string) => findPathCandidates(s).map((c) => [c.path, c.line])
 
 describe('findPathCandidates', () => {
+  it('mídia também vira link (imagem, vídeo, áudio, pdf)', () => {
+    expect(paths('salvei em out/print.png, demo.mp4, voz.m4a e docs/manual.pdf')).toEqual([['out/print.png', null], ['demo.mp4', null], ['voz.m4a', null], ['docs/manual.pdf', null]])
+  })
   it('relativo, absoluto, :N e :N:M', () => {
     expect(paths('O relatório parcial está em .private/revisao-interna/frente-a-projetos.md.')).toEqual([['.private/revisao-interna/frente-a-projetos.md', null]])
     expect(paths('erro em src/app.ts:42 e /Users/u/x/y.json:3:7')).toEqual([['src/app.ts', 42], ['/Users/u/x/y.json', 3]])
