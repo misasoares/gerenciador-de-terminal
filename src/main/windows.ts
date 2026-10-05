@@ -116,6 +116,8 @@ export class WindowManager {
       width: 1440,
       height: 900,
       backgroundColor: '#1e1e1e',
+      // ⌘+clique vindo da flutuante: no mac a janela inativa não ativa e, sem isso, o clique se perde
+      acceptFirstMouse: true,
       title: `${TITLE} — ${this.nameOf(id)}`,
       webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false },
     })

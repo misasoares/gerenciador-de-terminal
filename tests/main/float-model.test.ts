@@ -13,6 +13,9 @@ describe('float-model', () => {
     expect(r.close).toEqual(['p9'])
     expect(r.update).toEqual([{ ...spec('p2', { onTop: false }), wsId: 'a' }])
   })
+  it('janelas aceitam o primeiro clique (⌘+clique numa janela inativa chega ao terminal)', () => {
+    expect(floatWindowOptions({ x: 0, y: 0, width: 640, height: 400 })).toMatchObject({ acceptFirstMouse: true })
+  })
   it('fitBounds: fora de qualquer monitor volta ao padrão', () => {
     const screen = { x: 0, y: 0, width: 1440, height: 900 }
     const fb = { x: 100, y: 100, width: 640, height: 400 }

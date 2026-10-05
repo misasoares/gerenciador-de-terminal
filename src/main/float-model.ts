@@ -37,7 +37,8 @@ export function floatHome(workspaceWin: Bounds | null, screen: Bounds, n: number
 /**
  * Opções da janela flutuante. fullscreenable: false — sem moldura não há como sair da tela cheia, e o macOS
  * a punha numa mesa própria ao arrastá-la para outra mesa estando sobre um app em tela cheia.
+ * acceptFirstMouse: no mac o ⌘+clique numa janela inativa não a ativa e, sem isso, o clique se perde.
  */
 export function floatWindowOptions(bounds: Bounds) {
-  return { ...bounds, minWidth: 320, minHeight: 180, frame: false, fullscreenable: false, backgroundColor: '#1e1e1e' }
+  return { ...bounds, minWidth: 320, minHeight: 180, frame: false, fullscreenable: false, acceptFirstMouse: true, backgroundColor: '#1e1e1e' }
 }
