@@ -51,10 +51,16 @@ export function useUi<T>(sel: (s: UiState) => T): T {
   return useSyncExternalStore(subscribe, () => sel(state))
 }
 
+let layoutOwner = true
+/** a janela flutuante não é dona do layout do espaço: nunca grava (só a janela do espaço grava) */
+export function setLayoutOwner(v: boolean): void {
+  layoutOwner = v
+}
+
 /** o renderer é a fonte do layout: aplica local e salva no daemon */
 export function updateLayout(fn: (l: Layout) => Layout): void {
   const app = state.app
-  if (!app) return
+  if (!app || !layoutOwner) return
   const layout = fn(app.layout)
   if (layout === app.layout) return
   setUi({ app: { ...app, layout } })

@@ -6,12 +6,14 @@ import { dockBadge, noticesFor, throttleNotices } from './attention'
 import { panesToAutoClose } from './focus'
 import { headerView } from './header'
 import { leaves } from './layout'
-import { getUi, setUi, showError } from './store'
+import { getUi, setLayoutOwner, setUi, showError } from './store'
 import { syncKeybindings } from './shortcuts'
 import { terminals } from './terminals'
 import { emitFileChanged } from './file-events'
 import { mergeIncomingLayout } from './workspaces-model'
 import { ReopenWorkspaces } from './components/ReopenWorkspaces'
+import { FloatView } from './components/FloatView'
+import { FLOAT_PANE } from './view'
 import './styles.css'
 
 let seenFirstState = false
@@ -67,7 +69,17 @@ function bootWorkspace(): void {
         // exceção: sessão movida de outro espaço para cá traz o layout do daemon
         setUi((s) => ({
           app: s.app
-            ? { ...e.state, layout: mergeIncomingLayout(s.app.layout, e.state.layout, new Set(s.app.panes.map((p) => p.id)), new Set(e.state.panes.map((p) => p.id))) }
+            ? {
+                ...e.state,
+                layout: mergeIncomingLayout(
+                  s.app.layout,
+                  e.state.layout,
+                  new Set(s.app.panes.map((p) => p.id)),
+                  new Set(e.state.panes.map((p) => p.id)),
+                  // painel encaixado vindo de uma flutuante: o daemon pôs a folha na aba ativa
+                  new Set(s.app.floating.filter((id) => !e.state.floating.includes(id))),
+                ),
+              }
             : e.state,
           connected: true,
         }))
@@ -109,8 +121,49 @@ function bootWorkspace(): void {
     .catch(showError)
 }
 
+/** janela flutuante: um painel só; não grava layout nem dispara notificações/badge (a janela do espaço cuida) */
+function bootFloat(paneId: string): void {
+  setLayoutOwner(false)
+  setUi({ focusedPaneId: paneId })
+  window.gt.onEvent((e) => {
+    switch (e.t) {
+      case 'state': {
+        const prev = getUi().app
+        setUi({ app: e.state, connected: true })
+        if (JSON.stringify(e.state.settings) !== JSON.stringify(prev?.settings)) terminals.applySettings(e.state.settings)
+        break
+      }
+      case 'pane.data':
+        terminals.onData(e.paneId, e.data, e.seq)
+        break
+      case 'disconnected':
+        setUi({ connected: false })
+        break
+      case 'reconnected':
+        setUi({ connected: true })
+        terminals.reattachAll()
+        break
+      case 'file.changed':
+        emitFileChanged(e.path, e.mtimeMs)
+        break
+    }
+  })
+  window.gt.onMenu(runMenuAction)
+  window.addEventListener('focus', () => terminals.focus(paneId))
+  window.gt
+    .request<AppState>({ t: 'state.get' })
+    .then((app) => {
+      setUi((s) => ({ app: s.app ?? app, connected: true }))
+      terminals.applySettings(getUi().app?.settings ?? app.settings)
+    })
+    .catch(showError)
+}
+
 if (view === 'reopen') {
   createRoot(document.getElementById('root')!).render(<ReopenWorkspaces />)
+} else if (FLOAT_PANE) {
+  bootFloat(FLOAT_PANE)
+  createRoot(document.getElementById('root')!).render(<FloatView paneId={FLOAT_PANE} />)
 } else {
   bootWorkspace()
   createRoot(document.getElementById('root')!).render(<App />)

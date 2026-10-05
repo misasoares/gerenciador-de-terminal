@@ -3,6 +3,8 @@ import { findTab, insertBeside, leaves, neighbor, removeLeaf, removePane, replac
 import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
+import { revealTarget } from './float-model'
+import { FLOAT_PANE } from './view'
 import { terminals } from './terminals'
 import { findFilePane, insertFileLeaf, isFilePane, languageFor, pickerRoot } from './file-model'
 
@@ -65,6 +67,12 @@ export async function openNewPane(o: {
 
 /** clique na sidebar: vai para a aba do painel (ou reabre em split) e pisca o contorno */
 export function revealPane(paneId: string): void {
+  // flutuante: foca a janela dela (troca de mesa), nunca a põe de volta na grade
+  const app = getUi().app
+  if (app && revealTarget(app, paneId) === 'float') {
+    void window.gt.focusFloat(paneId)
+    return
+  }
   placePane(paneId, 'row')
   focusPane(paneId)
   flash(paneId)
@@ -222,7 +230,38 @@ export function revealNextAttention(): void {
   if (next) revealPane(next)
 }
 
+/** tira da grade e abre numa janela flutuante (terminal, sessão ou arquivo) */
+export function floatPane(paneId: string): void {
+  hidePane(paneId)
+  window.gt.request({ t: 'float.set', paneId, mode: 'float' }).catch(showError)
+}
+
+/** volta da flutuante para a grade (aba ativa do espaço) */
+export function dockFloat(paneId: string): void {
+  window.gt.request({ t: 'float.set', paneId, mode: 'dock' }).catch(showError)
+}
+
+/** fecha a flutuante sem encaixar: a sessão segue viva e oculta; arquivo com alteração pergunta antes */
+export async function hideFloat(paneId: string): Promise<void> {
+  if (dirtyFiles.has(paneId)) {
+    const r = await window.gt.confirm({ message: 'Fechar o arquivo sem salvar?', detail: 'As alterações não salvas serão perdidas.', confirmLabel: 'Fechar sem salvar' })
+    if (!r.ok) return
+  }
+  await window.gt.request({ t: 'float.set', paneId, mode: 'hide' }).catch(showError)
+}
+
 export function runMenuAction(action: string): void {
+  // janela flutuante: ⌘W esconde, ⇧⌘F encaixa; o resto das ações de grade não se aplica
+  if (FLOAT_PANE) {
+    if (action === 'hide-pane') void hideFloat(FLOAT_PANE)
+    else if (action === 'toggle-float') dockFloat(FLOAT_PANE)
+    return
+  }
+  if (action === 'toggle-float') {
+    const id = getUi().focusedPaneId
+    if (id) floatPane(id)
+    return
+  }
   if (action === 'new-session') openNewSessionDialog()
   else if (action === 'split-right') splitFocused('row')
   else if (action === 'split-down') splitFocused('column')

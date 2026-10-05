@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PaneView } from '../../../shared/types'
-import { hidePane, PANE_MIME } from '../actions'
+import { floatPane, hidePane, PANE_MIME } from '../actions'
 import { gitBadges, headerView, sharesContext, textOn } from '../header'
 import { getUi, setUi, useUi } from '../store'
 
@@ -92,6 +92,9 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
                 {h.account.label}
               </span>
             ))}
+          <button className="ph-close" title="Flutuar · ⇧⌘F" onClick={() => floatPane(pane.id)}>
+            ⧉
+          </button>
           <button className="ph-close" title="Esconder painel (a sessão continua rodando) ⌘W" onClick={() => hidePane(pane.id)}>
             ✕
           </button>

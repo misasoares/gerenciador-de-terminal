@@ -38,6 +38,11 @@ function SessionRow({ s, outside }: { s: SessionItem; outside?: boolean }) {
       {s.color && <span className="sb-color" style={{ background: s.color }} />}
       <span className="sb-label">{s.label}</span>
       {s.hidden && <span className="sb-tag">oculta</span>}
+      {s.floating && (
+        <span className="sb-tag" title="numa janela flutuante">
+          ⧉
+        </span>
+      )}
       {s.tab !== null && (
         <span className="sb-tab" title={`aberta na aba ${s.tab}`}>
           ⌘{s.tab}
