@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { APP_THEMES, contrast, cssVars, resolveTheme, TOKEN_NAMES } from '../../src/renderer/src/app-themes'
+import { APP_THEMES, contrast, cssVars, matchLabel, resolveTheme, TOKEN_NAMES } from '../../src/renderer/src/app-themes'
 import { APP_THEME_IDS, DEFAULT_SETTINGS } from '../../src/shared/settings'
 
 const s = (over = {}) => ({ appearance: { ...DEFAULT_SETTINGS.appearance, ...over }, terminalTheme: 'match' as const })
@@ -38,5 +38,10 @@ describe('app-themes', () => {
     expect(v['--bg']).toBe('#1e1e1e')
     const r = cssVars(APP_THEMES.padrao, { reducedMotion: true })
     expect([r['--dur-fast'], r['--dur-base'], r['--dur-slow']]).toEqual(['0ms', '0ms', '0ms'])
+  })
+  it('rótulo de "acompanhar": no fixo mostra o terminal pareado; no automático, só o texto', () => {
+    expect(matchLabel(DEFAULT_SETTINGS.appearance)).toBe('Acompanhar o tema (VS Code Dark)')
+    expect(matchLabel({ ...DEFAULT_SETTINGS.appearance, theme: 'claro' })).toBe('Acompanhar o tema (GitHub Light)')
+    expect(matchLabel({ ...DEFAULT_SETTINGS.appearance, mode: 'auto' })).toBe('Acompanhar o tema')
   })
 })

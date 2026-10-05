@@ -1,4 +1,5 @@
-import type { AppThemeId, TerminalSettings, ThemeId } from '../../shared/settings'
+import type { Appearance, AppThemeId, TerminalSettings, ThemeId } from '../../shared/settings'
+import { THEMES } from './themes'
 
 /** vocabulário de um tema: viram variáveis CSS --<nome> (ver spec, seção 2) */
 export const TOKEN_NAMES = [
@@ -107,4 +108,9 @@ const lum = (hex: string) => {
 export function contrast(a: string, b: string): number {
   const [x, y] = [lum(a), lum(b)]
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+}
+
+/** opção "acompanhar" do tema de terminal: no fixo diz qual terminal vem junto; no automático depende do sistema */
+export function matchLabel(a: Appearance): string {
+  return a.mode === 'auto' ? 'Acompanhar o tema' : `Acompanhar o tema (${THEMES[APP_THEMES[a.theme].terminal].label})`
 }

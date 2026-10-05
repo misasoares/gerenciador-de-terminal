@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { normalizeSettings, THEME_IDS, type TerminalSettings } from '../../../shared/settings'
 import { THEMES } from '../themes'
+import { matchLabel } from '../app-themes'
+import { AppearancePanel } from './AppearancePanel'
 import { AgentsPanel } from './AgentsPanel'
 import { KeybindingsPanel } from './KeybindingsPanel'
 import { setUi, showError, useUi } from '../store'
@@ -8,7 +10,7 @@ import { setUi, showError, useUi } from '../store'
 export function Preferences() {
   const saved = useUi((s) => s.app?.settings)
   const [draft, setDraft] = useState<TerminalSettings | null>(saved ?? null)
-  const [tab, setTab] = useState<'terminal' | 'agents' | 'shortcuts'>('terminal')
+  const [tab, setTab] = useState<'appearance' | 'terminal' | 'agents' | 'shortcuts'>('appearance')
   if (!saved || !draft) return null
   const update = (patch: Partial<TerminalSettings>) => {
     const next = normalizeSettings({ ...draft, ...patch })
@@ -21,6 +23,9 @@ export function Preferences() {
       <div className="modal prefs" onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && close()}>
         <h3>Preferências</h3>
         <div className="pref-tabs">
+          <button className={tab === 'appearance' ? 'active' : ''} onClick={() => setTab('appearance')}>
+            Aparência
+          </button>
           <button className={tab === 'terminal' ? 'active' : ''} onClick={() => setTab('terminal')}>
             Terminal
           </button>
@@ -31,7 +36,9 @@ export function Preferences() {
             Atalhos
           </button>
         </div>
-        {tab === 'agents' ? (
+        {tab === 'appearance' ? (
+          <AppearancePanel value={draft.appearance} onChange={(appearance) => update({ appearance })} />
+        ) : tab === 'agents' ? (
           <AgentsPanel />
         ) : tab === 'shortcuts' ? (
           <KeybindingsPanel overrides={draft.keybindings} onChange={(keybindings) => update({ keybindings })} />
@@ -40,7 +47,7 @@ export function Preferences() {
         <div className="field">
           <div className="field-label">TEMA DO TERMINAL</div>
           <select value={draft.terminalTheme} onChange={(e) => update({ terminalTheme: e.target.value as TerminalSettings['terminalTheme'] })}>
-            <option value="match">Acompanhar o tema</option>
+            <option value="match">{matchLabel(draft.appearance)}</option>
             {THEME_IDS.map((id) => (
               <option key={id} value={id}>
                 {THEMES[id].label}
