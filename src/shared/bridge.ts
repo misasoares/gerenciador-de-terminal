@@ -52,6 +52,9 @@ export interface GtApi {
   setAppearance(o: { scheme: 'light' | 'dark'; follow: boolean; bg: string; desktop: boolean }): void
   /** imagens de fundo do usuário (pasta e nomes) */
   backgrounds(): Promise<{ dir: string; list: string[] }>
+  /** escolhe uma imagem no Finder e a importa como fundo; null = cancelou */
+  importBackground(): Promise<string | null>
+  removeBackground(name: string): Promise<void>
   /** (flutuante) manda o pedido para a janela do espaço, trazendo-a para a frente */
   toWorkspace(cmd: WorkspaceCommand): Promise<void>
   /** (janela do espaço) pedidos vindos das flutuantes */

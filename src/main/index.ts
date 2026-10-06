@@ -1,4 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, Notification, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, Notification, shell } from 'electron'
+import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { ClientRequest } from '../shared/protocol'
@@ -12,7 +13,7 @@ import { NotifyKeeper } from './notify-keeper'
 import { WindowManager } from './windows'
 import { handleMediaProtocol, registerMediaScheme } from './media-protocol'
 import { readWindowBg, writeWindowBg } from './window-bg'
-import { listBackgrounds } from './backgrounds'
+import { fitWidth, listBackgrounds, removeBackground, userBgName } from './backgrounds'
 import { badgeTotal, decideStartup } from './workspaces-model'
 
 const notifications = new NotifyKeeper()
@@ -197,6 +198,23 @@ ipcMain.on('gt:appearance', (_e, o: { scheme: 'light' | 'dark'; follow: boolean;
   }
 })
 ipcMain.handle('gt:backgrounds', () => listBackgrounds(path.join(home, 'fundos')))
+// fundo do usuário: copia e reduz para GT_HOME/fundos (o original pode sumir sem afetar o app)
+ipcMain.handle('gt:importBackground', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  const opts = { properties: ['openFile' as const], filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp', 'heic'] }] }
+  const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+  if (r.canceled || !r.filePaths[0]) return null
+  const img = nativeImage.createFromPath(r.filePaths[0])
+  if (img.isEmpty()) throw new Error('Não foi possível ler essa imagem.')
+  const { width, height } = img.getSize()
+  const jpeg = img.resize(fitWidth(width, height)).toJPEG(85)
+  const dir = path.join(home, 'fundos')
+  fs.mkdirSync(dir, { recursive: true })
+  const name = userBgName(jpeg)
+  fs.writeFileSync(path.join(dir, name), jpeg)
+  return name
+})
+ipcMain.handle('gt:removeBackground', (_e, name: string) => void removeBackground(path.join(home, 'fundos'), name))
 ipcMain.handle('gt:toWorkspace', (e, cmd: WorkspaceCommand) => manager.toWorkspace(e, cmd))
 ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
   if (paneId) await manager.reveal(workspaceId, paneId)
