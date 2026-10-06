@@ -109,4 +109,7 @@ describe('app-themes', () => {
         expect(contrast(t[fg], composite(glass, base)), `${id} ${fg} sobre ${base}`).toBeGreaterThanOrEqual(4.5)
     }
   })
+  it('personalidade de movimento por tema', () => {
+    expect([APP_THEMES.padrao.motion, APP_THEMES.claro.motion, APP_THEMES.vidro.motion, APP_THEMES.noite.motion, APP_THEMES.aurora.motion]).toEqual(['subtle', 'subtle', 'calm', 'crisp', 'lively'])
+  })
 })

@@ -63,6 +63,7 @@ export function applyAppearance(s: TerminalSettings): void {
   }
   const desktop = wantsDesktop(s.appearance, app.id, app.premium, platform())
   window.gt?.setAppearance({ scheme: app.scheme, follow: s.appearance.mode === 'auto', bg: app.tokens.bg, desktop })
+  setUi({ motion: app.motion })
   // janela de espaço criada no outro modo (ex.: o automático trocou para um tema com mesa): avisa, nada fecha sozinho
   if (!FLOAT_PANE && VIEW !== 'reopen') setUi({ desktopMismatch: desktop !== WINDOW_DESKTOP })
 }

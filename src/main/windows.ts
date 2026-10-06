@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, Notification, screen, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, dialog, Notification, screen, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import type { WorkspaceCommand } from '../shared/bridge'
 import type { FloatSpec, WorkspaceSummary } from '../shared/types'
@@ -100,6 +100,8 @@ export class WindowManager {
   }
 
   private load(win: BrowserWindow, query: Record<string, string>): void {
+    // sem composição por GPU (Linux sem aceleração), o renderer não anima desfoque
+    query = { ...query, gpu: String(app.getGPUFeatureStatus().gpu_compositing).startsWith('enabled') ? '1' : '0' }
     const qs = new URLSearchParams(query).toString()
     if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(`${process.env.ELECTRON_RENDERER_URL}?${qs}`)
     else void win.loadFile(path.join(__dirname, '../renderer/index.html'), { query })

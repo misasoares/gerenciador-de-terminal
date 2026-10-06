@@ -1,4 +1,5 @@
 import type { Appearance, AppThemeId, TerminalSettings, ThemeId } from '../../shared/settings'
+import type { MotionPersonality } from './motion-presets'
 import { THEMES } from './themes'
 
 /** vocabulário de um tema: viram variáveis CSS --<nome> (ver spec, seção 2) */
@@ -31,6 +32,8 @@ export interface AppTheme {
   terminal: ThemeId
   /** tema premium: fundo escolhível, vidro nas barras, painéis com respiro */
   premium: boolean
+  /** personalidade do movimento (motion-presets.ts) */
+  motion: MotionPersonality
   tokens: Record<TokenName, string>
 }
 
@@ -40,7 +43,7 @@ const BASE = {
   'font-ui': "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", 'font-mono': 'Menlo, monospace',
   'text-xs': '10px', 'text-sm': '11.5px', 'text-md': '12px', 'text-base': '13px', 'text-lg': '15px',
   'tabbar-height': '32px', 'header-height': '26px',
-  'dur-fast': '120ms', 'dur-base': '200ms', 'dur-slow': '700ms', 'ease-standard': 'ease-out', 'ease-spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  'dur-fast': '120ms', 'dur-base': '200ms', 'dur-slow': '700ms', 'ease-standard': 'ease-out', 'ease-spring': 'cubic-bezier(0.2, 0, 0, 1)',
 } satisfies Partial<Record<TokenName, string>>
 
 /** Padrão e Claro: sem fundo próprio, sem vidro, painéis colados (o visual de sempre) */
@@ -60,7 +63,7 @@ export const SAFE_GLASS_ALPHA = 0.82
 
 export const APP_THEMES: Record<AppThemeId, AppTheme> = {
   padrao: {
-    id: 'padrao', label: 'Padrão', scheme: 'dark', terminal: 'vscode-dark', premium: false,
+    id: 'padrao', label: 'Padrão', scheme: 'dark', terminal: 'vscode-dark', premium: false, motion: 'subtle',
     tokens: {
       ...BASE,
       ...NEUTRAL,
@@ -82,7 +85,7 @@ export const APP_THEMES: Record<AppThemeId, AppTheme> = {
     },
   },
   claro: {
-    id: 'claro', label: 'Claro', scheme: 'light', terminal: 'github-light', premium: false,
+    id: 'claro', label: 'Claro', scheme: 'light', terminal: 'github-light', premium: false, motion: 'subtle',
     tokens: {
       ...BASE,
       ...NEUTRAL,
@@ -104,7 +107,7 @@ export const APP_THEMES: Record<AppThemeId, AppTheme> = {
     },
   },
   vidro: {
-    id: 'vidro', label: 'Vidro calmo', scheme: 'light', terminal: 'github-light', premium: true,
+    id: 'vidro', label: 'Vidro calmo', scheme: 'light', terminal: 'github-light', premium: true, motion: 'calm',
     tokens: {
       ...PREMIUM_BASE,
       'bg': '#ffffff', 'bg-side': 'rgba(255, 255, 255, 0.55)', 'bg-bar': 'rgba(255, 255, 255, 0.55)', 'bg-raised': '#ffffff', 'bg-sunken': '#f5f5f7',
@@ -126,7 +129,7 @@ export const APP_THEMES: Record<AppThemeId, AppTheme> = {
     },
   },
   noite: {
-    id: 'noite', label: 'Noite afiada', scheme: 'dark', terminal: 'noite', premium: true,
+    id: 'noite', label: 'Noite afiada', scheme: 'dark', terminal: 'noite', premium: true, motion: 'crisp',
     tokens: {
       ...PREMIUM_BASE,
       'bg': '#111219', 'bg-side': 'rgba(20, 21, 30, 0.55)', 'bg-bar': 'rgba(20, 21, 30, 0.55)', 'bg-raised': '#1c1e2a', 'bg-sunken': '#0d0e14',
@@ -148,9 +151,10 @@ export const APP_THEMES: Record<AppThemeId, AppTheme> = {
     },
   },
   aurora: {
-    id: 'aurora', label: 'Aurora', scheme: 'light', terminal: 'github-light', premium: true,
+    id: 'aurora', label: 'Aurora', scheme: 'light', terminal: 'github-light', premium: true, motion: 'lively',
     tokens: {
       ...PREMIUM_BASE,
+      'ease-spring': 'cubic-bezier(0.34, 1.3, 0.64, 1)',
       'bg': '#ffffff', 'bg-side': 'rgba(255, 255, 255, 0.55)', 'bg-bar': 'rgba(255, 255, 255, 0.55)', 'bg-raised': '#ffffff', 'bg-sunken': '#f7f3ff',
       'bg-hover': 'rgba(142, 60, 255, 0.07)', 'bg-selected': 'rgba(142, 60, 255, 0.16)', 'bg-status': 'rgba(255, 255, 255, 0.55)',
       'bg-control': 'rgba(0, 0, 0, 0.06)', 'bg-control-hover': 'rgba(0, 0, 0, 0.1)', 'bg-input': '#ffffff', 'border-input': '#c7c7cc',

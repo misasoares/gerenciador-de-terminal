@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { AppState, Layout, RemoveCheck } from '../../shared/types'
 import { errorMessage } from './api'
+import type { MotionPersonality } from './motion-presets'
 
 export interface UiState {
   app: AppState | null
@@ -18,6 +19,8 @@ export interface UiState {
   missingResume: string[]
   /** o fundo efetivo pede outro tipo de janela (mesa do macOS ↔ opaca): reabrir aplica */
   desktopMismatch: boolean
+  /** personalidade de movimento do tema efetivo */
+  motion: MotionPersonality
 }
 
 export type Modal =
@@ -32,7 +35,7 @@ export type Modal =
   | { kind: 'workspace-name'; mode: 'create' | 'rename' }
   | { kind: 'conversations'; paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }
 
-let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [], desktopMismatch: false }
+let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [], desktopMismatch: false, motion: 'subtle' }
 const subs = new Set<() => void>()
 
 const subscribe = (cb: () => void) => {
