@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, normalizeKeybindings, normalizeSettings, SESSION_COLORS, THEME_IDS } from '../../src/shared/settings'
+import { effectiveBackground, normalizeBackground, wantsDesktop, DEFAULT_SETTINGS, normalizeKeybindings, normalizeSettings, SESSION_COLORS, THEME_IDS } from '../../src/shared/settings'
 
 describe('preferências', () => {
   it('padrões e limites', () => {
@@ -17,12 +17,12 @@ describe('preferências', () => {
     expect(normalizeSettings({ theme: 'vscode-dark' } as never).terminalTheme).toBe('match')
     expect(normalizeSettings({ theme: 'dracula' } as never).terminalTheme).toBe('dracula')
     expect(normalizeSettings({}).terminalTheme).toBe('match')
-    expect(normalizeSettings({}).appearance).toEqual({ mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao' })
+    expect(normalizeSettings({}).appearance).toEqual({ mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao', backgrounds: {} })
     expect('theme' in normalizeSettings({ theme: 'dracula' } as never)).toBe(false)
   })
   it('aparência: valores inválidos caem no padrão campo a campo', () => {
     const a = normalizeSettings({ appearance: { mode: 'x', theme: 'claro', light: 'nao-existe', dark: 'claro' } as never }).appearance
-    expect(a).toEqual({ mode: 'fixed', theme: 'claro', light: 'claro', dark: 'claro' })
+    expect(a).toEqual({ mode: 'fixed', theme: 'claro', light: 'claro', dark: 'claro', backgrounds: {} })
     expect(normalizeSettings({ terminalTheme: 'inexistente' as never }).terminalTheme).toBe('match')
     expect(normalizeSettings({ terminalTheme: 'nord' }).terminalTheme).toBe('nord')
   })
@@ -45,5 +45,27 @@ describe('preferências', () => {
     expect(normalizeSettings({ maxHiredPerLeader: 0 }).maxHiredPerLeader).toBe(1)
     expect(normalizeSettings({ maxHiredPerLeader: 99 }).maxHiredPerLeader).toBe(50)
     expect(normalizeSettings({ maxHiredPerLeader: 7.4 }).maxHiredPerLeader).toBe(7)
+  })
+  it('fundo: formatos válidos passam; inválidos viram "tema"', () => {
+    expect(normalizeBackground({ kind: 'image', image: 'bundled:aurora-1' })).toEqual({ kind: 'image', image: 'bundled:aurora-1' })
+    expect(normalizeBackground({ kind: 'image', image: 'user:0123456789abcdef.jpg' })).toEqual({ kind: 'image', image: 'user:0123456789abcdef.jpg' })
+    for (const bad of [{ kind: 'image', image: 'bundled:nao-existe' }, { kind: 'image', image: 'user:../../etc/passwd' }, { kind: 'xyz' }, null, 'none'])
+      expect(normalizeBackground(bad)).toEqual({ kind: 'theme' })
+    expect(normalizeBackground({ kind: 'desktop' })).toEqual({ kind: 'desktop' })
+    expect(normalizeSettings({ appearance: { backgrounds: { aurora: { kind: 'none' }, padrao: { kind: 'none' }, inventado: { kind: 'none' } } } as never }).appearance.backgrounds).toEqual({ aurora: { kind: 'none' } })
+    expect(normalizeSettings({}).appearance.backgrounds).toEqual({})
+  })
+  it('fundo efetivo: tema não premium = "tema"; mesa fora do mac = "tema"', () => {
+    const a = { ...DEFAULT_SETTINGS.appearance, backgrounds: { noite: { kind: 'desktop' as const } } }
+    expect(effectiveBackground(a, 'noite', true, 'darwin')).toEqual({ kind: 'desktop' })
+    expect(effectiveBackground(a, 'noite', true, 'linux')).toEqual({ kind: 'theme' })
+    expect(effectiveBackground(a, 'padrao', false, 'darwin')).toEqual({ kind: 'theme' })
+    expect(effectiveBackground(a, 'aurora', true, 'darwin')).toEqual({ kind: 'theme' })
+  })
+  it('wantsDesktop: só quando o fundo efetivo é a mesa', () => {
+    const a = { ...DEFAULT_SETTINGS.appearance, backgrounds: { vidro: { kind: 'desktop' as const } } }
+    expect(wantsDesktop(a, 'vidro', true, 'darwin')).toBe(true)
+    expect(wantsDesktop(a, 'noite', true, 'darwin')).toBe(false)
+    expect(wantsDesktop(a, 'vidro', true, 'linux')).toBe(false)
   })
 })

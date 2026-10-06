@@ -13,6 +13,36 @@ export interface Appearance {
   theme: AppThemeId
   light: AppThemeId
   dark: AppThemeId
+  /** fundo escolhido por tema premium (sem entrada = gradiente do tema) */
+  backgrounds: Partial<Record<AppThemeId, Background>>
+}
+
+export type Background = { kind: 'theme' } | { kind: 'none' } | { kind: 'desktop' } | { kind: 'image'; image: string }
+/** imagens que vêm com o app (src/renderer/public/fundos/<id>.jpg) */
+export const BUNDLED_BACKGROUNDS = ['vidro-1', 'vidro-2', 'noite-1', 'noite-2', 'aurora-1', 'aurora-2'] as const
+/** imagem do usuário: nome gerado pelo app (hash do conteúdo) */
+export const USER_BG_RE = /^[a-f0-9]{16}\.jpg$/
+const PREMIUM: readonly AppThemeId[] = ['vidro', 'noite', 'aurora']
+
+export function normalizeBackground(v: unknown): Background {
+  const b = v && typeof v === 'object' ? (v as Record<string, unknown>) : {}
+  if (b.kind === 'none' || b.kind === 'desktop' || b.kind === 'theme') return { kind: b.kind }
+  if (b.kind === 'image' && typeof b.image === 'string') {
+    const [src, name] = b.image.split(':')
+    if (src === 'bundled' && BUNDLED_BACKGROUNDS.includes(name as (typeof BUNDLED_BACKGROUNDS)[number])) return { kind: 'image', image: b.image }
+    if (src === 'user' && USER_BG_RE.test(name ?? '')) return { kind: 'image', image: b.image }
+  }
+  return { kind: 'theme' }
+}
+
+/** fundo que vale de fato: só temas premium têm fundo; a mesa só existe no mac */
+export function effectiveBackground(a: Appearance, theme: AppThemeId, premium: boolean, platform: string): Background {
+  const b: Background = premium ? a.backgrounds[theme] ?? { kind: 'theme' } : { kind: 'theme' }
+  return b.kind === 'desktop' && platform !== 'darwin' ? { kind: 'theme' } : b
+}
+
+export function wantsDesktop(a: Appearance, theme: AppThemeId, premium: boolean, platform: string): boolean {
+  return effectiveBackground(a, theme, premium, platform).kind === 'desktop'
 }
 
 export interface TerminalSettings {
@@ -31,7 +61,7 @@ export interface TerminalSettings {
 }
 
 export const DEFAULT_SETTINGS: TerminalSettings = {
-  appearance: { mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao' },
+  appearance: { mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao', backgrounds: {} },
   terminalTheme: 'match',
   fontFamily: 'Menlo, Monaco, "Courier New", monospace',
   fontSize: 13,
@@ -73,6 +103,11 @@ function normalizeAppearance(v: unknown): Appearance {
     theme: isApp(a.theme) ? a.theme : d.theme,
     light: isApp(a.light) ? a.light : d.light,
     dark: isApp(a.dark) ? a.dark : d.dark,
+    backgrounds: Object.fromEntries(
+      Object.entries(a.backgrounds && typeof a.backgrounds === 'object' ? (a.backgrounds as Record<string, unknown>) : {})
+        .filter(([k]) => PREMIUM.includes(k as AppThemeId))
+        .map(([k, v]) => [k, normalizeBackground(v)]),
+    ),
   }
 }
 
