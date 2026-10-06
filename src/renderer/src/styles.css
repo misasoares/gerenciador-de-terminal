@@ -435,6 +435,12 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
 .tab-body { padding: calc(var(--pane-gap) / 2); }
 .pane-slot { height: 100%; padding: calc(var(--pane-gap) / 2); }
 .pane-slot > .pane { border-radius: var(--pane-radius); box-shadow: var(--pane-shadow); overflow: hidden; background: var(--bg); }
+/* terminal encaixado: fundo do tom escolhido (vidro: translúcido e desfocado); cabeçalho sólido se o tom divergir do tema */
+.pane-slot > .pane:not(.file-pane) { background: var(--pane-surface, var(--bg)); backdrop-filter: blur(var(--pane-blur, 0px)) saturate(1.2); }
+.pane-slot > .pane:not(.file-pane) .pane-header { background: var(--pane-header-bg, var(--bg-bar)); }
+.pane-slot > .pane:not(.file-pane) .term-container,
+.pane-slot > .pane:not(.file-pane) .xterm .xterm-viewport,
+.pane-slot > .pane:not(.file-pane) .xterm .xterm-screen { background: transparent !important; }
 /* Preferências → Aparência → Fundo */
 .bg-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .bg-opt { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--fg-dim); }
@@ -461,3 +467,4 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
   }
   & .tabbar > .tab-add:hover { background: var(--bg-hover); color: var(--fg); }
 }
+.term-style { display: flex; flex-wrap: wrap; gap: 10px; }

@@ -36,11 +36,13 @@ const BASE_OPTIONS = {
 let current: TerminalSettings = DEFAULT_SETTINGS
 /** tema de terminal efetivo (o par do tema do app ou o fixado), resolvido em appearance.ts */
 let currentTerminal: ThemeId = 'vscode-dark'
+/** terminais encaixados em vidro: o fundo vem do painel (translúcido), o xterm não pinta o dele */
+let currentGlass = false
 
-function optionsFor(s: TerminalSettings, terminal: ThemeId) {
+function optionsFor(s: TerminalSettings, terminal: ThemeId, glass: boolean) {
   const theme = THEMES[terminal].xterm
   // flutuante com vidro: o fundo vem do CSS (translúcido); o terminal não pinta o dele
-  if (GLASS) return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme: { ...theme, background: '#00000000' }, allowTransparency: true }
+  if (GLASS || glass) return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme: { ...theme, background: '#00000000' }, allowTransparency: true }
   return { fontFamily: s.fontFamily, fontSize: s.fontSize, lineHeight: s.lineHeight, theme }
 }
 
@@ -54,12 +56,13 @@ class TerminalRegistry {
     return true
   }
 
-  applySettings(s: TerminalSettings, terminal: ThemeId): void {
+  applySettings(s: TerminalSettings, terminal: ThemeId, glass = false): void {
     current = s
     currentTerminal = terminal
+    currentGlass = glass
     document.documentElement.style.setProperty('--term-bg', THEMES[terminal].xterm.background ?? '#1e1e1e')
     for (const [id, e] of this.entries) {
-      Object.assign(e.term.options, optionsFor(s, terminal))
+      Object.assign(e.term.options, optionsFor(s, terminal, glass))
       this.fit(id)
     }
   }
@@ -119,7 +122,7 @@ class TerminalRegistry {
     if (found) return found
     const el = document.createElement('div')
     el.className = 'term-host'
-    const term = new Terminal({ ...BASE_OPTIONS, ...optionsFor(current, currentTerminal) })
+    const term = new Terminal({ ...BASE_OPTIONS, ...optionsFor(current, currentTerminal, currentGlass) })
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.loadAddon(new WebLinksAddon((_ev, uri) => void window.gt.openExternal(uri)))

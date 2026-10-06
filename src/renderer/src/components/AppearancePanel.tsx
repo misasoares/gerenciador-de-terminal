@@ -1,5 +1,5 @@
 import type React from 'react'
-import { APP_THEME_IDS, effectiveBackground, wantsDesktop, type Appearance, type AppThemeId, type Background } from '../../../shared/settings'
+import { APP_THEME_IDS, effectiveBackground, wantsDesktop, type Appearance, type AppThemeId, type Background, type TerminalStyle } from '../../../shared/settings'
 import { APP_THEMES, cssVars } from '../app-themes'
 import { backdropCss } from '../backdrop'
 import { THEMES } from '../themes'
@@ -58,6 +58,37 @@ async function pickWithReopen(next: Appearance, onChange: (a: Appearance) => voi
   await window.gt.reopenWindows()
 }
 
+/** terminais encaixados do tema: tom (todos os temas) e superfície (vidro só nos premium) */
+function Terminals({ a, theme, pick }: { a: Appearance; theme: AppThemeId; pick(next: Appearance): void }) {
+  const cur: TerminalStyle = a.terminals[theme] ?? { tone: 'auto', glass: false }
+  const set = (patch: Partial<TerminalStyle>) => pick({ ...a, terminals: { ...a.terminals, [theme]: { ...cur, ...patch } } })
+  const tones: [TerminalStyle['tone'], string][] = [['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']]
+  return (
+    <>
+      <div className="field-label">TERMINAIS · {APP_THEMES[theme].label.toUpperCase()}</div>
+      <div className="term-style">
+        <div className="seg">
+          {tones.map(([v, label]) => (
+            <button key={v} className={cur.tone === v ? 'active' : ''} onClick={() => set({ tone: v })}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {APP_THEMES[theme].premium && (
+          <div className="seg">
+            <button className={!cur.glass ? 'active' : ''} onClick={() => set({ glass: false })}>
+              Sólido
+            </button>
+            <button className={cur.glass ? 'active' : ''} onClick={() => set({ glass: true })}>
+              Vidro
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
 /** fileira de fundo para o tema premium escolhido */
 function Backgrounds({ a, theme, pick }: { a: Appearance; theme: AppThemeId; pick(next: Appearance): void }) {
   if (!APP_THEMES[theme].premium) return null
@@ -85,15 +116,18 @@ export function AppearancePanel({ value, onChange: save }: { value: Appearance; 
         <>
           <Row value={value.theme} a={value} onPick={(theme) => onChange({ ...value, theme })} />
           <Backgrounds a={value} theme={value.theme} pick={onChange} />
+          <Terminals a={value} theme={value.theme} pick={onChange} />
         </>
       ) : (
         <>
           <div className="field-label">QUANDO O MACOS ESTIVER CLARO</div>
           <Row value={value.light} a={value} onPick={(light) => onChange({ ...value, light })} />
           <Backgrounds a={value} theme={value.light} pick={onChange} />
+          <Terminals a={value} theme={value.light} pick={onChange} />
           <div className="field-label">QUANDO ESTIVER ESCURO</div>
           <Row value={value.dark} a={value} onPick={(dark) => onChange({ ...value, dark })} />
           <Backgrounds a={value} theme={value.dark} pick={onChange} />
+          <Terminals a={value} theme={value.dark} pick={onChange} />
         </>
       )}
     </div>

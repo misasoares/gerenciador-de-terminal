@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { APP_THEMES } from '../../src/renderer/src/app-themes'
-import { backdropCss, safeGlass } from '../../src/renderer/src/backdrop'
+import { backdropCss, paneVars, safeGlass } from '../../src/renderer/src/backdrop'
 
 const o = { userDir: '/Users/u/.gerenciador-terminal/fundos', userList: ['0123456789abcdef.jpg'], windowDesktop: false, base: 'file:///app/out/renderer/' }
 const t = APP_THEMES.aurora
@@ -28,5 +28,14 @@ describe('backdrop', () => {
   it('safeGlass: sobe o alfa das superfícies de vidro para 0.82 e não mexe em hex', () => {
     const v = safeGlass({ '--bg-side': 'rgba(255, 255, 255, 0.55)', '--bg-bar': '#252526', '--bg-status': 'rgba(20, 21, 30, 0.55)', '--bg': '#ffffff' })
     expect(v).toEqual({ '--bg-side': 'rgba(255, 255, 255, 0.82)', '--bg-bar': '#252526', '--bg-status': 'rgba(20, 21, 30, 0.82)', '--bg': '#ffffff' })
+  })
+  it('paneVars: sólido usa o fundo do terminal; vidro usa ele translúcido e desfocado', () => {
+    expect(paneVars(APP_THEMES.aurora, '#ffffff', false)).toEqual({ '--pane-surface': '#ffffff', '--pane-blur': '0px', '--pane-header-bg': 'var(--bg-bar)' })
+    expect(paneVars(APP_THEMES.aurora, '#ffffff', true)).toEqual({ '--pane-surface': 'rgba(255, 255, 255, 0.85)', '--pane-blur': '26px', '--pane-header-bg': 'var(--bg-bar)' })
+  })
+  it('paneVars: terminal escuro num tema claro (e vice-versa) ganha cabeçalho sólido', () => {
+    expect(paneVars(APP_THEMES.aurora, '#111219', false)['--pane-header-bg']).toBe('var(--bg-raised)')
+    expect(paneVars(APP_THEMES.noite, '#ffffff', true)['--pane-header-bg']).toBe('var(--bg-raised)')
+    expect(paneVars(APP_THEMES.noite, '#111219', false)['--pane-header-bg']).toBe('var(--bg-bar)')
   })
 })

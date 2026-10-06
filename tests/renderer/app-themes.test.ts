@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { APP_THEMES, composite, contrast, cssVars, GLASS_TOKENS, gradientStops, matchLabel, PREMIUM_THEME_IDS, resolveTheme, SAFE_GLASS_ALPHA, TOKEN_NAMES } from '../../src/renderer/src/app-themes'
+import { TERMINAL_GLASS_ALPHA, APP_THEMES, composite, contrast, cssVars, GLASS_TOKENS, gradientStops, matchLabel, PREMIUM_THEME_IDS, resolveTheme, SAFE_GLASS_ALPHA, TOKEN_NAMES } from '../../src/renderer/src/app-themes'
 import { APP_THEME_IDS, DEFAULT_SETTINGS } from '../../src/shared/settings'
+import { THEMES } from '../../src/renderer/src/themes'
 
 const s = (over = {}) => ({ appearance: { ...DEFAULT_SETTINGS.appearance, ...over }, terminalTheme: 'match' as const })
 
@@ -78,6 +79,26 @@ describe('app-themes', () => {
         expect(contrast(t.fg, c), `${id} ${g} fg seguro sobre ${base}`).toBeGreaterThanOrEqual(4.5)
         expect(contrast(t['fg-dim'], c), `${id} ${g} fg-dim seguro sobre ${base}`).toBeGreaterThanOrEqual(4.5)
       }
+    }
+  })
+  it('tom dos terminais: automático segue o tema; claro/escuro trocam o terminal pareado; terminal fixado vence', () => {
+    const r = (theme: string, tone: 'auto' | 'light' | 'dark', glass = false, terminalTheme: 'match' | 'dracula' = 'match') =>
+      resolveTheme({ appearance: { ...DEFAULT_SETTINGS.appearance, theme: theme as never, terminals: { [theme]: { tone, glass } } }, terminalTheme }, false)
+    expect(r('aurora', 'auto').terminal).toBe('github-light')
+    expect(r('aurora', 'dark').terminal).toBe('noite')
+    expect(r('noite', 'light').terminal).toBe('github-light')
+    expect(r('padrao', 'light').terminal).toBe('github-light')
+    expect(r('claro', 'dark').terminal).toBe('vscode-dark')
+    expect(r('aurora', 'dark', false, 'dracula').terminal).toBe('dracula')
+    expect(r('aurora', 'auto', true).glass).toBe(true)
+    expect(r('padrao', 'auto', true).glass).toBe(false) // sem fundo atrás, vidro não se aplica
+  })
+  it('terminal em vidro: texto legível sobre qualquer coisa atrás (preto e branco)', () => {
+    for (const id of ['github-light', 'noite'] as const) {
+      const x = THEMES[id].xterm
+      const glass = `rgba(${[1, 3, 5].map((i) => parseInt(x.background!.slice(i, i + 2), 16)).join(', ')}, ${TERMINAL_GLASS_ALPHA})`
+      for (const base of ['#000000', '#ffffff'])
+        expect(contrast(x.foreground!, composite(glass, base)), `${id} sobre ${base}`).toBeGreaterThanOrEqual(4.5)
     }
   })
 })

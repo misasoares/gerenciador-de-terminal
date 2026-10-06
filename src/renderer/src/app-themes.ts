@@ -186,10 +186,29 @@ export function gradientStops(css: string): string[] {
 }
 
 /** tema efetivo: fixo, ou automático conforme o sistema; terminal = par do tema ou o fixado */
-export function resolveTheme(s: Pick<TerminalSettings, 'appearance' | 'terminalTheme'>, systemDark: boolean): { app: AppTheme; terminal: ThemeId } {
+/** opacidade do terminal em vidro: o texto passa no AA sobre qualquer coisa atrás */
+export const TERMINAL_GLASS_ALPHA = 0.85
+
+/** terminal de cada tom: o próprio do tema quando o tom bate com o esquema dele; senão o par claro/escuro */
+function terminalForTone(app: AppTheme, tone: 'auto' | 'light' | 'dark'): ThemeId {
+  if (tone === 'auto' || tone === app.scheme) return app.terminal
+  return tone === 'light' ? 'github-light' : app.premium ? 'noite' : 'vscode-dark'
+}
+
+/** tema efetivo: fixo, ou automático conforme o sistema; terminal = fixado, ou o do tom escolhido para o tema */
+export function resolveTheme(
+  s: Pick<TerminalSettings, 'appearance' | 'terminalTheme'>,
+  systemDark: boolean,
+): { app: AppTheme; terminal: ThemeId; glass: boolean } {
   const a = s.appearance
   const app = APP_THEMES[a.mode === 'auto' ? (systemDark ? a.dark : a.light) : a.theme]
-  return { app, terminal: s.terminalTheme === 'match' ? app.terminal : s.terminalTheme }
+  const style = a.terminals?.[app.id] ?? { tone: 'auto', glass: false }
+  return {
+    app,
+    terminal: s.terminalTheme === 'match' ? terminalForTone(app, style.tone) : s.terminalTheme,
+    // vidro só onde há fundo atrás para desfocar (temas premium)
+    glass: app.premium && style.glass,
+  }
 }
 
 const DURATIONS: TokenName[] = ['dur-fast', 'dur-base', 'dur-slow']

@@ -15,6 +15,18 @@ export interface Appearance {
   dark: AppThemeId
   /** fundo escolhido por tema premium (sem entrada = gradiente do tema) */
   backgrounds: Partial<Record<AppThemeId, Background>>
+  /** terminais encaixados por tema: tom (automático = o do tema) e superfície (vidro só nos premium) */
+  terminals: Partial<Record<AppThemeId, TerminalStyle>>
+}
+
+export interface TerminalStyle {
+  tone: 'auto' | 'light' | 'dark'
+  glass: boolean
+}
+
+export function normalizeTerminalStyle(v: unknown): TerminalStyle {
+  const t = v && typeof v === 'object' ? (v as Record<string, unknown>) : {}
+  return { tone: t.tone === 'light' || t.tone === 'dark' ? t.tone : 'auto', glass: t.glass === true }
 }
 
 export type Background = { kind: 'theme' } | { kind: 'none' } | { kind: 'desktop' } | { kind: 'image'; image: string }
@@ -61,7 +73,7 @@ export interface TerminalSettings {
 }
 
 export const DEFAULT_SETTINGS: TerminalSettings = {
-  appearance: { mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao', backgrounds: {} },
+  appearance: { mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao', backgrounds: {}, terminals: {} },
   terminalTheme: 'match',
   fontFamily: 'Menlo, Monaco, "Courier New", monospace',
   fontSize: 13,
@@ -107,6 +119,11 @@ function normalizeAppearance(v: unknown): Appearance {
       Object.entries(a.backgrounds && typeof a.backgrounds === 'object' ? (a.backgrounds as Record<string, unknown>) : {})
         .filter(([k]) => PREMIUM.includes(k as AppThemeId))
         .map(([k, v]) => [k, normalizeBackground(v)]),
+    ),
+    terminals: Object.fromEntries(
+      Object.entries(a.terminals && typeof a.terminals === 'object' ? (a.terminals as Record<string, unknown>) : {})
+        .filter(([k]) => isApp(k))
+        .map(([k, v]) => [k, normalizeTerminalStyle(v)]),
     ),
   }
 }

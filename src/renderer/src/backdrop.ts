@@ -1,6 +1,6 @@
 import type { Background } from '../../shared/settings'
 import { mediaUrl } from '../../shared/media'
-import { GLASS_TOKENS, SAFE_GLASS_ALPHA, type AppTheme } from './app-themes'
+import { contrast, GLASS_TOKENS, SAFE_GLASS_ALPHA, TERMINAL_GLASS_ALPHA, type AppTheme } from './app-themes'
 
 /**
  * valor de --app-backdrop; `base` = endereço da página (as imagens incluídas viram endereço absoluto:
@@ -30,4 +30,20 @@ export function safeGlass(vars: Record<string, string>): Record<string, string> 
     if (v?.startsWith('rgba(')) out[`--${k}`] = v.replace(/[\d.]+\)$/, `${SAFE_GLASS_ALPHA})`)
   }
   return out
+}
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+/** fundo escuro: contrasta mais com branco que com preto */
+const isDark = (hex: string) => contrast(hex, '#ffffff') > contrast(hex, '#000000')
+
+/**
+ * painel de terminal encaixado: fundo (o do terminal; translúcido no vidro), desfoque e cabeçalho.
+ * Terminal no tom oposto ao do tema ganha cabeçalho sólido (vidro claro sobre terminal escuro não passa no contraste).
+ */
+export function paneVars(t: AppTheme, terminalBg: string, glass: boolean): Record<string, string> {
+  return {
+    '--pane-surface': glass ? `rgba(${rgb(terminalBg).join(', ')}, ${TERMINAL_GLASS_ALPHA})` : terminalBg,
+    '--pane-blur': glass ? t.tokens['surface-blur'] : '0px',
+    '--pane-header-bg': isDark(terminalBg) !== (t.scheme === 'dark') ? 'var(--bg-raised)' : 'var(--bg-bar)',
+  }
 }

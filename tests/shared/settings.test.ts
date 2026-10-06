@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveBackground, normalizeBackground, wantsDesktop, DEFAULT_SETTINGS, normalizeKeybindings, normalizeSettings, SESSION_COLORS, THEME_IDS } from '../../src/shared/settings'
+import { normalizeTerminalStyle, effectiveBackground, normalizeBackground, wantsDesktop, DEFAULT_SETTINGS, normalizeKeybindings, normalizeSettings, SESSION_COLORS, THEME_IDS } from '../../src/shared/settings'
 
 describe('preferências', () => {
   it('padrões e limites', () => {
@@ -17,12 +17,12 @@ describe('preferências', () => {
     expect(normalizeSettings({ theme: 'vscode-dark' } as never).terminalTheme).toBe('match')
     expect(normalizeSettings({ theme: 'dracula' } as never).terminalTheme).toBe('dracula')
     expect(normalizeSettings({}).terminalTheme).toBe('match')
-    expect(normalizeSettings({}).appearance).toEqual({ mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao', backgrounds: {} })
+    expect(normalizeSettings({}).appearance).toEqual({ mode: 'fixed', theme: 'padrao', light: 'claro', dark: 'padrao', backgrounds: {}, terminals: {} })
     expect('theme' in normalizeSettings({ theme: 'dracula' } as never)).toBe(false)
   })
   it('aparência: valores inválidos caem no padrão campo a campo', () => {
     const a = normalizeSettings({ appearance: { mode: 'x', theme: 'claro', light: 'nao-existe', dark: 'claro' } as never }).appearance
-    expect(a).toEqual({ mode: 'fixed', theme: 'claro', light: 'claro', dark: 'claro', backgrounds: {} })
+    expect(a).toEqual({ mode: 'fixed', theme: 'claro', light: 'claro', dark: 'claro', backgrounds: {}, terminals: {} })
     expect(normalizeSettings({ terminalTheme: 'inexistente' as never }).terminalTheme).toBe('match')
     expect(normalizeSettings({ terminalTheme: 'nord' }).terminalTheme).toBe('nord')
   })
@@ -67,5 +67,11 @@ describe('preferências', () => {
     expect(wantsDesktop(a, 'vidro', true, 'darwin')).toBe(true)
     expect(wantsDesktop(a, 'noite', true, 'darwin')).toBe(false)
     expect(wantsDesktop(a, 'vidro', true, 'linux')).toBe(false)
+  })
+  it('terminais por tema: tom e superfície válidos passam; inválidos viram automático e sólido', () => {
+    expect(normalizeTerminalStyle({ tone: 'dark', glass: true })).toEqual({ tone: 'dark', glass: true })
+    expect(normalizeTerminalStyle({ tone: 'roxo', glass: 'sim' })).toEqual({ tone: 'auto', glass: false })
+    expect(normalizeTerminalStyle(null)).toEqual({ tone: 'auto', glass: false })
+    expect(normalizeSettings({ appearance: { terminals: { padrao: { tone: 'light' }, inventado: { tone: 'dark' } } } as never }).appearance.terminals).toEqual({ padrao: { tone: 'light', glass: false } })
   })
 })

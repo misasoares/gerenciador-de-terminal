@@ -1,6 +1,7 @@
 import { effectiveBackground, wantsDesktop, type TerminalSettings } from '../../shared/settings'
 import { cssVars, resolveTheme } from './app-themes'
-import { backdropCss, safeGlass } from './backdrop'
+import { backdropCss, paneVars, safeGlass } from './backdrop'
+import { THEMES } from './themes'
 import { FLOAT_PANE, VIEW, WINDOW_DESKTOP } from './view'
 import { setUi } from './store'
 import { terminals } from './terminals'
@@ -45,15 +46,16 @@ const storage = (): Storage | null => {
 /** resolve o tema efetivo e aplica: variáveis, terminal, cache e esquema nativo no processo principal */
 export function applyAppearance(s: TerminalSettings): void {
   last = s
-  const { app, terminal } = resolveTheme(s, dark?.matches ?? true)
+  const { app, terminal, glass } = resolveTheme(s, dark?.matches ?? true)
   const bg = effectiveBackground(s.appearance, app.id, app.premium, platform())
   const bd = backdropCss(bg, app, { userDir: userBg.dir, userList: userBg.list, windowDesktop: WINDOW_DESKTOP, base: location.href })
   let vars = cssVars(app, { reducedMotion: reduced?.matches ?? false })
   vars['--app-backdrop'] = bd.css
   if (bd.safe) vars = safeGlass(vars)
+  Object.assign(vars, paneVars(app, THEMES[terminal].xterm.background ?? app.tokens.bg, glass))
   const c: ThemeCache = { id: app.id, scheme: app.scheme, vars }
   paint(c)
-  terminals.applySettings(s, terminal)
+  terminals.applySettings(s, terminal, glass)
   try {
     storage()?.setItem(KEY, JSON.stringify(c))
   } catch {
