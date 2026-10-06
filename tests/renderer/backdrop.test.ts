@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { APP_THEMES } from '../../src/renderer/src/app-themes'
 import { backdropCss, safeGlass } from '../../src/renderer/src/backdrop'
 
-const o = { userDir: '/Users/u/.gerenciador-terminal/fundos', userList: ['0123456789abcdef.jpg'], windowDesktop: false }
+const o = { userDir: '/Users/u/.gerenciador-terminal/fundos', userList: ['0123456789abcdef.jpg'], windowDesktop: false, base: 'file:///app/out/renderer/' }
 const t = APP_THEMES.aurora
 
 describe('backdrop', () => {
@@ -11,7 +11,8 @@ describe('backdrop', () => {
     expect(backdropCss({ kind: 'none' }, t, o)).toEqual({ css: t.tokens.bg, safe: false })
   })
   it('imagem incluída e do usuário: url com cover sobre bg; vidro seguro', () => {
-    expect(backdropCss({ kind: 'image', image: 'bundled:aurora-1' }, t, o)).toEqual({ css: `url("./fundos/aurora-1.jpg") center / cover no-repeat, ${t.tokens.bg}`, safe: true })
+    // endereço absoluto: um url() relativo dentro de variável CSS seria resolvido contra o arquivo .css, não contra a página
+    expect(backdropCss({ kind: 'image', image: 'bundled:aurora-1' }, t, o)).toEqual({ css: `url("file:///app/out/renderer/fundos/aurora-1.jpg") center / cover no-repeat, ${t.tokens.bg}`, safe: true })
     const u = backdropCss({ kind: 'image', image: 'user:0123456789abcdef.jpg' }, t, o)
     expect(u.safe).toBe(true)
     expect(u.css).toMatch(/^url\("gt-file:\/\/local\/Users\/u\/\.gerenciador-terminal\/fundos\/0123456789abcdef\.jpg\?v=0"\) center \/ cover no-repeat, #ffffff$/)

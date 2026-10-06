@@ -12,6 +12,7 @@ export function StatusBar() {
   const vm = useUi((s) => s.versionMismatch)
   const error = useUi((s) => s.error)
   const missingAll = useUi((s) => s.missingResume)
+  const desktopMismatch = useUi((s) => s.desktopMismatch)
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
   if (!app) return null
   // calculado no render (não no seletor): o seletor precisa devolver sempre a mesma referência
@@ -23,6 +24,14 @@ export function StatusBar() {
     <div className="statusbar">
       <span>{alive === 1 ? '1 sessão' : `${alive} sessões`}</span>
       {!connected && <span className="st-item warn">↻ reconectando…</span>}
+      {desktopMismatch && (
+        <span className="st-item warn">
+          O fundo mudou ·{' '}
+          <button className="st-btn" onClick={() => void window.gt.reopenWindows().catch(showError)}>
+            Reabrir janelas
+          </button>
+        </span>
+      )}
       {app.resumable.length > 0 && (
         <span className="st-item">
           {app.resumable.length === 1 ? '1 sessão para retomar' : `${app.resumable.length} sessões para retomar`}{' '}

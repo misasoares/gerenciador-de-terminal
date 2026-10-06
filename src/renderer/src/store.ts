@@ -16,6 +16,8 @@ export interface UiState {
   renamingPaneId: string | null
   /** painéis cuja conversa salva não foi encontrada ao retomar */
   missingResume: string[]
+  /** o fundo efetivo pede outro tipo de janela (mesa do macOS ↔ opaca): reabrir aplica */
+  desktopMismatch: boolean
 }
 
 export type Modal =
@@ -30,7 +32,7 @@ export type Modal =
   | { kind: 'workspace-name'; mode: 'create' | 'rename' }
   | { kind: 'conversations'; paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }
 
-let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [] }
+let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [], desktopMismatch: false }
 const subs = new Set<() => void>()
 
 const subscribe = (cb: () => void) => {

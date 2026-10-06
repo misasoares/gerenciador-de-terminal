@@ -418,7 +418,7 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
 .theme-row { display: flex; flex-wrap: wrap; gap: 12px; }
 .theme-card { display: flex; flex-direction: column; gap: 6px; background: none; padding: 0; width: 140px; }
 .theme-card:hover { background: none; }
-.theme-mini { display: flex; height: 84px; border-radius: var(--radius-xl); overflow: hidden; border: 1px solid var(--border-strong); background: var(--bg); box-shadow: var(--shadow-sm); }
+.theme-mini { display: flex; height: 84px; border-radius: var(--radius-xl); overflow: hidden; border: 1px solid var(--border-strong); background: var(--app-backdrop); box-shadow: var(--shadow-sm); }
 .theme-card.selected .theme-mini { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tm-side { width: 28%; background: var(--bg-side); border-right: 1px solid var(--border); }
 .tm-main { flex: 1; display: flex; flex-direction: column; }
@@ -435,3 +435,10 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
 .tab-body { padding: calc(var(--pane-gap) / 2); }
 .pane-slot { height: 100%; padding: calc(var(--pane-gap) / 2); }
 .pane-slot > .pane { border-radius: var(--pane-radius); box-shadow: var(--pane-shadow); overflow: hidden; background: var(--bg); }
+/* Preferências → Aparência → Fundo */
+.bg-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.bg-opt { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--fg-dim); }
+.bg-thumb { width: 64px; height: 40px; padding: 0; border-radius: var(--radius-md); border: 1px solid var(--border-strong); background-size: cover; }
+.bg-opt.selected .bg-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bg-add, .bg-desktop { display: grid; place-items: center; background: var(--bg-sunken); color: var(--fg-dim); font-size: var(--text-lg); }
+.bg-x { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; padding: 0; border-radius: 50%; font-size: var(--text-xs); }

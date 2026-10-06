@@ -1,7 +1,8 @@
 import { effectiveBackground, wantsDesktop, type TerminalSettings } from '../../shared/settings'
 import { cssVars, resolveTheme } from './app-themes'
 import { backdropCss, safeGlass } from './backdrop'
-import { WINDOW_DESKTOP } from './view'
+import { FLOAT_PANE, VIEW, WINDOW_DESKTOP } from './view'
+import { setUi } from './store'
 import { terminals } from './terminals'
 
 const KEY = 'gt-theme'
@@ -46,7 +47,7 @@ export function applyAppearance(s: TerminalSettings): void {
   last = s
   const { app, terminal } = resolveTheme(s, dark?.matches ?? true)
   const bg = effectiveBackground(s.appearance, app.id, app.premium, platform())
-  const bd = backdropCss(bg, app, { userDir: userBg.dir, userList: userBg.list, windowDesktop: WINDOW_DESKTOP })
+  const bd = backdropCss(bg, app, { userDir: userBg.dir, userList: userBg.list, windowDesktop: WINDOW_DESKTOP, base: location.href })
   let vars = cssVars(app, { reducedMotion: reduced?.matches ?? false })
   vars['--app-backdrop'] = bd.css
   if (bd.safe) vars = safeGlass(vars)
@@ -58,7 +59,10 @@ export function applyAppearance(s: TerminalSettings): void {
   } catch {
     // sem armazenamento: só não terá o atalho na próxima abertura
   }
-  window.gt?.setAppearance({ scheme: app.scheme, follow: s.appearance.mode === 'auto', bg: app.tokens.bg, desktop: wantsDesktop(s.appearance, app.id, app.premium, platform()) })
+  const desktop = wantsDesktop(s.appearance, app.id, app.premium, platform())
+  window.gt?.setAppearance({ scheme: app.scheme, follow: s.appearance.mode === 'auto', bg: app.tokens.bg, desktop })
+  // janela de espaço criada no outro modo (ex.: o automático trocou para um tema com mesa): avisa, nada fecha sozinho
+  if (!FLOAT_PANE && VIEW !== 'reopen') setUi({ desktopMismatch: desktop !== WINDOW_DESKTOP })
 }
 
 /** boot: pinta o último tema antes do React montar; reaplica quando o macOS muda aparência ou movimento */
