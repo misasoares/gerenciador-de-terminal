@@ -462,7 +462,7 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
   & .tabbar { align-items: center; gap: 4px; padding: 0 var(--pane-gap); border-bottom-color: transparent; }
   & .tab {
     height: 26px; padding: 0 10px; border-right: 0; border-radius: var(--radius-md);
-    transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), transform var(--dur-base) var(--ease-spring);
   }
   & .tab:not(.active):hover { background-color: var(--bg-hover); color: var(--fg); }
   & .tab-pill { background: var(--bg-raised); box-shadow: 0 0 0 1px var(--border), 0 1px 2px color-mix(in srgb, var(--fg) 12%, transparent); }
@@ -472,7 +472,7 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
   & .tabbar > .tab-add {
     display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border-radius: var(--radius-md);
     background: transparent; backdrop-filter: none; color: var(--fg-dim); font-size: var(--text-lg); line-height: 1;
-    transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), transform var(--dur-base) var(--ease-spring);
   }
   & .tabbar > .tab-add:hover { background: var(--bg-hover); color: var(--fg); }
 }
@@ -480,3 +480,9 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
 /* ilha dinâmica: "dev-1 precisa de você" no topo-centro (translate, não transform: a escala é da animação) */
 .island { position: fixed; top: 6px; left: 50%; translate: -50% 0; z-index: 40; display: flex; align-items: center; gap: 8px; padding: 4px 12px; border: 0; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: var(--text-sm); font-weight: 600; box-shadow: var(--shadow-sm); cursor: pointer; -webkit-app-region: no-drag; }
 .island-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--state-needs-you); }
+/* toque: encolhe no pressionar, volta com a mola do tema ao soltar (a ilha é animada pela Motion, fica de fora) */
+button:not(.island), .tab, .sb-session, .theme-card, .bg-thumb { transition: transform var(--dur-base) var(--ease-spring); }
+button:not(.island):active, .tab:active, .sb-session:active, .theme-card:active, .bg-thumb:active { transform: scale(0.97); transition-duration: var(--dur-fast); transition-timing-function: var(--ease-standard); }
+@media (prefers-reduced-motion: reduce) {
+  button:not(.island):active, .tab:active, .sb-session:active, .theme-card:active, .bg-thumb:active { transform: none; }
+}
