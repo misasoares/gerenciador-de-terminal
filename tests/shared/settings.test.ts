@@ -8,8 +8,8 @@ describe('preferências', () => {
     expect(normalizeSettings({ fontSize: 3, lineHeight: 9 })).toMatchObject({ fontSize: 10, lineHeight: 1.6 })
     expect(normalizeSettings({ fontFamily: '   ' }).fontFamily).toBe(DEFAULT_SETTINGS.fontFamily)
   })
-  it('7 temas de terminal e 8 cores com hex válido', () => {
-    expect(THEME_IDS).toHaveLength(7)
+  it('8 temas de terminal e 8 cores com hex válido', () => {
+    expect(THEME_IDS).toHaveLength(8)
     expect(SESSION_COLORS).toHaveLength(8)
     for (const c of SESSION_COLORS) expect(c.hex).toMatch(/^#[0-9a-f]{6}$/)
   })

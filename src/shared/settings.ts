@@ -1,10 +1,10 @@
 import { ACTIONS, parseAccel, type KeyOverrides } from './keybindings'
 
-export const THEME_IDS = ['vscode-dark', 'one-dark', 'dracula', 'solarized-dark', 'github-dark', 'nord', 'github-light'] as const
+export const THEME_IDS = ['vscode-dark', 'one-dark', 'dracula', 'solarized-dark', 'github-dark', 'nord', 'github-light', 'noite'] as const
 export type ThemeId = (typeof THEME_IDS)[number]
 
 /** temas do app (cores + estilo visual); ids estáveis, nomes de tela em app-themes.ts */
-export const APP_THEME_IDS = ['padrao', 'claro'] as const
+export const APP_THEME_IDS = ['padrao', 'claro', 'vidro', 'noite', 'aurora'] as const
 export type AppThemeId = (typeof APP_THEME_IDS)[number]
 
 export interface Appearance {

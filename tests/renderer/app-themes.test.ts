@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { APP_THEMES, contrast, cssVars, matchLabel, resolveTheme, TOKEN_NAMES } from '../../src/renderer/src/app-themes'
+import { APP_THEMES, composite, contrast, cssVars, GLASS_TOKENS, gradientStops, matchLabel, PREMIUM_THEME_IDS, resolveTheme, SAFE_GLASS_ALPHA, TOKEN_NAMES } from '../../src/renderer/src/app-themes'
 import { APP_THEME_IDS, DEFAULT_SETTINGS } from '../../src/shared/settings'
 
 const s = (over = {}) => ({ appearance: { ...DEFAULT_SETTINGS.appearance, ...over }, terminalTheme: 'match' as const })
@@ -15,8 +15,10 @@ describe('app-themes', () => {
   it('contraste AA (4,5:1) de fg e fg-dim sobre as superfícies principais, em todo tema', () => {
     for (const t of Object.values(APP_THEMES))
       for (const fg of ['fg', 'fg-dim'] as const)
-        for (const bg of ['bg', 'bg-side', 'bg-bar', 'bg-raised'] as const)
+        for (const bg of ['bg', 'bg-side', 'bg-bar', 'bg-raised'] as const) {
+          if (!t.tokens[bg].startsWith('#')) continue // vidro: coberto pelos testes de vidro
           expect(contrast(t.tokens[fg], t.tokens[bg]), `${t.id}: ${fg} sobre ${bg}`).toBeGreaterThanOrEqual(4.5)
+        }
   })
   it('contraste: preto/branco = 21; igual = 1', () => {
     expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 1)
@@ -43,5 +45,39 @@ describe('app-themes', () => {
     expect(matchLabel(DEFAULT_SETTINGS.appearance)).toBe('Acompanhar o tema (VS Code Dark)')
     expect(matchLabel({ ...DEFAULT_SETTINGS.appearance, theme: 'claro' })).toBe('Acompanhar o tema (GitHub Light)')
     expect(matchLabel({ ...DEFAULT_SETTINGS.appearance, mode: 'auto' })).toBe('Acompanhar o tema')
+  })
+  it('composite: rgba sobre uma base vira hex; gradientStops extrai as cores do gradiente', () => {
+    expect(composite('rgba(255, 255, 255, 0.5)', '#000000')).toBe('#808080')
+    expect(composite('#123456', '#ffffff')).toBe('#123456')
+    expect(gradientStops('linear-gradient(135deg, #dfe9f5, #f4efe8 60%, #e9e4f3)')).toEqual(['#dfe9f5', '#f4efe8', '#e9e4f3'])
+  })
+  it('Padrão e Claro: tokens novos neutros (nada muda neles)', () => {
+    for (const id of ['padrao', 'claro'] as const) {
+      const t = APP_THEMES[id].tokens
+      expect([t['app-backdrop'], t['surface-blur'], t['pane-gap'], t['pane-radius'], t['pane-shadow']]).toEqual([t.bg, '0px', '0px', '0px', 'none'])
+      expect(APP_THEMES[id].premium).toBe(false)
+    }
+  })
+  it('premium: vidro legível sobre o gradiente do tema e sobre bg (AA)', () => {
+    for (const id of PREMIUM_THEME_IDS) {
+      const t = APP_THEMES[id].tokens
+      expect(APP_THEMES[id].premium).toBe(true)
+      for (const g of GLASS_TOKENS) for (const base of [...gradientStops(t['app-backdrop']), t.bg]) {
+        const c = composite(t[g], base)
+        expect(contrast(t.fg, c), `${id} ${g} fg sobre ${base}`).toBeGreaterThanOrEqual(4.5)
+        expect(contrast(t['fg-dim'], c), `${id} ${g} fg-dim sobre ${base}`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+  it('premium: vidro seguro legível sobre qualquer imagem (extremos preto e branco)', () => {
+    for (const id of PREMIUM_THEME_IDS) {
+      const t = APP_THEMES[id].tokens
+      for (const g of GLASS_TOKENS) for (const base of ['#000000', '#ffffff']) {
+        const safe = t[g].replace(/[\d.]+\)$/, `${SAFE_GLASS_ALPHA})`)
+        const c = composite(safe, base)
+        expect(contrast(t.fg, c), `${id} ${g} fg seguro sobre ${base}`).toBeGreaterThanOrEqual(4.5)
+        expect(contrast(t['fg-dim'], c), `${id} ${g} fg-dim seguro sobre ${base}`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
   })
 })
