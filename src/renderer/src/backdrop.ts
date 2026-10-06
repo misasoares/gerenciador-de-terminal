@@ -37,13 +37,19 @@ const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 
 const isDark = (hex: string) => contrast(hex, '#ffffff') > contrast(hex, '#000000')
 
 /**
- * painel de terminal encaixado: fundo (o do terminal; translúcido no vidro), desfoque e cabeçalho.
+ * painéis encaixados: fundo do terminal (o do tom; translúcido no vidro), do leitor de arquivo, desfoque e cabeçalho.
  * Terminal no tom oposto ao do tema ganha cabeçalho sólido (vidro claro sobre terminal escuro não passa no contraste).
  */
+/** desfoque dos painéis em vidro: menor que o das barras, o fundo aparece mais definido atrás do texto */
+const PANE_GLASS_BLUR = '12px'
+
 export function paneVars(t: AppTheme, terminalBg: string, glass: boolean): Record<string, string> {
+  const translucent = (hex: string) => (glass ? `rgba(${rgb(hex).join(', ')}, ${TERMINAL_GLASS_ALPHA})` : hex)
   return {
-    '--pane-surface': glass ? `rgba(${rgb(terminalBg).join(', ')}, ${TERMINAL_GLASS_ALPHA})` : terminalBg,
-    '--pane-blur': glass ? t.tokens['surface-blur'] : '0px',
+    '--pane-surface': translucent(terminalBg),
+    // leitor de arquivo: a cor do próprio tema (o tom do terminal não se aplica ao editor)
+    '--file-surface': translucent(t.tokens.bg),
+    '--pane-blur': glass ? PANE_GLASS_BLUR : '0px',
     '--pane-header-bg': isDark(terminalBg) !== (t.scheme === 'dark') ? 'var(--bg-raised)' : 'var(--bg-bar)',
   }
 }

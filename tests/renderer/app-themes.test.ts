@@ -101,4 +101,12 @@ describe('app-themes', () => {
         expect(contrast(x.foreground!, composite(glass, base)), `${id} sobre ${base}`).toBeGreaterThanOrEqual(4.5)
     }
   })
+  it('leitor de arquivo em vidro: fg e fg-dim legíveis sobre qualquer coisa atrás, em todo tema premium', () => {
+    for (const id of PREMIUM_THEME_IDS) {
+      const t = APP_THEMES[id].tokens
+      const glass = `rgba(${[1, 3, 5].map((i) => parseInt(t.bg.slice(i, i + 2), 16)).join(', ')}, ${TERMINAL_GLASS_ALPHA})`
+      for (const base of ['#000000', '#ffffff']) for (const fg of ['fg', 'fg-dim'] as const)
+        expect(contrast(t[fg], composite(glass, base)), `${id} ${fg} sobre ${base}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
 })

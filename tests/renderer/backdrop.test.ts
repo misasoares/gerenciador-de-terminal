@@ -30,8 +30,11 @@ describe('backdrop', () => {
     expect(v).toEqual({ '--bg-side': 'rgba(255, 255, 255, 0.82)', '--bg-bar': '#252526', '--bg-status': 'rgba(20, 21, 30, 0.82)', '--bg': '#ffffff' })
   })
   it('paneVars: sólido usa o fundo do terminal; vidro usa ele translúcido e desfocado', () => {
-    expect(paneVars(APP_THEMES.aurora, '#ffffff', false)).toEqual({ '--pane-surface': '#ffffff', '--pane-blur': '0px', '--pane-header-bg': 'var(--bg-bar)' })
-    expect(paneVars(APP_THEMES.aurora, '#ffffff', true)).toEqual({ '--pane-surface': 'rgba(255, 255, 255, 0.85)', '--pane-blur': '26px', '--pane-header-bg': 'var(--bg-bar)' })
+    expect(paneVars(APP_THEMES.aurora, '#ffffff', false)).toEqual({ '--pane-surface': '#ffffff', '--file-surface': '#ffffff', '--pane-blur': '0px', '--pane-header-bg': 'var(--bg-bar)' })
+    // desfoque menor que o das barras: o fundo aparece mais definido atrás do texto
+    expect(paneVars(APP_THEMES.aurora, '#ffffff', true)).toEqual({ '--pane-surface': 'rgba(255, 255, 255, 0.85)', '--file-surface': 'rgba(255, 255, 255, 0.85)', '--pane-blur': '12px', '--pane-header-bg': 'var(--bg-bar)' })
+    // leitor de arquivo usa a cor do tema (não a do terminal) em vidro
+    expect(paneVars(APP_THEMES.noite, '#ffffff', true)['--file-surface']).toBe('rgba(17, 18, 25, 0.85)')
   })
   it('paneVars: terminal escuro num tema claro (e vice-versa) ganha cabeçalho sólido', () => {
     expect(paneVars(APP_THEMES.aurora, '#111219', false)['--pane-header-bg']).toBe('var(--bg-raised)')

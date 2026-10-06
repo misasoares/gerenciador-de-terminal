@@ -441,6 +441,10 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
 .pane-slot > .pane:not(.file-pane) .term-container,
 .pane-slot > .pane:not(.file-pane) .xterm .xterm-viewport,
 .pane-slot > .pane:not(.file-pane) .xterm .xterm-screen { background: transparent !important; }
+/* leitor de arquivo encaixado: vidro junto com os terminais (editor e gutter deixam o fundo do painel aparecer) */
+.pane-slot > .pane.file-pane { background: var(--file-surface, var(--bg)); backdrop-filter: blur(var(--pane-blur, 0px)) saturate(1.2); }
+.pane-slot > .pane.file-pane .cm-editor,
+.pane-slot > .pane.file-pane .cm-gutters { background-color: transparent !important; }
 /* Preferências → Aparência → Fundo */
 .bg-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .bg-opt { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--fg-dim); }
