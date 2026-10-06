@@ -12,7 +12,7 @@ import { platformOf, resolveBindings, type Bindings } from '../shared/keybinding
 import { NotifyKeeper } from './notify-keeper'
 import { WindowManager } from './windows'
 import { handleMediaProtocol, registerMediaScheme } from './media-protocol'
-import { readWindowBg, writeWindowBg } from './window-bg'
+import { readWindowBg, readWindowDesktop, writeWindowBg, writeWindowDesktop } from './window-bg'
 import { fitWidth, listBackgrounds, removeBackground, userBgName } from './backgrounds'
 import { badgeTotal, decideStartup } from './workspaces-model'
 
@@ -49,6 +49,8 @@ const manager = new WindowManager({
 /** fundo do último tema: a primeira janela da abertura já nasce na cor certa (sem retângulo escuro no Claro) */
 const windowBgFile = path.join(home, 'window-bg')
 manager.background = readWindowBg(windowBgFile)
+const windowDesktopFile = path.join(home, 'window-desktop')
+manager.desktop = readWindowDesktop(windowDesktopFile)
 
 function onSummary(list: WorkspaceSummary[], askOnClose: boolean): void {
   manager.summary = list
@@ -190,13 +192,19 @@ ipcMain.handle('gt:openWorkspaces', async (e, ids: string[]) => {
 })
 ipcMain.handle('gt:focusFloat', (_e, paneId: string) => manager.focusFloat(paneId))
 // tema do app: elementos nativos (rolagem, players, pdf, vidro) no mesmo esquema; janelas novas com o fundo do tema
-ipcMain.on('gt:appearance', (_e, o: { scheme: 'light' | 'dark'; follow: boolean; bg: string }) => {
+ipcMain.on('gt:appearance', (_e, o: { scheme: 'light' | 'dark'; follow: boolean; bg: string; desktop: boolean }) => {
+  // modo mesa vale para janelas novas; as abertas só mudam ao reabrir
+  if (typeof o.desktop === 'boolean' && o.desktop !== manager.desktop) {
+    manager.desktop = o.desktop
+    writeWindowDesktop(windowDesktopFile, o.desktop)
+  }
   nativeTheme.themeSource = o.follow ? 'system' : o.scheme
   if (/^#[0-9a-f]{6}$/i.test(o.bg) && o.bg !== manager.background) {
     manager.background = o.bg
     writeWindowBg(windowBgFile, o.bg)
   }
 })
+ipcMain.handle('gt:reopenWindows', () => manager.reopenAll())
 ipcMain.handle('gt:backgrounds', () => listBackgrounds(path.join(home, 'fundos')))
 // fundo do usuário: copia e reduz para GT_HOME/fundos (o original pode sumir sem afetar o app)
 ipcMain.handle('gt:importBackground', async (e) => {

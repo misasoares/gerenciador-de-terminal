@@ -52,6 +52,8 @@ export class WindowManager {
   askOnClose = true
   /** fundo das janelas novas: o do tema efetivo (o renderer avisa por gt:appearance) */
   background = '#1e1e1e'
+  /** janelas de espaço novas nascem transparentes com Liquid Glass (fundo "mesa do macOS") */
+  desktop = false
   /** encerrando o app: as janelas fecham sem perguntar e os espaços continuam "abertos" para a próxima vez */
   quitting = false
 
@@ -115,16 +117,23 @@ export class WindowManager {
       cur.win.focus()
       return
     }
+    const transparent = this.desktop && process.platform === 'darwin'
     const win = new BrowserWindow({
       width: 1440,
       height: 900,
-      backgroundColor: this.background,
+      ...(transparent ? { transparent: true, backgroundColor: '#00000000' } : { backgroundColor: this.background }),
       // ⌘+clique vindo da flutuante: no mac a janela inativa não ativa e, sem isso, o clique se perde
       acceptFirstMouse: true,
       title: `${TITLE} — ${this.nameOf(id)}`,
       webPreferences: { preload: path.join(__dirname, '../preload/index.js'), sandbox: false, plugins: true }, // plugins: visualizador de PDF do painel de arquivo
     })
     win.on('page-title-updated', (ev) => ev.preventDefault())
+    // fundo "mesa do macOS": Liquid Glass atrás do conteúdo; se o módulo não carregar, o vidro clássico
+    if (transparent) {
+      win.webContents.once('did-finish-load', () => {
+        if (!win.isDestroyed() && !applyGlass(win, () => require('electron-liquid-glass') as GlassLib)) win.setVibrancy('under-window')
+      })
+    }
     const keeper = new NotifyKeeper()
     const link = new DaemonLink({
       socketPath: this.o.socketPath,
@@ -153,7 +162,7 @@ export class WindowManager {
       link.close()
       if (this.entries.get(id) === entry) this.entries.delete(id)
     })
-    this.load(win, { ws: id })
+    this.load(win, { ws: id, desktop: transparent ? '1' : '0' })
     try {
       await link.start()
     } catch (e) {
@@ -161,6 +170,24 @@ export class WindowManager {
       win.destroy()
       throw e
     }
+  }
+
+  /** fundo mudou entre opaco e mesa do macOS: fecha e reabre as janelas de espaço (sessões e layout vêm do daemon) */
+  async reopenAll(): Promise<void> {
+    const ids = [...this.entries.keys()]
+    await Promise.all(
+      ids.map(
+        (id) =>
+          new Promise<void>((done) => {
+            const e = this.entries.get(id)
+            if (!e || e.win.isDestroyed()) return done()
+            e.closing = true
+            e.win.once('closed', () => done())
+            e.win.close()
+          }),
+      ),
+    )
+    for (const id of ids) await this.open(id)
   }
 
   /** tela "Reabrir espaços de trabalho" */

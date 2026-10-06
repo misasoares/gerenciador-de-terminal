@@ -40,6 +40,7 @@ const api: GtApi = {
   backgrounds: () => ipcRenderer.invoke('gt:backgrounds'),
   importBackground: () => ipcRenderer.invoke('gt:importBackground'),
   removeBackground: (name: string) => ipcRenderer.invoke('gt:removeBackground', name),
+  reopenWindows: () => ipcRenderer.invoke('gt:reopenWindows'),
   toWorkspace: (cmd: WorkspaceCommand) => ipcRenderer.invoke('gt:toWorkspace', cmd),
   onWorkspaceCommand: (cb) => {
     const l = (_e: unknown, cmd: WorkspaceCommand) => cb(cmd)

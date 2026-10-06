@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { readWindowBg, writeWindowBg } from '../../src/main/window-bg'
+import { readWindowBg, readWindowDesktop, writeWindowBg, writeWindowDesktop } from '../../src/main/window-bg'
 
 const tmp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-bg-')), 'window-bg')
 
@@ -21,5 +21,13 @@ describe('fundo das janelas na abertura do app', () => {
     expect(readWindowBg(f)).toBe('#1e1e1e')
     writeWindowBg(f, 'url(x)')
     expect(fs.readFileSync(f, 'utf8')).toBe('red; drop')
+  })
+  it('modo mesa lembrado entre aberturas; sem arquivo ou lixo = opaco', () => {
+    const f = tmp()
+    expect(readWindowDesktop(f)).toBe(false)
+    writeWindowDesktop(f, true)
+    expect(readWindowDesktop(f)).toBe(true)
+    fs.writeFileSync(f, 'talvez')
+    expect(readWindowDesktop(f)).toBe(false)
   })
 })

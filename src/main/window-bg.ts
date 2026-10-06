@@ -21,3 +21,20 @@ export function writeWindowBg(file: string, bg: string): void {
     // sem gravar: só a próxima abertura volta a nascer no fundo padrão
   }
 }
+
+/** janela de espaço transparente (fundo "mesa do macOS"): lembrado para a primeira janela da abertura */
+export function readWindowDesktop(file: string): boolean {
+  try {
+    return fs.readFileSync(file, 'utf8').trim() === '1'
+  } catch {
+    return false
+  }
+}
+
+export function writeWindowDesktop(file: string, v: boolean): void {
+  try {
+    fs.writeFileSync(file, v ? '1' : '0')
+  } catch {
+    // sem gravar: a próxima abertura nasce opaca
+  }
+}

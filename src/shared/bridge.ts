@@ -55,6 +55,8 @@ export interface GtApi {
   /** escolhe uma imagem no Finder e a importa como fundo; null = cancelou */
   importBackground(): Promise<string | null>
   removeBackground(name: string): Promise<void>
+  /** reabre as janelas de espaço (aplica o fundo mesa do macOS / opaco) */
+  reopenWindows(): Promise<void>
   /** (flutuante) manda o pedido para a janela do espaço, trazendo-a para a frente */
   toWorkspace(cmd: WorkspaceCommand): Promise<void>
   /** (janela do espaço) pedidos vindos das flutuantes */
