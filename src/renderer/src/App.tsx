@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'motion/react'
 import { EmptyState } from './components/EmptyState'
 import { HooksBanner } from './components/HooksBanner'
 import { Modals } from './components/Modals'
@@ -11,6 +12,7 @@ import { useUi } from './store'
 export function App() {
   const ready = useUi((s) => s.app !== null)
   const hasProjects = useUi((s) => (s.app?.projects.length ?? 0) > 0)
+  const newSession = useUi((s) => s.newSession)
   if (!ready) return <div className="loading">Conectando ao daemon…</div>
   return (
     <div
@@ -31,7 +33,7 @@ export function App() {
         <Workspace empty={<EmptyState hasProjects={hasProjects} />} onAddProject={(dir) => void addProjectFlow(dir)} />
         <StatusBar />
       </main>
-      <NewSessionDialog />
+      <AnimatePresence>{newSession && <NewSessionDialog key="new-session" req={newSession} />}</AnimatePresence>
       <Modals />
     </div>
   )

@@ -1,3 +1,4 @@
+import { ModalFrame } from './ModalFrame'
 import { useEffect, useMemo, useState } from 'react'
 import { openFile } from '../actions'
 import { fuzzyScore } from '../search'
@@ -39,34 +40,32 @@ export function FilePicker({ root }: { root: string }) {
   }
 
   return (
-    <div className="modal-backdrop palette-backdrop" onMouseDown={close}>
-      <div className="palette" onMouseDown={(e) => e.stopPropagation()}>
-        <input
-          autoFocus
-          className="palette-input"
-          placeholder={`Abrir arquivo em ${root.split('/').pop()}…`}
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value)
-            setSel(0)
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') close()
-            if (e.key === 'ArrowDown') setSel((i) => Math.min(i + 1, results.length - 1))
-            if (e.key === 'ArrowUp') setSel((i) => Math.max(i - 1, 0))
-            if (e.key === 'Enter') pick(results[sel])
-          }}
-        />
-        {!files && <div className="palette-empty">lendo arquivos…</div>}
-        {truncated && <div className="palette-empty">lista parcial</div>}
-        <div className="palette-list">
-          {results.map((f, i) => (
-            <div key={f} className={`palette-item${i === sel ? ' sel' : ''}`} onMouseEnter={() => setSel(i)} onMouseDown={() => pick(f)}>
-              {f}
-            </div>
-          ))}
-        </div>
+    <ModalFrame onClose={close} className="palette" backdropClassName="palette-backdrop">
+      <input
+        autoFocus
+        className="palette-input"
+        placeholder={`Abrir arquivo em ${root.split('/').pop()}…`}
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value)
+          setSel(0)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') close()
+          if (e.key === 'ArrowDown') setSel((i) => Math.min(i + 1, results.length - 1))
+          if (e.key === 'ArrowUp') setSel((i) => Math.max(i - 1, 0))
+          if (e.key === 'Enter') pick(results[sel])
+        }}
+      />
+      {!files && <div className="palette-empty">lendo arquivos…</div>}
+      {truncated && <div className="palette-empty">lista parcial</div>}
+      <div className="palette-list">
+        {results.map((f, i) => (
+          <div key={f} className={`palette-item${i === sel ? ' sel' : ''}`} onMouseEnter={() => setSel(i)} onMouseDown={() => pick(f)}>
+            {f}
+          </div>
+        ))}
       </div>
-    </div>
+    </ModalFrame>
   )
 }

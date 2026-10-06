@@ -1,3 +1,4 @@
+import { ModalFrame } from './ModalFrame'
 import { useState } from 'react'
 import { errorMessage } from '../api'
 
@@ -18,31 +19,29 @@ export function WorkspaceNameModal(p: { title: string; initial?: string; confirm
     }
   }
   return (
-    <div className="modal-backdrop" onMouseDown={p.onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && p.onClose()}>
-        <h3>{p.title}</h3>
-        <label className="field">
-          <span className="field-label">NOME</span>
-          <input
-            className="ws-name-input"
-            autoFocus
-            value={name}
-            placeholder="Ex.: TCHEERP"
-            onChange={(e) => {
-              setName(e.target.value)
-              setError(null)
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && void submit()}
-          />
-        </label>
-        {error && <p className="modal-warn">{error}</p>}
-        <div className="modal-actions">
-          <button onClick={p.onClose}>Cancelar</button>
-          <button className="primary" disabled={busy || !name.trim()} onClick={() => void submit()}>
-            {p.confirmLabel}
-          </button>
-        </div>
+    <ModalFrame onClose={p.onClose} onKeyDown={(e) => e.key === 'Escape' && p.onClose()}>
+      <h3>{p.title}</h3>
+      <label className="field">
+        <span className="field-label">NOME</span>
+        <input
+          className="ws-name-input"
+          autoFocus
+          value={name}
+          placeholder="Ex.: TCHEERP"
+          onChange={(e) => {
+            setName(e.target.value)
+            setError(null)
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && void submit()}
+        />
+      </label>
+      {error && <p className="modal-warn">{error}</p>}
+      <div className="modal-actions">
+        <button onClick={p.onClose}>Cancelar</button>
+        <button className="primary" disabled={busy || !name.trim()} onClick={() => void submit()}>
+          {p.confirmLabel}
+        </button>
       </div>
-    </div>
+    </ModalFrame>
   )
 }

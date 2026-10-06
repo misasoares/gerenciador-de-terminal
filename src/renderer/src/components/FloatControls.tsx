@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { motion } from 'motion/react'
 import { dockFloat, hideFloat } from '../actions'
 import { showError, useUi } from '../store'
+import { useMotionPreset } from '../use-motion'
 import { GLASS } from '../view'
 
 /** mac: fundo sobre o vidro pode ir a 0 (o texto fica inteiro); linux: é a janela toda, com piso */
@@ -42,6 +44,7 @@ export function FloatControls({ paneId }: { paneId: string }) {
 
 /** no body, fixo sob o cabeçalho (o cabeçalho corta o que transborda e é contêiner de layout); Esc ou clique fora fecha */
 function OpacityPopover({ value, onChange, onClose }: { value: number; onChange(v: number): void; onClose(): void }) {
+  const pr = useMotionPreset()
   const ref = useRef<HTMLDivElement>(null)
   // valor local: o slider responde na hora; o daemon devolve o mesmo valor pelo estado
   const [v, setV] = useState(value)
@@ -62,7 +65,14 @@ function OpacityPopover({ value, onChange, onClose }: { value: number; onChange(
     onChange(n)
   }
   return createPortal(
-    <div className="float-opacity" ref={ref}>
+    <motion.div
+      className="float-opacity"
+      ref={ref}
+      style={{ transformOrigin: 'top right' }}
+      initial={{ opacity: 0, scale: pr.reduced ? 1 : 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={pr.enter}
+    >
       <input
         type="range"
         min={MIN}
@@ -74,7 +84,7 @@ function OpacityPopover({ value, onChange, onClose }: { value: number; onChange(
         autoFocus
       />
       <span className="float-opacity-val">{Math.round(v * 100)}%</span>
-    </div>,
+    </motion.div>,
     document.body,
   )
 }

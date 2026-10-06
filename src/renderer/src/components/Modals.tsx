@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { AnimatePresence } from 'motion/react'
+import type { AppState } from '../../../shared/types'
+import { ModalFrame } from './ModalFrame'
 import { ConflictsModal } from './ConflictsModal'
 import { Preferences } from './Preferences'
 import { Palette } from './Palette'
@@ -10,24 +13,26 @@ import { revealPane } from '../actions'
 import { confirmRemove } from '../flows'
 import { headerView } from '../header'
 import { sessionLabel } from '../sidebar-model'
-import { setUi, useUi } from '../store'
+import { setUi, useUi, type Modal } from '../store'
 
 function Backdrop({ children }: { children: React.ReactNode }) {
+  const close = () => setUi({ modal: null })
   return (
-    <div className="modal-backdrop" onMouseDown={() => setUi({ modal: null })}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && setUi({ modal: null })}>
-        {children}
-      </div>
-    </div>
+    <ModalFrame onClose={close} onKeyDown={(e) => e.key === 'Escape' && close()}>
+      {children}
+    </ModalFrame>
   )
 }
 
-/** 2f · 2i/1i · 2j */
+/** 2f · 2i/1i · 2j — o modal que sai fica na tela (congelado) até terminar a animação de saída */
 export function Modals() {
   const modal = useUi((s) => s.modal)
   const app = useUi((s) => s.app)
+  return <AnimatePresence>{modal && app && <ModalSwitch key={modal.kind} modal={modal} app={app} />}</AnimatePresence>
+}
+
+function ModalSwitch({ modal, app }: { modal: Modal; app: AppState }) {
   const [deleteBranch, setDeleteBranch] = useState(false)
-  if (!modal || !app) return null
   if (modal.kind === 'conflicts') return <ConflictsModal projectPath={modal.projectPath} />
   if (modal.kind === 'preferences') return <Preferences />
   if (modal.kind === 'palette') return <Palette />

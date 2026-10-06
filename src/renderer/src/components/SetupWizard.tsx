@@ -1,3 +1,4 @@
+import { ModalFrame } from './ModalFrame'
 import { useEffect, useState } from 'react'
 import type { Account } from '../../../shared/types'
 import { errorMessage } from '../api'
@@ -48,73 +49,71 @@ export function SetupWizard() {
   }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal setup">
-        <h3>Configurar agentes</h3>
-        {step === 'agents' && (
-          <>
-            <p className="sb-dim">Escolha quais agentes abrir pelo app. O comando é digitado no seu shell; dá para mudar depois em Preferências → Agentes.</p>
-            {!detected && <p className="sb-dim">Procurando claude e codex no seu shell…</p>}
-            {drafts.map((d, i) => (
-              <div key={d.id} className="setup-agent">
-                <label className="check">
-                  <input type="checkbox" checked={d.on} onChange={(e) => setDrafts(drafts.map((x, j) => (j === i ? { ...x, on: e.target.checked } : x)))} />
-                  <span style={{ color: d.color }}>{d.label}</span> <span className="sb-dim">({AGENT_LABEL[d.agent]})</span>
-                  {detected && !detected[d.agent] && <span className="card-note warn"> não encontrado no shell</span>}
-                </label>
-                <input className="text-input" value={d.command} onChange={(e) => setDrafts(drafts.map((x, j) => (j === i ? { ...x, command: e.target.value } : x)))} />
-              </div>
-            ))}
-            {msg && <p className={msg.ok ? 'ok' : 'c-bad'}>{msg.text}</p>}
-            <div className="modal-actions">
-              <button onClick={close}>Depois</button>
-              <button className="primary" disabled={!drafts.some((d) => d.on)} onClick={() => void saveAgents()}>
-                Salvar e continuar
+    <ModalFrame className="modal setup">
+      <h3>Configurar agentes</h3>
+      {step === 'agents' && (
+        <>
+          <p className="sb-dim">Escolha quais agentes abrir pelo app. O comando é digitado no seu shell; dá para mudar depois em Preferências → Agentes.</p>
+          {!detected && <p className="sb-dim">Procurando claude e codex no seu shell…</p>}
+          {drafts.map((d, i) => (
+            <div key={d.id} className="setup-agent">
+              <label className="check">
+                <input type="checkbox" checked={d.on} onChange={(e) => setDrafts(drafts.map((x, j) => (j === i ? { ...x, on: e.target.checked } : x)))} />
+                <span style={{ color: d.color }}>{d.label}</span> <span className="sb-dim">({AGENT_LABEL[d.agent]})</span>
+                {detected && !detected[d.agent] && <span className="card-note warn"> não encontrado no shell</span>}
+              </label>
+              <input className="text-input" value={d.command} onChange={(e) => setDrafts(drafts.map((x, j) => (j === i ? { ...x, command: e.target.value } : x)))} />
+            </div>
+          ))}
+          {msg && <p className={msg.ok ? 'ok' : 'c-bad'}>{msg.text}</p>}
+          <div className="modal-actions">
+            <button onClick={close}>Depois</button>
+            <button className="primary" disabled={!drafts.some((d) => d.on)} onClick={() => void saveAgents()}>
+              Salvar e continuar
+            </button>
+          </div>
+        </>
+      )}
+      {step === 'hooks' && (
+        <>
+          <p>Os hooks deixam o app ver quando o agente está trabalhando (🟢), precisa de você (🟡) ou terminou (🔵), e em qual worktree ele está.</p>
+          <p className="sb-dim">O app acrescenta uma entrada nos arquivos de configuração do Claude/Codex, com backup, sem mexer nos seus hooks.</p>
+          {msg && <p className={msg.ok ? 'ok' : 'c-bad'}>{msg.text}</p>}
+          <div className="modal-actions">
+            <button onClick={() => (hasCodex ? setStep('codex') : close())}>Pular</button>
+            {msg?.ok ? (
+              <button className="primary" onClick={() => (hasCodex ? setStep('codex') : close())}>
+                {hasCodex ? 'Continuar' : 'Concluir'}
               </button>
-            </div>
-          </>
-        )}
-        {step === 'hooks' && (
-          <>
-            <p>Os hooks deixam o app ver quando o agente está trabalhando (🟢), precisa de você (🟡) ou terminou (🔵), e em qual worktree ele está.</p>
-            <p className="sb-dim">O app acrescenta uma entrada nos arquivos de configuração do Claude/Codex, com backup, sem mexer nos seus hooks.</p>
-            {msg && <p className={msg.ok ? 'ok' : 'c-bad'}>{msg.text}</p>}
-            <div className="modal-actions">
-              <button onClick={() => (hasCodex ? setStep('codex') : close())}>Pular</button>
-              {msg?.ok ? (
-                <button className="primary" onClick={() => (hasCodex ? setStep('codex') : close())}>
-                  {hasCodex ? 'Continuar' : 'Concluir'}
-                </button>
-              ) : (
-                <button className="primary" onClick={() => void installHooks()}>
-                  Instalar hooks
-                </button>
-              )}
-            </div>
-          </>
-        )}
-        {step === 'codex' && (
-          <>
-            <p>
-              <strong>Um passo no Codex (uma vez só):</strong> o Codex só roda hooks que você aprovou.
-            </p>
-            <ol>
-              <li>Abra uma sessão Codex pelo app (⌘T).</li>
-              <li>
-                Digite <code>/hooks</code> e confie no hook do <strong>Gerenciador de Terminal</strong> (gt-hook).
-              </li>
-              <li>Pronto: os estados 🟢🟡🔵 passam a aparecer nas sessões Codex.</li>
-            </ol>
-            <p className="sb-dim">Se esquecer, o app mostra um lembrete quando uma sessão Codex rodar sem mandar eventos.</p>
-            <div className="modal-actions">
-              <button className="primary" onClick={close}>
-                Concluir
+            ) : (
+              <button className="primary" onClick={() => void installHooks()}>
+                Instalar hooks
               </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+            )}
+          </div>
+        </>
+      )}
+      {step === 'codex' && (
+        <>
+          <p>
+            <strong>Um passo no Codex (uma vez só):</strong> o Codex só roda hooks que você aprovou.
+          </p>
+          <ol>
+            <li>Abra uma sessão Codex pelo app (⌘T).</li>
+            <li>
+              Digite <code>/hooks</code> e confie no hook do <strong>Gerenciador de Terminal</strong> (gt-hook).
+            </li>
+            <li>Pronto: os estados 🟢🟡🔵 passam a aparecer nas sessões Codex.</li>
+          </ol>
+          <p className="sb-dim">Se esquecer, o app mostra um lembrete quando uma sessão Codex rodar sem mandar eventos.</p>
+          <div className="modal-actions">
+            <button className="primary" onClick={close}>
+              Concluir
+            </button>
+          </div>
+        </>
+      )}
+    </ModalFrame>
   )
 }
 

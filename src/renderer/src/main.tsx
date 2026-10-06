@@ -15,10 +15,12 @@ import { ReopenWorkspaces } from './components/ReopenWorkspaces'
 import { FloatView } from './components/FloatView'
 import { FLOAT_PANE } from './view'
 import { applyAppearance, initAppearance } from './appearance'
+import { trackPointer } from './pointer'
 import './styles.css'
 
 // antes de tudo: pinta o último tema (sem piscar), inclusive na tela de reabrir
 initAppearance()
+trackPointer()
 
 let seenFirstState = false
 const sentNotices = new Map<string, number>()
