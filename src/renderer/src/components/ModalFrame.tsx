@@ -21,26 +21,26 @@ export function ModalFrame(p: {
   }, [])
   const hidden = { opacity: 0, scale: pr.scaleFrom, filter: pr.materialize ? 'blur(12px)' : 'blur(0px)' }
   return (
-    <motion.div
+    <div
       className={`modal-backdrop${p.backdropClassName ? ` ${p.backdropClassName}` : ''}`}
       // saindo: não segura cliques nem teclado de quem está atrás
       style={present ? undefined : { pointerEvents: 'none' }}
       onMouseDown={p.onClose}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1, transition: pr.enter }}
-      exit={{ opacity: 0, transition: pr.exit }}
     >
+      {/* o escurecido é uma camada à parte: opacidade no ancestral da caixa cortaria o vidro (backdrop-filter) dela */}
+      <motion.div className="modal-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: pr.enter }} exit={{ opacity: 0, transition: pr.exit }} />
       <motion.div
         ref={box}
         className={p.className ?? 'modal'}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={p.onKeyDown}
         initial={hidden}
-        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', transition: pr.enter }}
+        // no fim, filter some (blur(0px) parado ainda força camada e atrapalha o vidro)
+        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', transition: pr.enter, transitionEnd: { filter: 'none' } }}
         exit={{ ...hidden, scale: pr.reduced ? 1 : 0.96, transition: pr.exit }}
       >
         {p.children}
       </motion.div>
-    </motion.div>
+    </div>
   )
 }

@@ -206,7 +206,9 @@ button:disabled { opacity: 0.5; cursor: default; }
 .shortcuts { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; font-size: var(--text-md); }
 kbd { font-family: inherit; background: var(--bg-control); border-radius: var(--radius-sm); padding: 1px 5px; color: var(--fg); }
 
-.modal-backdrop { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 30; }
+.modal-backdrop { position: fixed; inset: 0; display: grid; place-items: center; z-index: 30; }
+.modal-scrim { position: absolute; inset: 0; background: var(--scrim); }
+.modal-backdrop > .modal, .modal-backdrop > .palette { position: relative; }
 .modal { width: 460px; max-height: 85vh; overflow-y: auto; background: var(--bg-bar); border: 1px solid var(--border-strong); border-radius: var(--radius-xl); padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-lg); }
 .modal h3 { margin: 0; font-size: var(--text-lg); }
 .modal p { margin: 0; }
@@ -436,7 +438,7 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
 .theme-name { color: var(--fg); font-size: var(--text-md); text-align: center; }
 
 /* temas premium: vidro sobre o fundo, painéis com respiro e cantos (no Padrão/Claro tudo vale 0) */
-.sidebar, .tabbar, .statusbar, .tabbar > .tab-add { backdrop-filter: blur(var(--surface-blur)) saturate(1.4); }
+.sidebar, .tabbar, .statusbar, .tabbar > .tab-add, .modal, .palette { backdrop-filter: blur(var(--surface-blur)) saturate(1.4); }
 .tab-body { padding: calc(var(--pane-gap) / 2); }
 .pane-slot { height: 100%; padding: calc(var(--pane-gap) / 2); }
 .pane-slot > .pane { border-radius: var(--pane-radius); box-shadow: var(--pane-shadow); overflow: hidden; background: var(--bg); }
