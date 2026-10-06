@@ -24,7 +24,9 @@ import { isFilePane } from '../file-model'
 
 
 function SplitNode({ node, tabId, path }: { node: LayoutNode; tabId: string; path: number[] }) {
-  if (node.type === 'leaf') return isFilePane(node.paneId) ? <FilePane paneId={node.paneId} /> : <PaneFrame paneId={node.paneId} onAddProject={addProject} />
+  // o slot dá o respiro entre painéis dos temas premium (no Padrão/Claro vale 0)
+  if (node.type === 'leaf')
+    return <div className="pane-slot">{isFilePane(node.paneId) ? <FilePane paneId={node.paneId} /> : <PaneFrame paneId={node.paneId} onAddProject={addProject} />}</div>
   return (
     <Allotment
       vertical={node.dir === 'column'}

@@ -37,6 +37,7 @@ const api: GtApi = {
   revealIn: (workspaceId: string, paneId: string | null) => ipcRenderer.invoke('gt:revealIn', workspaceId, paneId),
   focusFloat: (paneId: string) => ipcRenderer.invoke('gt:focusFloat', paneId),
   setAppearance: (o) => ipcRenderer.send('gt:appearance', o),
+  backgrounds: () => ipcRenderer.invoke('gt:backgrounds'),
   toWorkspace: (cmd: WorkspaceCommand) => ipcRenderer.invoke('gt:toWorkspace', cmd),
   onWorkspaceCommand: (cb) => {
     const l = (_e: unknown, cmd: WorkspaceCommand) => cb(cmd)

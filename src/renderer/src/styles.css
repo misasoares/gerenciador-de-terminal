@@ -76,7 +76,7 @@
   color: var(--fg);
 }
 * { box-sizing: border-box; }
-html, body, #root { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+html, body, #root { margin: 0; height: 100%; background: var(--app-backdrop); overflow: hidden; }
 button { font: inherit; color: var(--fg); background: var(--bg-control); border: 0; border-radius: var(--radius-md); padding: 4px 10px; cursor: pointer; }
 button:hover { background: var(--bg-control-hover); }
 button.primary { background: var(--accent); color: var(--fg-on-accent); }
@@ -429,3 +429,9 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
 .tm-term i { display: block; height: 4px; border-radius: var(--radius-sm); background: var(--fg-dim); width: 80%; }
 .tm-term i.short { width: 45%; background: var(--accent); }
 .theme-name { color: var(--fg); font-size: var(--text-md); text-align: center; }
+
+/* temas premium: vidro sobre o fundo, painéis com respiro e cantos (no Padrão/Claro tudo vale 0) */
+.sidebar, .tabbar, .statusbar, .tabbar > .tab-add { backdrop-filter: blur(var(--surface-blur)) saturate(1.4); }
+.tab-body { padding: calc(var(--pane-gap) / 2); }
+.pane-slot { height: 100%; padding: calc(var(--pane-gap) / 2); }
+.pane-slot > .pane { border-radius: var(--pane-radius); box-shadow: var(--pane-shadow); overflow: hidden; background: var(--bg); }

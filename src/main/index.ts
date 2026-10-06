@@ -12,6 +12,7 @@ import { NotifyKeeper } from './notify-keeper'
 import { WindowManager } from './windows'
 import { handleMediaProtocol, registerMediaScheme } from './media-protocol'
 import { readWindowBg, writeWindowBg } from './window-bg'
+import { listBackgrounds } from './backgrounds'
 import { badgeTotal, decideStartup } from './workspaces-model'
 
 const notifications = new NotifyKeeper()
@@ -195,6 +196,7 @@ ipcMain.on('gt:appearance', (_e, o: { scheme: 'light' | 'dark'; follow: boolean;
     writeWindowBg(windowBgFile, o.bg)
   }
 })
+ipcMain.handle('gt:backgrounds', () => listBackgrounds(path.join(home, 'fundos')))
 ipcMain.handle('gt:toWorkspace', (e, cmd: WorkspaceCommand) => manager.toWorkspace(e, cmd))
 ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
   if (paneId) await manager.reveal(workspaceId, paneId)
