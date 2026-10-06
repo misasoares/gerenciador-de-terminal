@@ -1,7 +1,7 @@
 import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import type React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { animate, motion } from 'motion/react'
 import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
@@ -21,14 +21,37 @@ import { textOn } from '../header'
 import { updateLayout, useUi } from '../store'
 import { PaneFrame } from './PaneFrame'
 import { useMotionPreset } from '../use-motion'
+import { shouldAnimateEnter } from '../pane-motion'
 import { FilePane } from './FilePane'
 import { isFilePane } from '../file-model'
 
 
+/** painel novo entra crescendo de 96%; anima o painel (filho), não o slot: opacidade num ancestral cortaria o vidro (backdrop-filter) */
+function PaneSlot({ tabId, paneId, children }: { tabId: string; paneId: string; children: React.ReactNode }) {
+  const pr = useMotionPreset()
+  const ref = useRef<HTMLDivElement>(null)
+  const [enter] = useState(() => shouldAnimateEnter(tabId, paneId))
+  useLayoutEffect(() => {
+    const el = ref.current?.firstElementChild
+    if (enter && el instanceof HTMLElement) void animate(el, { opacity: [0, 1], scale: [pr.reduced ? 1 : 0.96, 1] }, pr.enter)
+    // só na montagem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return (
+    <div ref={ref} className="pane-slot" data-pane-id={paneId}>
+      {children}
+    </div>
+  )
+}
+
 function SplitNode({ node, tabId, path }: { node: LayoutNode; tabId: string; path: number[] }) {
   // o slot dá o respiro entre painéis dos temas premium (no Padrão/Claro vale 0)
   if (node.type === 'leaf')
-    return <div className="pane-slot">{isFilePane(node.paneId) ? <FilePane paneId={node.paneId} /> : <PaneFrame paneId={node.paneId} onAddProject={addProject} />}</div>
+    return (
+      <PaneSlot tabId={tabId} paneId={node.paneId}>
+        {isFilePane(node.paneId) ? <FilePane paneId={node.paneId} /> : <PaneFrame paneId={node.paneId} onAddProject={addProject} />}
+      </PaneSlot>
+    )
   return (
     <Allotment
       vertical={node.dir === 'column'}

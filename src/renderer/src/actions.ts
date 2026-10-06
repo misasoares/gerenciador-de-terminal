@@ -4,7 +4,9 @@ import { attentionQueue, nextInQueue } from './attention'
 import { focusAfterHide, lookingAt, shouldFocusTerminal, splitCwd } from './focus'
 import { getUi, setUi, showError, updateLayout } from './store'
 import { revealTarget } from './float-model'
-import { FLOAT_PANE } from './view'
+import { FLOAT_PANE, GPU_OK } from './view'
+import { animateOut } from './pane-motion'
+import { presetsFor } from './motion-presets'
 import { terminals } from './terminals'
 import { findFilePane, insertFileLeaf, isFilePane, languageFor, pickerRoot } from './file-model'
 
@@ -89,6 +91,21 @@ export function hidePane(paneId: string): void {
     if (next) focusPane(next)
     else setUi({ focusedPaneId: null })
   }
+}
+
+const closing = new Set<string>()
+/** fechar pelo usuário (✕, ⌘W): o painel encolhe e esmaece, e só então sai da grade (⌘W repetido no meio não fecha duas vezes) */
+export async function hidePaneAnimated(paneId: string): Promise<void> {
+  if (closing.has(paneId)) return
+  closing.add(paneId)
+  try {
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    const p = presetsFor(getUi().motion, { reduced, gpu: GPU_OK })
+    await animateOut(paneId, { opacity: 0, scale: p.reduced ? 1 : 0.98 }, p.exit)
+  } finally {
+    closing.delete(paneId)
+  }
+  hidePane(paneId)
 }
 
 export function togglePane(paneId: string): void {
@@ -270,7 +287,7 @@ export function runMenuAction(action: string): void {
   else if (action === 'hide-pane') {
     const id = getUi().focusedPaneId
     if (id && isFilePane(id)) void requestCloseFile(id)
-    else if (id) hidePane(id)
+    else if (id) void hidePaneAnimated(id)
     else window.close() // sem painel em foco, ⌘W fecha a janela do espaço (as sessões continuam)
   } else if (action === 'new-workspace') setUi({ modal: { kind: 'workspace-name', mode: 'create' } })
   else if (action === 'rename-workspace') setUi({ modal: { kind: 'workspace-name', mode: 'rename' } })
@@ -336,7 +353,7 @@ export async function requestCloseFile(id: string): Promise<void> {
     if (!r.ok) return
   }
   dirtyFiles.delete(id)
-  hidePane(id)
+  await hidePaneAnimated(id)
 }
 
 export function openFilePicker(root?: string): void {
