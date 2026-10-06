@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, Notification, screen, type IpcMainEvent, ty
 import path from 'node:path'
 import type { WorkspaceCommand } from '../shared/bridge'
 import type { FloatSpec, WorkspaceSummary } from '../shared/types'
-import { fitBounds, floatHome, floatWindowOptions, syncFloats, windowOpacity } from './float-model'
+import { allDesksOptions, fitBounds, floatHome, floatWindowOptions, syncFloats, windowOpacity } from './float-model'
 import { applyGlass, type GlassLib } from './glass'
 import { DaemonLink } from './daemon-link'
 import { NotifyKeeper } from './notify-keeper'
@@ -398,6 +398,6 @@ export class WindowManager {
 /** 📌 por cima de tudo; 🌐 em todas as mesas (com nível acima de apps em tela cheia); ◐ opacidade (só linux; no mac é o fundo, no renderer) */
 function applyPrefs(win: BrowserWindow, f: FloatSpec): void {
   win.setAlwaysOnTop(f.onTop, f.allDesks ? 'screen-saver' : 'floating')
-  win.setVisibleOnAllWorkspaces(f.allDesks, { visibleOnFullScreen: true })
+  win.setVisibleOnAllWorkspaces(f.allDesks, allDesksOptions(f.allDesks))
   win.setOpacity(windowOpacity(f.opacity, process.platform === 'darwin'))
 }

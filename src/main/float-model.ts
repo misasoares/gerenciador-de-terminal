@@ -53,3 +53,11 @@ const LINUX_MIN_OPACITY = 0.3
 export function windowOpacity(opacity: number, mac: boolean): number {
   return mac ? 1 : Math.max(LINUX_MIN_OPACITY, opacity)
 }
+
+/**
+ * opções de setVisibleOnAllWorkspaces: no mac, visibleOnFullScreen sem skipTransformProcessType faz o Electron
+ * chamar app.dock.hide() — o app vira UIElement, some do Dock e perde a barra de menus. Nunca transformar.
+ */
+export function allDesksOptions(allDesks: boolean): { visibleOnFullScreen: boolean; skipTransformProcessType: true } {
+  return { visibleOnFullScreen: allDesks, skipTransformProcessType: true }
+}

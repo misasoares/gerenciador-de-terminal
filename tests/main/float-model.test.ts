@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cascade, fitBounds, floatHome, floatWindowOptions, syncFloats, windowOpacity } from '../../src/main/float-model'
+import { allDesksOptions, cascade, fitBounds, floatHome, floatWindowOptions, syncFloats, windowOpacity } from '../../src/main/float-model'
 
 const spec = (paneId: string, over = {}) => ({ paneId, bounds: null, onTop: true, allDesks: false, opacity: 1, ...over })
 const ws = (id: string, floating: ReturnType<typeof spec>[]) => ({ id, name: id, open: true, sessions: 0, attention: 0, tabs: [], hidden: [], floating })
@@ -50,5 +50,9 @@ describe('float-model', () => {
   it('janela flutuante nunca vira tela cheia (sem moldura não teria como sair)', () => {
     const o = floatWindowOptions({ x: 1, y: 2, width: 640, height: 400 }, true, '#1e1e1e')
     expect(o).toMatchObject({ x: 1, y: 2, width: 640, height: 400, frame: false, fullscreenable: false, minWidth: 320, minHeight: 180 })
+  })
+  it('em todas as mesas nunca esconde o app do Dock (senão o macOS tira a barra de menus); tela cheia só com 🌐', () => {
+    expect(allDesksOptions(false)).toEqual({ visibleOnFullScreen: false, skipTransformProcessType: true })
+    expect(allDesksOptions(true)).toEqual({ visibleOnFullScreen: true, skipTransformProcessType: true })
   })
 })
