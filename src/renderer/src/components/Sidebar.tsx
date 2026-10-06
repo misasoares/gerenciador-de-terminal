@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { openNewSessionDialog, PANE_MIME, revealPane } from '../actions'
 import { conflictPartners } from '../conflicts-model'
 import { addProjectFlow, analyzeConflictsFlow, projectMenu, sessionMenu, worktreeMenu } from '../flows'
@@ -6,6 +7,7 @@ import { buildSidebar, isExpanded, railLabel, splitWorktrees, type ProjectItem, 
 import { setUi, showError, useUi } from '../store'
 import { STATUS_DOT } from './PaneHeader'
 import { textOn } from '../header'
+import { useMotionPreset } from '../use-motion'
 import { otherWorkspaces, type OtherWorkspace } from '../workspaces-model'
 
 function Summary({ s }: { s: ProjectItem['summary'] }) {
@@ -22,6 +24,13 @@ function Summary({ s }: { s: ProjectItem['summary'] }) {
 function SessionRow({ s, outside }: { s: SessionItem; outside?: boolean }) {
   const focused = useUi((st) => st.focusedPaneId === s.paneId)
   const cls = ['sb-session', focused && 'focused', !s.alive && 'dead', s.hidden && 'hidden'].filter(Boolean).join(' ')
+  const pr = useMotionPreset()
+  // a bolinha só anima quando o estado muda (não ao montar a lista)
+  const prev = useRef(s.status)
+  const changed = prev.current !== s.status
+  useEffect(() => {
+    prev.current = s.status
+  })
   return (
     <div
       className={cls}
@@ -34,7 +43,10 @@ function SessionRow({ s, outside }: { s: SessionItem; outside?: boolean }) {
       }}
       title={s.cwd}
     >
-      <span className="dot">{STATUS_DOT[s.status] || '›'}</span>
+      {focused && <motion.span layoutId="sb-sel" className="sb-sel" transition={pr.reduced ? { duration: 0 } : pr.enter} />}
+      <motion.span key={s.status} className="dot" initial={changed ? { opacity: 0, scale: pr.reduced ? 1 : 0.6 } : false} animate={{ opacity: 1, scale: 1 }} transition={pr.enter}>
+        {STATUS_DOT[s.status] || '›'}
+      </motion.span>
       {s.color && <span className="sb-color" style={{ background: s.color }} />}
       <span className="sb-label">{s.label}</span>
       {s.hidden && <span className="sb-tag">oculta</span>}
@@ -70,6 +82,7 @@ function Tree() {
   const [overrides, setOverrides] = useState<Record<string, boolean>>({})
   /** projetos com as worktrees sem sessão à mostra */
   const [showIdle, setShowIdle] = useState<Record<string, boolean>>({})
+  const pr = useMotionPreset()
   if (!app || !model) return null
   const focusedProject = app.panes.find((p) => p.id === focusedId)?.projectPath ?? null
 
@@ -115,71 +128,82 @@ function Tree() {
               )}
               <Summary s={p.summary} />
             </div>
-            {open &&
-              (() => {
-                const view = app.projects.find((x) => x.path === p.path)
-                const conflicted = new Set((view?.conflicts?.pairs ?? []).flatMap((x) => [x.a, x.b]).concat((view?.conflicts?.vsMain ?? []).filter((x) => x.files.length > 0).map((x) => x.worktreePath)))
-                const { visible, hidden } = splitWorktrees(p.worktrees, conflicted)
-                return [...visible, ...(showIdle[p.path] ? hidden : [])]
-              })().map((w) => (
-                <div key={w.path} className="sb-worktree">
-                  <div
-                    className="sb-wt-row"
-                    title={w.path}
-                    onDoubleClick={() => openNewSessionDialog(p.path, w.path)}
-                    onContextMenu={(e) => {
-                      e.preventDefault()
-                      void worktreeMenu(p, w)
-                    }}
-                  >
-                    <span className={w.isMain ? 'sb-wt-name' : 'sb-wt-name extra'}>⎇ {w.label}</span>
-                    {(() => {
-                      const view = app.projects.find((x) => x.path === p.path)
-                      const partners = conflictPartners(view?.conflicts ?? null, w.path, (path) => {
-                        const other = view?.worktrees.find((x) => x.path === path)
-                        return other?.isMain ? 'principal' : (path.split('/').pop() ?? path)
-                      })
-                      return partners.length > 0 ? (
-                        <span
-                          className="sb-conflict"
-                          title={`conflita com: ${partners.join(', ')}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setUi({ modal: { kind: 'conflicts', projectPath: p.path } })
-                          }}
-                        >
-                          ⚠
-                        </span>
-                      ) : null
-                    })()}
-                    {w.prunable && <span className="sb-dim">pasta apagada</span>}
-                    {!w.prunable && w.sessions.length === 0 && <span className="sb-dim">(sem sessão)</span>}
-                    {w.git && (w.git.changed > 0 || w.git.ahead > 0 || w.git.behind > 0) && (
-                      <span className="sb-git">
-                        {w.git.changed > 0 && <span className="dirty">●{w.git.changed} </span>}
-                        {w.git.ahead > 0 && `↑${w.git.ahead} `}
-                        {w.git.behind > 0 && `↓${w.git.behind}`}
-                      </span>
-                    )}
-                  </div>
-                  {w.sessions.map((s) => (
-                    <SessionRow key={s.paneId} s={s} />
+            <AnimatePresence initial={false}>
+              {open && (
+                <motion.div
+                  key="body"
+                  style={{ overflow: 'hidden' }}
+                  initial={pr.reduced ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={pr.reduced ? { opacity: 0, transition: pr.exit } : { height: 0, opacity: 0, transition: pr.exit }}
+                  transition={pr.enter}
+                >
+                  {(() => {
+                    const view = app.projects.find((x) => x.path === p.path)
+                    const conflicted = new Set((view?.conflicts?.pairs ?? []).flatMap((x) => [x.a, x.b]).concat((view?.conflicts?.vsMain ?? []).filter((x) => x.files.length > 0).map((x) => x.worktreePath)))
+                    const { visible, hidden } = splitWorktrees(p.worktrees, conflicted)
+                    return [...visible, ...(showIdle[p.path] ? hidden : [])]
+                  })().map((w) => (
+                    <div key={w.path} className="sb-worktree">
+                      <div
+                        className="sb-wt-row"
+                        title={w.path}
+                        onDoubleClick={() => openNewSessionDialog(p.path, w.path)}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          void worktreeMenu(p, w)
+                        }}
+                      >
+                        <span className={w.isMain ? 'sb-wt-name' : 'sb-wt-name extra'}>⎇ {w.label}</span>
+                        {(() => {
+                          const view = app.projects.find((x) => x.path === p.path)
+                          const partners = conflictPartners(view?.conflicts ?? null, w.path, (path) => {
+                            const other = view?.worktrees.find((x) => x.path === path)
+                            return other?.isMain ? 'principal' : (path.split('/').pop() ?? path)
+                          })
+                          return partners.length > 0 ? (
+                            <span
+                              className="sb-conflict"
+                              title={`conflita com: ${partners.join(', ')}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setUi({ modal: { kind: 'conflicts', projectPath: p.path } })
+                              }}
+                            >
+                              ⚠
+                            </span>
+                          ) : null
+                        })()}
+                        {w.prunable && <span className="sb-dim">pasta apagada</span>}
+                        {!w.prunable && w.sessions.length === 0 && <span className="sb-dim">(sem sessão)</span>}
+                        {w.git && (w.git.changed > 0 || w.git.ahead > 0 || w.git.behind > 0) && (
+                          <span className="sb-git">
+                            {w.git.changed > 0 && <span className="dirty">●{w.git.changed} </span>}
+                            {w.git.ahead > 0 && `↑${w.git.ahead} `}
+                            {w.git.behind > 0 && `↓${w.git.behind}`}
+                          </span>
+                        )}
+                      </div>
+                      {w.sessions.map((s) => (
+                        <SessionRow key={s.paneId} s={s} />
+                      ))}
+                    </div>
                   ))}
-                </div>
-              ))}
-            {open &&
-              (() => {
-                const view = app.projects.find((x) => x.path === p.path)
-                const conflicted = new Set((view?.conflicts?.pairs ?? []).flatMap((x) => [x.a, x.b]).concat((view?.conflicts?.vsMain ?? []).filter((x) => x.files.length > 0).map((x) => x.worktreePath)))
-                const n = splitWorktrees(p.worktrees, conflicted).hidden.length
-                if (n === 0) return null
-                const on = !!showIdle[p.path]
-                return (
-                  <button className="sb-more" onClick={() => setShowIdle((o) => ({ ...o, [p.path]: !on }))}>
-                    {on ? 'esconder worktrees sem sessão' : `+${n} ${n === 1 ? 'worktree sem sessão' : 'worktrees sem sessão'}`}
-                  </button>
-                )
-              })()}
+                  {(() => {
+                    const view = app.projects.find((x) => x.path === p.path)
+                    const conflicted = new Set((view?.conflicts?.pairs ?? []).flatMap((x) => [x.a, x.b]).concat((view?.conflicts?.vsMain ?? []).filter((x) => x.files.length > 0).map((x) => x.worktreePath)))
+                    const n = splitWorktrees(p.worktrees, conflicted).hidden.length
+                    if (n === 0) return null
+                    const on = !!showIdle[p.path]
+                    return (
+                      <button className="sb-more" onClick={() => setShowIdle((o) => ({ ...o, [p.path]: !on }))}>
+                        {on ? 'esconder worktrees sem sessão' : `+${n} ${n === 1 ? 'worktree sem sessão' : 'worktrees sem sessão'}`}
+                      </button>
+                    )
+                  })()}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )
       })}

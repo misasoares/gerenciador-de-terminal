@@ -2,6 +2,7 @@ import { Allotment } from 'allotment'
 import 'allotment/dist/style.css'
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { animate, motion } from 'motion/react'
 import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
 import { activateTab, addTab, closeTab, dockPaneAt, movePaneToNewTab, moveToTab, PANE_MIME, renameTab, saveSizes } from '../actions'
@@ -19,6 +20,7 @@ import { tabMenu } from '../flows'
 import { textOn } from '../header'
 import { updateLayout, useUi } from '../store'
 import { PaneFrame } from './PaneFrame'
+import { useMotionPreset } from '../use-motion'
 import { FilePane } from './FilePane'
 import { isFilePane } from '../file-model'
 
@@ -46,6 +48,7 @@ function TabBar({ layout }: { layout: Layout }) {
   const panes = useUi((s) => s.app?.panes)
   const attn = useMemo(() => tabAttention(layout, panes ?? []), [layout, panes])
   const [editing, setEditing] = useState<string | null>(null)
+  const pr = useMotionPreset()
   /** posição de inserção (0..n) enquanto uma aba é arrastada */
   const [dropAt, setDropAt] = useState<number | null>(null)
   /** painel arrastado sobre a barra: a aba alvo, ou 'new' (espaço vazio / +) */
@@ -129,6 +132,7 @@ function TabBar({ layout }: { layout: Layout }) {
             void tabMenu(t).then((r) => r === 'rename' && setEditing(t.id))
           }}
         >
+          {t.id === layout.activeTabId && <motion.span layoutId="tab-pill" className="tab-pill" transition={pr.reduced ? { duration: 0 } : pr.enter} />}
           {editing === t.id ? (
             <input
               autoFocus
@@ -224,12 +228,22 @@ export function Workspace({ empty, onAddProject }: { empty?: React.ReactNode; on
   addProject = onAddProject
   const layout = useUi((s) => s.app?.layout)
   const [emptyOver, setEmptyOver] = useState(false)
+  const pr = useMotionPreset()
+  const body = useRef<HTMLDivElement>(null)
+  const shown = useRef<string | null>(null)
+  const activeId = layout?.activeTabId ?? null
+  // trocar de aba: o conteúdo novo chega com um esmaecimento curto (sem mexer em tamanho)
+  useEffect(() => {
+    if (shown.current && activeId && shown.current !== activeId && body.current) void animate(body.current, { opacity: [0.6, 1] }, pr.enter)
+    shown.current = activeId
+  }, [activeId, pr.enter])
   if (!layout) return null
   const tab = layout.tabs.find((t) => t.id === layout.activeTabId)
   return (
     <div className="workspace">
       <TabBar layout={layout} />
       <div
+        ref={body}
         className={`tab-body${emptyOver ? ' drop-empty' : ''}`}
         // aba vazia: a área inteira aceita a sessão arrastada (não há painel nem faixa para receber)
         onDragOver={(e) => {

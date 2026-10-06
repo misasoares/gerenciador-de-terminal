@@ -94,15 +94,18 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tabbar > .tab { flex-shrink: 0; white-space: nowrap; }
 .tabbar > .tab-add { flex-shrink: 0; position: sticky; right: 0; background: var(--bg-bar); }
 .tab { display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid var(--border); color: var(--fg-dim); cursor: pointer; }
-.tab.active { background: var(--bg); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.tab.active { color: var(--fg); }
 .tab-key { font-size: var(--text-xs); color: var(--fg-dim); }
 .tab.colored { border-right-color: var(--border); }
 .tab.colored:not(.active) { background-image: linear-gradient(var(--tab-colored-dim), var(--tab-colored-dim)); color: var(--tab-colored-fg) !important; }
 .tab.colored:not(.active):hover { background-image: linear-gradient(var(--tab-colored-dim-hover), var(--tab-colored-dim-hover)); }
-.tab.colored.active { font-weight: 700; box-shadow: inset 0 -3px 0 currentColor; }
+.tab.colored.active { font-weight: 700; }
 .tab.colored .tab-key,
 .tab.colored .tab-close { color: inherit; opacity: 0.75; }
-.tab { position: relative; }
+.tab { position: relative; isolation: isolate; }
+/* destaque da aba ativa: um elemento só, que desliza de uma aba para outra (fica atrás do conteúdo) */
+.tab-pill { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--bg); box-shadow: inset 0 -2px 0 var(--accent); }
+.tab.colored .tab-pill { background: transparent; box-shadow: inset 0 -3px 0 currentColor; }
 .tab.drop-before::before,
 .tab.drop-after::after { content: ''; position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--accent); }
 .tab.drop-before::before { left: -1px; }
@@ -171,7 +174,9 @@ button:disabled { opacity: 0.5; cursor: default; }
 .sb-git { margin-left: auto; font-size: var(--text-sm); color: var(--fg-dim); white-space: nowrap; }
 .sb-git .dirty { color: var(--warn); }
 .sb-session { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 38px; cursor: pointer; border: 1px solid transparent; }
-.sb-session.focused { background: var(--bg-selected); }
+.sb-session { position: relative; isolation: isolate; }
+/* seleção da lateral: um elemento só, que desliza até a sessão em foco (fica atrás do conteúdo) */
+.sb-sel { position: absolute; inset: 0; z-index: -1; background: var(--bg-selected); border-radius: inherit; }
 .sb-session.dead { color: var(--fg-dim); text-decoration: line-through; }
 .sb-session.hidden { font-style: italic; color: var(--fg-dim); border: 1px dashed var(--border-input); border-radius: var(--radius-md); margin: 1px 6px 1px 32px; padding-left: 5px; }
 .sb-session .dot { width: 16px; text-align: center; font-size: var(--text-xs); }
@@ -460,8 +465,8 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
     transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
   }
   & .tab:not(.active):hover { background-color: var(--bg-hover); color: var(--fg); }
-  & .tab.active { background: var(--bg-raised); box-shadow: 0 0 0 1px var(--border), 0 1px 2px color-mix(in srgb, var(--fg) 12%, transparent); }
-  & .tab.colored.active { box-shadow: 0 0 0 1px var(--border), 0 1px 2px color-mix(in srgb, var(--fg) 12%, transparent); }
+  & .tab-pill { background: var(--bg-raised); box-shadow: 0 0 0 1px var(--border), 0 1px 2px color-mix(in srgb, var(--fg) 12%, transparent); }
+  & .tab.colored .tab-pill { background: transparent; }
   & .tab-close { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border-radius: var(--radius-sm); }
   & .tab-close:hover { background: var(--bg-control-hover); color: var(--fg); }
   & .tabbar > .tab-add {
