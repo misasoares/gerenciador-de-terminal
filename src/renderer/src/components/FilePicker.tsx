@@ -1,3 +1,4 @@
+import { CascadeItem, useCascade } from './Cascade'
 import { ModalFrame } from './ModalFrame'
 import { useEffect, useMemo, useState } from 'react'
 import { openFile } from '../actions'
@@ -31,6 +32,7 @@ export function FilePicker({ root }: { root: string }) {
       .slice(0, 200)
       .map((x) => x.f)
   }, [files, q])
+  const cascade = useCascade(results.length)
 
   const close = () => setUi({ modal: null })
   const pick = (rel: string | undefined) => {
@@ -61,9 +63,9 @@ export function FilePicker({ root }: { root: string }) {
       {truncated && <div className="palette-empty">lista parcial</div>}
       <div className="palette-list">
         {results.map((f, i) => (
-          <div key={f} className={`palette-item${i === sel ? ' sel' : ''}`} onMouseEnter={() => setSel(i)} onMouseDown={() => pick(f)}>
+          <CascadeItem i={i} on={cascade} key={f} className={`palette-item${i === sel ? ' sel' : ''}`} onMouseEnter={() => setSel(i)} onMouseDown={() => pick(f)}>
             {f}
-          </div>
+          </CascadeItem>
         ))}
       </div>
     </ModalFrame>

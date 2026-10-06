@@ -1,3 +1,4 @@
+import { CascadeItem, useCascade } from './Cascade'
 import { ModalFrame } from './ModalFrame'
 import { useMemo, useState } from 'react'
 import { openNewSessionDialog, revealPane } from '../actions'
@@ -22,6 +23,7 @@ export function Palette() {
   const items = useMemo(() => (app ? buildPaletteItems(app) : []), [app])
   const results = useMemo(() => searchPalette(items, q), [items, q])
   const close = () => setUi({ modal: null })
+  const cascade = useCascade(results.length)
   return (
     <ModalFrame onClose={close} className="palette" backdropClassName="palette-backdrop">
       <input
@@ -42,11 +44,11 @@ export function Palette() {
       />
       <div className="palette-list">
         {results.map((item, i) => (
-          <div key={`${item.kind}:${item.id}`} className={`palette-item${i === sel ? ' sel' : ''}`} onMouseEnter={() => setSel(i)} onClick={() => run(item)}>
+          <CascadeItem i={i} on={cascade} key={`${item.kind}:${item.id}`} className={`palette-item${i === sel ? ' sel' : ''}`} onMouseEnter={() => setSel(i)} onClick={() => run(item)}>
             <span className="palette-kind">{KIND[item.kind]}</span>
             <span className="palette-label">{item.label}</span>
             <span className="palette-detail">{item.detail}</span>
-          </div>
+          </CascadeItem>
         ))}
         {results.length === 0 && <div className="palette-empty">Nada encontrado</div>}
       </div>

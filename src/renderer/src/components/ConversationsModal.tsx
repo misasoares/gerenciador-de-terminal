@@ -1,3 +1,4 @@
+import { CascadeItem, useCascade } from './Cascade'
 import { ModalFrame } from './ModalFrame'
 import { useEffect, useMemo, useState } from 'react'
 import type { ConversationInfo } from '../../../shared/types'
@@ -26,6 +27,7 @@ export function ConversationsModal({ paths, title, accountId, replacePaneId, pro
   }, [paths.join('\n')])
 
   const shown = useMemo(() => filterConversations(list ?? [], q), [list, q])
+  const cascade = useCascade(shown.length)
   const close = () => setUi({ modal: null })
   const accountFor = (c: ConversationInfo) => chosen[c.sessionId] ?? (accountId && c.accountIds.includes(accountId) ? accountId : c.accountIds[0])
   const act = (c: ConversationInfo | undefined) => {
@@ -68,7 +70,7 @@ export function ConversationsModal({ paths, title, accountId, replacePaneId, pro
         {shown.map((c, i) => {
           const acc = accountFor(c)
           return (
-            <div key={`${c.agent}:${c.sessionId}`} className={`conv-row${i === sel ? ' selected' : ''}`} onMouseEnter={() => setSel(i)} onDoubleClick={() => act(c)}>
+            <CascadeItem i={i} on={cascade} key={`${c.agent}:${c.sessionId}`} className={`conv-row${i === sel ? ' selected' : ''}`} onMouseEnter={() => setSel(i)} onDoubleClick={() => act(c)}>
               <span className="conv-agent">{AGENT_LABEL[c.agent]}</span>
               <span className="conv-title" title={c.title}>{c.title}</span>
               <span className="conv-meta">
@@ -88,7 +90,7 @@ export function ConversationsModal({ paths, title, accountId, replacePaneId, pro
               <button className="primary" disabled={!c.openPaneId && !acc} onClick={() => act(c)}>
                 {c.openPaneId ? 'Focar' : 'Retomar'}
               </button>
-            </div>
+            </CascadeItem>
           )
         })}
       </div>
