@@ -16,6 +16,7 @@ import { FloatView } from './components/FloatView'
 import { FLOAT_PANE } from './view'
 import { applyAppearance, initAppearance } from './appearance'
 import { trackPointer } from './pointer'
+import { showIsland } from './island-queue'
 import './styles.css'
 
 // antes de tudo: pinta o último tema (sem piscar), inclusive na tela de reabrir
@@ -53,6 +54,7 @@ function onStateArrived(prevPanes: PaneView[] | null): void {
     if (!p) continue
     const h = headerView(p, app)
     const who = p.name ?? p.claude?.title ?? `sessão ${p.seq}`
+    if (n.kind === 'needs-you') showIsland({ paneId: p.id, label: who })
     window.gt.notify({
       paneId: p.id,
       title: `${h.project.toUpperCase()} · ⎇ ${h.worktree}`,

@@ -1,4 +1,5 @@
 import { AnimatePresence } from 'motion/react'
+import { AttentionIsland } from './components/AttentionIsland'
 import { EmptyState } from './components/EmptyState'
 import { HooksBanner } from './components/HooksBanner'
 import { Modals } from './components/Modals'
@@ -35,6 +36,7 @@ export function App() {
       </main>
       <AnimatePresence>{newSession && <NewSessionDialog key="new-session" req={newSession} />}</AnimatePresence>
       <Modals />
+      <AttentionIsland />
     </div>
   )
 }

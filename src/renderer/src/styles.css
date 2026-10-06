@@ -230,7 +230,7 @@ kbd { font-family: inherit; background: var(--bg-control); border-radius: var(--
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 
 .pane.your-turn { outline: 2px solid var(--state-your-turn); outline-offset: -2px; }
-.tab-dot { width: 8px; height: 8px; border-radius: 50%; }
+.tab-dot { width: 8px; height: 8px; border-radius: 50%; transition: background-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
 .tab-dot.needs-you { background: var(--state-needs-you); box-shadow: 0 0 6px var(--state-needs-you); }
 .tab-dot.your-turn { background: var(--state-your-turn); box-shadow: 0 0 6px var(--state-your-turn); }
 .hooks-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; background: var(--banner-warn-bg); color: var(--banner-warn-fg); border-bottom: 1px solid var(--banner-warn-border); }
@@ -477,3 +477,6 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
   & .tabbar > .tab-add:hover { background: var(--bg-hover); color: var(--fg); }
 }
 .term-style { display: flex; flex-wrap: wrap; gap: 10px; }
+/* ilha dinâmica: "dev-1 precisa de você" no topo-centro (translate, não transform: a escala é da animação) */
+.island { position: fixed; top: 6px; left: 50%; translate: -50% 0; z-index: 40; display: flex; align-items: center; gap: 8px; padding: 4px 12px; border: 0; border-radius: 999px; background: var(--fg); color: var(--bg); font-size: var(--text-sm); font-weight: 600; box-shadow: var(--shadow-sm); cursor: pointer; -webkit-app-region: no-drag; }
+.island-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--state-needs-you); }
