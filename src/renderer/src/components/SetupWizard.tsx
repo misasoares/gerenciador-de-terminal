@@ -1,9 +1,9 @@
-import { ModalFrame } from './ModalFrame'
 import { useEffect, useState } from 'react'
 import type { Account } from '../../../shared/types'
 import { errorMessage } from '../api'
 import { AGENT_LABEL } from '../agents-model'
 import { setUi, useUi } from '../store'
+import { ModalFrame } from './ModalFrame'
 
 type Step = 'agents' | 'hooks' | 'codex'
 

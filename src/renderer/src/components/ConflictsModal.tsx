@@ -1,7 +1,7 @@
-import { ModalFrame } from './ModalFrame'
 import { useEffect, useState } from 'react'
 import { worktreeLabel } from '../header'
 import { setUi, showError, useUi } from '../store'
+import { ModalFrame } from './ModalFrame'
 
 function ago(ts: number, now: number): string {
   const s = Math.max(0, Math.round((now - ts) / 1000))

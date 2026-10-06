@@ -1,9 +1,9 @@
-import { CascadeItem, useCascade } from './Cascade'
-import { ModalFrame } from './ModalFrame'
 import { useEffect, useMemo, useState } from 'react'
 import { openFile } from '../actions'
 import { fuzzyScore } from '../search'
 import { getUi, setUi } from '../store'
+import { CascadeItem, useCascade } from './Cascade'
+import { ModalFrame } from './ModalFrame'
 
 export function FilePicker({ root }: { root: string }) {
   const [files, setFiles] = useState<string[] | null>(null)

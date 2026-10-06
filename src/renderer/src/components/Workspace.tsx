@@ -255,9 +255,11 @@ export function Workspace({ empty, onAddProject }: { empty?: React.ReactNode; on
   const body = useRef<HTMLDivElement>(null)
   const shown = useRef<string | null>(null)
   const activeId = layout?.activeTabId ?? null
-  // trocar de aba: o conteúdo novo chega com um esmaecimento curto (sem mexer em tamanho)
+  // trocar de aba: os painéis novos chegam com um esmaecimento curto (sem mexer em tamanho);
+  // anima cada painel, não o contêiner: opacidade num ancestral cortaria o vidro (backdrop-filter) deles
   useEffect(() => {
-    if (shown.current && activeId && shown.current !== activeId && body.current) void animate(body.current, { opacity: [0.6, 1] }, pr.enter)
+    if (shown.current && activeId && shown.current !== activeId && body.current)
+      for (const el of body.current.querySelectorAll<HTMLElement>('.pane-slot > *')) void animate(el, { opacity: [0.6, 1] }, pr.enter)
     shown.current = activeId
   }, [activeId, pr.enter])
   if (!layout) return null

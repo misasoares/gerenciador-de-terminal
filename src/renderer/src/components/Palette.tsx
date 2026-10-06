@@ -1,9 +1,9 @@
-import { CascadeItem, useCascade } from './Cascade'
-import { ModalFrame } from './ModalFrame'
 import { useMemo, useState } from 'react'
 import { openNewSessionDialog, revealPane } from '../actions'
 import { buildPaletteItems, searchPalette, type PaletteItem } from '../search'
 import { getUi, setUi, useUi } from '../store'
+import { CascadeItem, useCascade } from './Cascade'
+import { ModalFrame } from './ModalFrame'
 
 const KIND = { session: 'sessão', worktree: 'worktree', project: 'projeto' } as const
 

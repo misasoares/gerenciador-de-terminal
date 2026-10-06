@@ -1,6 +1,6 @@
-import { ModalFrame } from './ModalFrame'
 import { useState } from 'react'
 import { errorMessage } from '../api'
+import { ModalFrame } from './ModalFrame'
 
 /** pede o nome do espaço (criar ou renomear); serve à janela normal e à tela de reabrir */
 export function WorkspaceNameModal(p: { title: string; initial?: string; confirmLabel: string; onSubmit(name: string): Promise<void>; onClose(): void }) {

@@ -1,5 +1,3 @@
-import { CascadeItem, useCascade } from './Cascade'
-import { ModalFrame } from './ModalFrame'
 import { useEffect, useMemo, useState } from 'react'
 import type { ConversationInfo } from '../../../shared/types'
 import { revealPane } from '../actions'
@@ -7,6 +5,8 @@ import { AGENT_LABEL } from '../agents-model'
 import { filterConversations, relativeTime } from '../conversations-model'
 import { openConversations, resumeConversation } from '../flows'
 import { setUi, useUi } from '../store'
+import { CascadeItem, useCascade } from './Cascade'
+import { ModalFrame } from './ModalFrame'
 
 type Props = { paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }
 

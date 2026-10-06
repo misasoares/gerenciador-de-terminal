@@ -1,4 +1,3 @@
-import { ModalFrame } from './ModalFrame'
 import { useState } from 'react'
 import { normalizeSettings, THEME_IDS, type TerminalSettings } from '../../../shared/settings'
 import { THEMES } from '../themes'
@@ -7,6 +6,7 @@ import { AppearancePanel } from './AppearancePanel'
 import { AgentsPanel } from './AgentsPanel'
 import { KeybindingsPanel } from './KeybindingsPanel'
 import { setUi, showError, useUi } from '../store'
+import { ModalFrame } from './ModalFrame'
 
 export function Preferences() {
   const saved = useUi((s) => s.app?.settings)

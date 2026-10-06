@@ -1,4 +1,3 @@
-import { ModalFrame } from './ModalFrame'
 import { useEffect, useMemo, useState } from 'react'
 import type { AppState } from '../../../shared/types'
 import { openNewPane } from '../actions'
@@ -7,6 +6,7 @@ import { AGENT_LABEL } from '../agents-model'
 import { accountUsage } from '../usage-model'
 import { accountsWithoutHooks } from '../sidebar-model'
 import { getUi, setUi, showError, useUi, type UiState } from '../store'
+import { ModalFrame } from './ModalFrame'
 
 function defaults(app: AppState, projectPath: string | null, worktreePath: string | null) {
   const project = app.projects.find((p) => p.path === projectPath) ?? app.projects[0]
