@@ -147,7 +147,8 @@ function TabBar({ layout }: { layout: Layout }) {
             e.dataTransfer.effectAllowed = 'move'
           }}
           onDragEnd={() => setDropAt(null)}
-          style={t.color ? { backgroundColor: t.color, color: textOn(t.color) } : undefined}
+          // a cor da aba vai como variável: a ativa usa cheia (na pílula), as outras em tom leve
+          style={t.color ? ({ '--tab-color': t.color, ...(t.id === layout.activeTabId ? { color: textOn(t.color) } : {}) } as React.CSSProperties) : undefined}
           onClick={() => activateTab(t.id)}
           onDoubleClick={() => setEditing(t.id)}
           onContextMenu={(e) => {
@@ -170,7 +171,10 @@ function TabBar({ layout }: { layout: Layout }) {
               }}
             />
           ) : (
-            <span>{t.name}</span>
+            <>
+              {t.color && t.id !== layout.activeTabId && <span className="tab-swatch" />}
+              <span>{t.name}</span>
+            </>
           )}
           {attn[t.id] && <span className={`tab-dot ${attn[t.id]}`} title={attn[t.id] === 'needs-you' ? 'precisa de você' : 'sua vez'} />}
           {i < 9 && <span className="tab-key">⌘{i + 1}</span>}

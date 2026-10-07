@@ -94,18 +94,19 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tabbar > .tab { flex-shrink: 0; white-space: nowrap; }
 .tabbar > .tab-add { flex-shrink: 0; position: sticky; right: 0; background: var(--bg-bar); }
 .tab { display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid var(--border); color: var(--fg-dim); cursor: pointer; }
-.tab.active { color: var(--fg); }
+.tab.active { color: var(--fg); font-weight: 700; }
 .tab-key { font-size: var(--text-xs); color: var(--fg-dim); }
 .tab.colored { border-right-color: var(--border); }
-.tab.colored:not(.active) { background-image: linear-gradient(var(--tab-colored-dim), var(--tab-colored-dim)); color: var(--tab-colored-fg) !important; }
-.tab.colored:not(.active):hover { background-image: linear-gradient(var(--tab-colored-dim-hover), var(--tab-colored-dim-hover)); }
-.tab.colored.active { font-weight: 700; }
+.tab.colored:not(.active) { background-color: color-mix(in srgb, var(--tab-color) 18%, transparent); color: color-mix(in srgb, var(--tab-color) 65%, var(--fg)); }
+.tab.colored:not(.active):hover { background-color: color-mix(in srgb, var(--tab-color) 30%, transparent); }
+.tab-swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--tab-color); }
 .tab.colored .tab-key,
 .tab.colored .tab-close { color: inherit; opacity: 0.75; }
 .tab { position: relative; isolation: isolate; }
 /* destaque da aba ativa: um elemento só, que desliza de uma aba para outra (fica atrás do conteúdo) */
-.tab-pill { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--bg); box-shadow: inset 0 -2px 0 var(--accent); }
-.tab.colored .tab-pill { background: transparent; box-shadow: inset 0 -3px 0 currentColor; }
+.tab-pill { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--bg); box-shadow: inset 0 0 0 2px var(--fg), 0 2px 6px color-mix(in srgb, var(--fg) 25%, transparent); }
+/* aba ativa colorida: a cor cheia vai na pílula (desliza junto), com o mesmo contorno forte */
+.tab.colored .tab-pill { background: var(--tab-color); }
 .tab.drop-before::before,
 .tab.drop-after::after { content: ''; position: absolute; top: 4px; bottom: 4px; width: 2px; background: var(--accent); }
 .tab.drop-before::before { left: -1px; }
@@ -467,8 +468,8 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
     transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), transform var(--dur-base) var(--ease-spring);
   }
   & .tab:not(.active):hover { background-color: var(--bg-hover); color: var(--fg); }
-  & .tab-pill { background: var(--bg-raised); box-shadow: 0 0 0 1px var(--border), 0 1px 2px color-mix(in srgb, var(--fg) 12%, transparent); }
-  & .tab.colored .tab-pill { background: transparent; }
+  & .tab-pill { background: var(--bg-raised); box-shadow: inset 0 0 0 2px var(--fg), 0 2px 8px color-mix(in srgb, var(--fg) 25%, transparent); }
+  & .tab.colored .tab-pill { background: var(--tab-color); }
   & .tab-close { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border-radius: var(--radius-sm); }
   & .tab-close:hover { background: var(--bg-control-hover); color: var(--fg); }
   & .tabbar > .tab-add {
