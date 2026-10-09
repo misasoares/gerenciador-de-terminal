@@ -45,8 +45,8 @@ Fora do escopo: instalar ao sair do app (pode vir depois); canais beta; atualiza
 - `compareVersions(a, b)`: semver `maior.menor.correção` numérico (0.10.0 > 0.9.0); ignora prefixo `v`.
 - `parseRelease(json)`: da resposta de `GET https://api.github.com/repos/misasoares/gerenciador-de-terminal/releases/latest` extrai `version`, `notes`, `htmlUrl` e a lista de assets (`name`, `url`, `size`).
 - `pickAsset(release, { platform, arch, appImage })` → `{ kind: 'mac-zip' | 'appimage', asset } | { kind: 'notify-only' } | null`:
-  - `darwin` → `Gerenciador-de-Terminal-<versão>-mac-<arch>.zip`;
-  - `linux` com `APPIMAGE` definido → `Gerenciador-de-Terminal-<versão>-<arch>.AppImage`;
+  - `darwin` → `gerenciador-de-terminal-<versão>-mac-<arch>.zip`;
+  - `linux` com `APPIMAGE` definido → `gerenciador-de-terminal-<versão>-x86_64.AppImage` (o nome que o electron-builder já gera);
   - `linux` sem `APPIMAGE` → `notify-only`;
   - asset ausente → `null` (nada acontece).
 - `parseSums(text)`: lê `SHA256SUMS` (`<hash>  <arquivo>` por linha).
@@ -72,22 +72,23 @@ Fora do escopo: instalar ao sair do app (pode vir depois); canais beta; atualiza
 ### 3.5 Script auxiliar `resources/update-helper.sh` (POSIX sh, Mac e Linux)
 1. Espera os PIDs do app e do daemon terminarem (limite 30 s; se passar, desiste sem trocar e grava a falha).
 2. Troca:
-   - **mac-zip**: `ditto -x -k` numa pasta ao lado do bundle; renomeia o atual para `Gerenciador de Terminal.anterior.app` (substituindo uma anterior antiga); move o novo para o lugar; `open` no novo.
+   - **mac-zip**: `ditto -x -k` numa pasta ao lado do bundle; renomeia o atual para `Gerenciador de Terminal.anterior.app` (substituindo uma anterior antiga); move o novo para o lugar; `open -n` no novo (repassando `GT_HOME`/`GT_UPDATE_URL` com `--env`, para os testes isolados).
    - **appimage**: copia o atual para `<nome>.anterior`; move o novo sobre o caminho de `APPIMAGE`; `chmod +x`; executa destacado.
 3. Espera o arquivo `updates/ok-<versão>` (gravado pelo app novo após a janela carregar) por até 60 s.
-4. Sem `ok` → restaura o anterior, grava `updates/failed.json` `{ from, to, at }`, abre o anterior.
+4. Sem `ok` → no Mac fecha a versão nova (`pkill` pelo caminho do bundle, que também pega o daemon dela), restaura o anterior, grava `updates/failed.json` `{ from, to, at }`, abre o anterior.
 5. Com `ok` → apaga `.anterior` e encerra.
 6. Registra tudo em `updates/helper.log`.
 
 ### 3.6 Retomada após reabrir (`src/main/updater/after-update.ts`)
 - Na inicialização, lê `pending.json`:
   - versão atual = `to` → grava `ok-<to>` após a janela principal carregar, pede ao renderer para retomar todas as sessões (o mesmo `resumeAll` de "Retomar todas", em todos os espaços) e mostrar "Atualizado para X · N sessões retomadas"; apaga `pending.json`.
-  - versão atual = `from` e existe `failed.json` → estado `failed-last(to)`, aviso "A atualização falhou; você continua na X"; apaga ambos.
+  - versão atual = `from` e existe `failed.json` → estado `failed-last(to)`, aviso "A atualização para Y falhou; você continua na X"; apaga ambos.
+  - versão atual = `from` sem `failed.json` → nada (o script ainda pode estar esperando a nova); não apaga nada.
 - Sessão que não retomar continua na lista de "Retomar" (sem tratamento novo).
 
 ### 3.7 Renderer
 - `StatusBar.tsx`: item de atualização (pronta / disponível / bloqueada / falhou), botão "Atualizar" e "Ver novidades".
-- Modal de confirmação quando há sessões trabalhando ou pedindo algo (conta pelo estado das sessões já na store), usando `ModalFrame`.
+- Confirmação quando há sessões trabalhando ou pedindo algo: diálogo nativo do processo principal (como o "Encerrar tudo"), contando as sessões de **todos** os espaços pelo resumo que o processo principal já recebe.
 - Modal "Novidades" com as notas da release (texto simples, sem HTML).
 - Aviso pós-atualização como notícia na ilha/barra de status.
 
