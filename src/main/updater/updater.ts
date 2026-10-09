@@ -27,6 +27,8 @@ export class Updater {
   status: UpdateStatus = { kind: 'idle' }
   ready: ReadyArtifact | null = null
   private running: Promise<void> | null = null
+  /** versão que acabou de falhar: não é oferecida de novo nesta execução (só uma mais nova) */
+  private failed: string | null = null
 
   constructor(private d: UpdaterDeps) {}
 
@@ -42,6 +44,7 @@ export class Updater {
   }
 
   setFailed(to: string, current: string): void {
+    this.failed = to
     this.set({ kind: 'failed-last', to, current })
   }
 
@@ -49,7 +52,7 @@ export class Updater {
     const res = await this.d.fetch(this.d.apiUrl, { headers: { accept: 'application/vnd.github+json' } })
     if (!res.ok) return
     const r = parseRelease(await res.json())
-    if (!r || !isNewer(r.version, this.d.current) || this.ready?.version === r.version) return
+    if (!r || !isNewer(r.version, this.d.current) || this.ready?.version === r.version || r.version === this.failed) return
     const pick = pickAsset(r, this.d)
     if (!pick) return
     if (pick.kind === 'notify-only') return this.set({ kind: 'notify-only', version: r.version, notes: r.notes, url: r.htmlUrl })

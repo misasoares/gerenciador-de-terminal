@@ -107,6 +107,17 @@ describe('Updater', () => {
     expect(u.status).toEqual({ kind: 'notify-only', version: '0.2.0', notes: 'notas', url: 'https://gh/rel' })
     expect(calls).toEqual(['https://api/latest'])
   })
+  it('depois de uma falha, a mesma versão não é oferecida de novo; uma mais nova sim', async () => {
+    const same = setup()
+    same.u.setFailed('0.2.0', '0.1.0')
+    await same.u.check()
+    expect(same.u.status).toEqual({ kind: 'failed-last', to: '0.2.0', current: '0.1.0' })
+    expect(same.calls).not.toContain('https://dl/zip')
+    const newer = setup({ tag: 'v0.2.1' })
+    newer.u.setFailed('0.2.0', '0.1.0')
+    await newer.u.check()
+    expect(newer.u.status).toEqual({ kind: 'ready', version: '0.2.1', notes: 'notas' })
+  })
   it('falha anterior aparece até haver novidade', () => {
     const { u, statuses } = setup()
     u.setFailed('0.2.0', '0.1.0')
