@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { badgeTotal, closeDialogText, closedNoticeText, decideStartup } from '../../src/main/workspaces-model'
+import { badgeTotal, busySessions, closeDialogText, closedNoticeText, decideStartup, openAfterUpdate } from '../../src/main/workspaces-model'
 
 const ws = (id: string, open = true, sessions = 0, attention = 0) => ({ id, name: id, open, sessions, attention, tabs: [], hidden: [], floating: [] })
 
@@ -18,5 +18,20 @@ describe('workspaces-model', () => {
   it('badge soma todos os espaços, inclusive os de janela fechada', () => {
     expect(badgeTotal([ws('a', true, 4, 2), ws('b', false, 3, 3), ws('c')])).toBe('5')
     expect(badgeTotal([ws('a', true, 2, 0)])).toBe('')
+  })
+})
+
+describe('atualização: espaços e sessões', () => {
+  const pane = (id: string, status: 'working' | 'needs-you' | 'your-turn' | 'idle' | null) => ({ id, label: id, status })
+  const w = (id: string, open: boolean, panes: ReturnType<typeof pane>[] = [], hidden: ReturnType<typeof pane>[] = []) => ({
+    id, name: id, open, sessions: panes.length, attention: 0, tabs: [{ id: 't', name: 't', panes }], hidden, floating: [],
+  })
+  it('conta trabalhando e pedindo algo, em abas e escondidas', () => {
+    expect(busySessions([w('a', true, [pane('1', 'working'), pane('2', 'idle')], [pane('3', 'needs-you')]), w('b', false, [pane('4', 'your-turn'), pane('5', null)])])).toBe(2)
+  })
+  it('reabre os espaços que estavam abertos; nenhum → o primeiro', () => {
+    expect(openAfterUpdate([w('a', true), w('b', false), w('c', true)])).toEqual(['a', 'c'])
+    expect(openAfterUpdate([w('a', false), w('b', false)])).toEqual(['a'])
+    expect(openAfterUpdate([])).toEqual(['principal'])
   })
 })
