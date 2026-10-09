@@ -13,7 +13,9 @@ import { emitFileChanged } from './file-events'
 import { mergeIncomingLayout } from './workspaces-model'
 import { ReopenWorkspaces } from './components/ReopenWorkspaces'
 import { FloatView } from './components/FloatView'
-import { FLOAT_PANE } from './view'
+import { FLOAT_PANE, UPDATED_TO } from './view'
+import { resumeAll } from './flows'
+import { updatedNotice } from './update-model'
 import { applyAppearance, initAppearance } from './appearance'
 import { trackPointer } from './pointer'
 import { showIsland } from './island-queue'
@@ -122,6 +124,8 @@ function bootWorkspace(): void {
   })
   window.addEventListener('focus', () => markSeenIfLooking(getUi().focusedPaneId))
   window.gt.onReveal((paneId) => revealPane(paneId))
+  window.gt.onUpdate((s) => setUi({ update: s }))
+  window.gt.updateStatus().then((s) => setUi({ update: s })).catch(() => {})
   window.gt
     .request<AppState>({ t: 'state.get' })
     .then((app) => {
@@ -130,6 +134,11 @@ function bootWorkspace(): void {
       syncKeybindings((getUi().app?.settings ?? app.settings).keybindings)
       // instalação nova: sem agentes, abre o assistente
       if ((getUi().app?.accounts ?? app.accounts).length === 0) setUi({ modal: { kind: 'setup' } })
+      // primeira abertura na versão nova: retoma tudo e avisa
+      if (UPDATED_TO) {
+        const v = UPDATED_TO
+        void resumeAll().then((n) => setUi({ updateNotice: updatedNotice(v, n) }))
+      }
     })
     .catch(showError)
 }

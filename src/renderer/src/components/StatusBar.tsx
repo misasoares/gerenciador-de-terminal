@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { chooseConversationFor, resumeAll, restartDaemonFlow } from '../flows'
+import { chooseConversationFor, openReleaseNotes, resumeAll, restartDaemonFlow, runUpdateAction } from '../flows'
+import { updateItem } from '../update-model'
 import { hidePane } from '../actions'
 import { setUi, showError, useUi } from '../store'
 import { usageChips } from '../usage-model'
@@ -13,17 +14,48 @@ export function StatusBar() {
   const error = useUi((s) => s.error)
   const missingAll = useUi((s) => s.missingResume)
   const desktopMismatch = useUi((s) => s.desktopMismatch)
+  const update = useUi((s) => s.update)
+  const updateNotice = useUi((s) => s.updateNotice)
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
   if (!app) return null
   // calculado no render (não no seletor): o seletor precisa devolver sempre a mesma referência
   const missing = liveMissing(missingAll, app.resumable)
   const alive = app.panes.filter((p) => p.alive).length
   const dismiss = (k: string) => setDismissed((d) => ({ ...d, [k]: true }))
+  const upd = updateItem(update, window.gt.platform)
 
   return (
     <div className="statusbar">
       <span>{alive === 1 ? '1 sessão' : `${alive} sessões`}</span>
-      {!connected && <span className="st-item warn">↻ reconectando…</span>}
+      {upd && !dismissed['upd:' + upd.text] && (
+        <span className={`st-item${upd.tone === 'warn' ? ' warn' : ''}`}>
+          {upd.text}{' '}
+          {upd.action && (
+            <button className="st-btn" onClick={() => runUpdateAction(update)}>
+              {upd.action.label}
+            </button>
+          )}
+          {upd.notes && (
+            <button className="st-btn" onClick={() => openReleaseNotes(update)}>
+              Ver novidades
+            </button>
+          )}
+          {!upd.action && (
+            <button className="st-x" onClick={() => dismiss('upd:' + upd.text)}>
+              ✕
+            </button>
+          )}
+        </span>
+      )}
+      {updateNotice && (
+        <span className="st-item">
+          {updateNotice}{' '}
+          <button className="st-x" onClick={() => setUi({ updateNotice: null })}>
+            ✕
+          </button>
+        </span>
+      )}
+        {!connected && <span className="st-item warn">↻ reconectando…</span>}
       {desktopMismatch && (
         <span className="st-item warn">
           O fundo mudou ·{' '}

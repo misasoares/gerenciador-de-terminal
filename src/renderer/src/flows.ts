@@ -1,4 +1,5 @@
 import type { ConversationInfo, RemoveCheck, Tab } from '../../shared/types'
+import type { UpdateStatus } from '../../shared/update'
 import { isMissing } from './conversations-model'
 import { SESSION_COLORS } from '../../shared/settings'
 import { closeDeadPane, closeTab, setTabColor, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane, openFilePicker, hidePane, floatPane, dockFloat } from './actions'
@@ -152,17 +153,20 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
   }
 }
 
-export async function resumeAll(): Promise<void> {
+export async function resumeAll(): Promise<number> {
   const missing: string[] = []
+  let resumed = 0
   for (const r of getUi().app?.resumable ?? []) {
     try {
       await openNewPane({ paneId: r.paneId, cwd: r.cwd, accountId: r.accountId, resumeSessionId: r.sessionId ?? undefined, resumeAgent: r.agent, transcriptPath: r.transcriptPath ?? null })
+      resumed++
     } catch (e) {
       if (isMissing(e)) missing.push(r.paneId)
       else showError(e)
     }
   }
   setUi({ missingResume: missing })
+  return resumed
 }
 
 export function openConversations(o: { paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }): void {
@@ -208,4 +212,14 @@ export async function restartDaemonFlow(): Promise<void> {
   if (!r.ok) return
   setUi({ versionMismatch: null })
   await window.gt.restartDaemon()
+}
+
+/** ação do item de atualização da barra de status */
+export function runUpdateAction(s: UpdateStatus): void {
+  if (s.kind === 'ready') window.gt.installUpdate().catch(showError)
+  else if (s.kind === 'notify-only') void window.gt.openExternal(s.url)
+}
+
+export function openReleaseNotes(s: UpdateStatus): void {
+  if (s.kind === 'ready' || s.kind === 'notify-only') setUi({ modal: { kind: 'release-notes', version: s.version, notes: s.notes } })
 }

@@ -9,3 +9,5 @@ export const GLASS = FLOAT_PANE !== null && typeof window !== 'undefined' && win
 export const WINDOW_DESKTOP = q.get('desktop') === '1'
 /** composição por GPU disponível (sem ela, nada de desfoque animado — Linux sem aceleração) */
 export const GPU_OK = q.get('gpu') !== '0'
+/** janela aberta logo após atualizar para esta versão: retoma as sessões sozinha */
+export const UPDATED_TO = q.get('updated')

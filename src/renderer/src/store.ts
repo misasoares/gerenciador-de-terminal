@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { AppState, Layout, RemoveCheck } from '../../shared/types'
 import { errorMessage } from './api'
 import type { MotionPersonality } from './motion-presets'
+import type { UpdateStatus } from '../../shared/update'
 
 export interface UiState {
   app: AppState | null
@@ -21,6 +22,10 @@ export interface UiState {
   desktopMismatch: boolean
   /** personalidade de movimento do tema efetivo */
   motion: MotionPersonality
+  /** atualizador (processo principal) */
+  update: UpdateStatus
+  /** "Atualizado para X · N sessões retomadas" na primeira abertura da versão nova */
+  updateNotice: string | null
 }
 
 export type Modal =
@@ -34,8 +39,9 @@ export type Modal =
   | { kind: 'file-picker'; root: string }
   | { kind: 'workspace-name'; mode: 'create' | 'rename' }
   | { kind: 'conversations'; paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }
+  | { kind: 'release-notes'; version: string; notes: string }
 
-let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [], desktopMismatch: false, motion: 'subtle' }
+let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [], desktopMismatch: false, motion: 'subtle', update: { kind: 'idle' }, updateNotice: null }
 const subs = new Set<() => void>()
 
 const subscribe = (cb: () => void) => {

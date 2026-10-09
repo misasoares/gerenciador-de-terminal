@@ -489,3 +489,13 @@ button:not(.island):active, .tab:active, .sb-session:active, .theme-card:active,
 @media (prefers-reduced-motion: reduce) {
   button:not(.island):active, .tab:active, .sb-session:active, .theme-card:active, .bg-thumb:active { transform: none; }
 }
+
+.release-notes {
+  white-space: pre-wrap;
+  max-height: 50vh;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg);
+  margin: 8px 0 16px;
+}

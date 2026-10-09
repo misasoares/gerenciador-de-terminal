@@ -9,6 +9,7 @@ import { SetupWizard } from './SetupWizard'
 import { ConversationsModal } from './ConversationsModal'
 import { FilePicker } from './FilePicker'
 import { WorkspaceNameModal } from './WorkspaceNameModal'
+import { ReleaseNotesModal } from './ReleaseNotesModal'
 import { revealPane } from '../actions'
 import { confirmRemove } from '../flows'
 import { headerView } from '../header'
@@ -39,6 +40,7 @@ function ModalSwitch({ modal, app }: { modal: Modal; app: AppState }) {
   if (modal.kind === 'setup') return <SetupWizard />
   if (modal.kind === 'conversations') return <ConversationsModal {...modal} />
   if (modal.kind === 'file-picker') return <FilePicker root={modal.root} />
+  if (modal.kind === 'release-notes') return <ReleaseNotesModal version={modal.version} notes={modal.notes} />
   if (modal.kind === 'workspace-name') {
     const current = app.workspaces.find((w) => w.id === app.workspaceId)?.name ?? ''
     return modal.mode === 'create' ? (
