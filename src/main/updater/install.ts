@@ -82,3 +82,31 @@ export function canWriteTarget(target: string): boolean {
     return false
   }
 }
+
+/** botão "Atualizar": marca a instalação antes do diálogo (um clique em outra janela não abre uma segunda) */
+export function createInstallTrigger(d: {
+  ready(): ReadyArtifact | null
+  /** sessões trabalhando ou pedindo algo agora */
+  busy(): number
+  confirm(busy: number, version: string): Promise<boolean>
+  run(ready: ReadyArtifact): Promise<void>
+}): () => Promise<boolean> {
+  let installing = false
+  return async () => {
+    const ready = d.ready()
+    if (!ready || installing) return false
+    installing = true
+    try {
+      const busy = d.busy()
+      if (busy > 0 && !(await d.confirm(busy, ready.version))) {
+        installing = false
+        return false
+      }
+      await d.run(ready)
+      return true
+    } catch (e) {
+      installing = false
+      throw e
+    }
+  }
+}

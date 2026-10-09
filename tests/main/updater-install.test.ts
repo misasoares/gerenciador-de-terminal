@@ -3,7 +3,7 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { canWriteTarget, helperEnv, installTarget, runInstall, stamp, waitSocketGone } from '../../src/main/updater/install'
+import { canWriteTarget, createInstallTrigger, helperEnv, installTarget, runInstall, stamp, waitSocketGone } from '../../src/main/updater/install'
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'gt-inst-'))
 
@@ -91,5 +91,38 @@ describe('onde trocar', () => {
       expect(canWriteTarget(path.join(ro, 'X.app'))).toBe(false)
       fs.chmodSync(ro, 0o700)
     }
+  })
+})
+
+describe('botão Atualizar', () => {
+  const ready = { version: '0.2.0', kind: 'mac-zip' as const, file: 'f' }
+  it('dois cliques (duas janelas) com diálogo aberto: uma instalação só', async () => {
+    let runs = 0
+    let answer!: (ok: boolean) => void
+    const install = createInstallTrigger({ ready: () => ready, busy: () => 2, confirm: () => new Promise((r) => (answer = r)), run: async () => void runs++ })
+    const a = install()
+    const b = install()
+    answer(true)
+    expect(await Promise.all([a, b])).toEqual([true, false])
+    expect(runs).toBe(1)
+  })
+  it('Cancelar no diálogo libera um clique depois; sem sessões trabalhando não pergunta', async () => {
+    let runs = 0
+    let asked = 0
+    let ok = false
+    let busy = 1
+    const install = createInstallTrigger({ ready: () => ready, busy: () => busy, confirm: async () => (asked++, ok), run: async () => void runs++ })
+    expect(await install()).toBe(false)
+    busy = 0
+    expect(await install()).toBe(true)
+    expect([asked, runs]).toEqual([1, 1])
+  })
+  it('falha na instalação libera nova tentativa; nada pronto → false', async () => {
+    let fail = true
+    const install = createInstallTrigger({ ready: () => ready, busy: () => 0, confirm: async () => true, run: async () => { if (fail) throw new Error('x') } })
+    await expect(install()).rejects.toThrow('x')
+    fail = false
+    expect(await install()).toBe(true)
+    expect(await createInstallTrigger({ ready: () => null, busy: () => 0, confirm: async () => true, run: async () => {} })()).toBe(false)
   })
 })

@@ -17,8 +17,8 @@ import { readWindowBg, readWindowDesktop, writeWindowBg, writeWindowDesktop } fr
 import { fitWidth, listBackgrounds, removeBackground, userBgName } from './backgrounds'
 import { badgeTotal, busySessions, decideStartup, openAfterUpdate } from './workspaces-model'
 import { Updater } from './updater/updater'
-import { canWriteTarget, installTarget, runInstall, waitSocketGone } from './updater/install'
-import { clearAfterUpdate, markStarted, readAfterUpdate } from './updater/after-update'
+import { canWriteTarget, createInstallTrigger, installTarget, runInstall, waitSocketGone } from './updater/install'
+import { clearAfterUpdate, markStarted, openThenConfirm, readAfterUpdate } from './updater/after-update'
 
 const notifications = new NotifyKeeper()
 const platform = platformOf(process.platform)
@@ -69,34 +69,34 @@ const updater = new Updater({
   canWrite: () => !!updateTarget && canWriteTarget(updateTarget),
   onStatus: (s) => manager.broadcast('gt:update', s),
 })
-let installing = false
+/** janela do último clique em "Atualizar": o diálogo de confirmação abre nela */
+let updateClickWin: BrowserWindow | undefined
 
 /** botão "Atualizar": confirma se há sessões trabalhando; o daemon salva as sessões e o script troca a versão */
-async function installUpdate(w: BrowserWindow | undefined): Promise<boolean> {
-  const ready = updater.ready
-  if (!ready || !updateTarget || installing) return false
-  const busy = busySessions(manager.summary)
-  if (busy > 0) {
+const installUpdate = createInstallTrigger({
+  ready: () => (updateTarget ? updater.ready : null),
+  busy: () => busySessions(manager.summary),
+  confirm: async (busy, version) => {
+    const w = updateClickWin
     const opts = {
       type: 'question' as const,
-      message: `Atualizar para ${ready.version}?`,
+      message: `Atualizar para ${version}?`,
       detail: `${busy === 1 ? '1 sessão está trabalhando' : `${busy} sessões estão trabalhando`}. Elas param agora e são retomadas na nova versão.`,
       buttons: ['Atualizar', 'Cancelar'],
       defaultId: 1,
       cancelId: 1,
     }
     const r = w ? await dialog.showMessageBox(w, opts) : await dialog.showMessageBox(opts)
-    if (r.response !== 0) return false
-  }
-  installing = true
-  try {
-    await runInstall({
+    return r.response === 0
+  },
+  run: (ready) =>
+    runInstall({
       updatesDir,
       stateFile: path.join(home, 'state.json'),
       helperSource: path.join(process.resourcesPath, 'update-helper.sh'),
       from: app.getVersion(),
       ready,
-      target: updateTarget,
+      target: updateTarget!,
       appPid: process.pid,
       env: process.env,
       // como no "Encerrar tudo": as janelas soltam o daemon antes (senão reconectariam e subiriam outro)
@@ -108,12 +108,20 @@ async function installUpdate(w: BrowserWindow | undefined): Promise<boolean> {
       },
       spawnDetached: (cmd, args, env) => spawn(cmd, args, { detached: true, stdio: 'ignore', env }).unref(),
       quit: () => app.quit(),
-    })
-    return true
-  } catch (e) {
-    installing = false
-    throw e
-  }
+    }),
+})
+
+/** renderers das janelas de espaço que já carregaram o estado (gt:rendererReady) */
+const readyRenderers = new Set<number>()
+let renderWaiters: (() => void)[] = []
+function renderersReady(): Promise<void> {
+  return new Promise((resolve) => {
+    const check = (): void => {
+      if (manager.workspaceContentIds().every((id) => readyRenderers.has(id))) resolve()
+      else renderWaiters.push(check)
+    }
+    check()
+  })
 }
 
 /** primeira abertura na versão nova: reabre os espaços abertos direto e cada janela retoma as sessões */
@@ -122,11 +130,10 @@ async function startupAfterUpdate(version: string): Promise<void> {
   manager.summary = list
   manager.afterUpdate = version
   try {
-    for (const id of openAfterUpdate(list)) await manager.open(id)
+    await openThenConfirm({ ids: openAfterUpdate(list), open: (id) => manager.open(id), rendered: renderersReady, confirm: () => markStarted(updatesDir, version) })
   } finally {
     manager.afterUpdate = null
   }
-  markStarted(updatesDir, version)
 }
 
 function onSummary(list: WorkspaceSummary[], askOnClose: boolean): void {
@@ -301,7 +308,16 @@ ipcMain.handle('gt:importBackground', async (e) => {
 })
 ipcMain.handle('gt:removeBackground', (_e, name: string) => void removeBackground(path.join(home, 'fundos'), name))
 ipcMain.handle('gt:updateStatus', () => updater.status)
-ipcMain.handle('gt:installUpdate', (e) => installUpdate(winOf(e)))
+ipcMain.handle('gt:installUpdate', (e) => {
+  updateClickWin = winOf(e)
+  return installUpdate()
+})
+ipcMain.on('gt:rendererReady', (e) => {
+  readyRenderers.add(e.sender.id)
+  const w = renderWaiters
+  renderWaiters = []
+  for (const f of w) f()
+})
 ipcMain.handle('gt:toWorkspace', (e, cmd: WorkspaceCommand) => manager.toWorkspace(e, cmd))
 ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
   if (paneId) await manager.reveal(workspaceId, paneId)
