@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper 2>/dev/null || true",
     "pack": "electron-vite build && electron-builder --mac --dir && sh scripts/mac-sign.sh",
-    "pack:linux": "sh scripts/build-linux.sh"
+    "pack:linux": "sh scripts/build-linux.sh",
+    "release": "sh scripts/release.sh"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.5",
