@@ -387,6 +387,11 @@ export class WindowManager {
     for (const f of this.floats.values()) f.link.close()
   }
 
+  /** webContents das janelas de espaço abertas (não flutuantes nem a tela de reabrir) */
+  workspaceContentIds(): number[] {
+    return [...this.entries.values()].filter((e) => !e.win.isDestroyed()).map((e) => e.win.webContents.id)
+  }
+
   /** manda para todas as janelas de espaço (não para as flutuantes) */
   broadcast(channel: string, payload: unknown): void {
     for (const e of this.entries.values()) if (!e.win.isDestroyed()) e.win.webContents.send(channel, payload)

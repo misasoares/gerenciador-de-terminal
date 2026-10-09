@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { clearAfterUpdate, markStarted, readAfterUpdate } from '../../src/main/updater/after-update'
+import { clearAfterUpdate, markStarted, openThenConfirm, readAfterUpdate } from '../../src/main/updater/after-update'
 
 const dir = (pending?: unknown, failed = false) => {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-after-'))
@@ -37,5 +37,24 @@ describe('depois de atualizar', () => {
     const d = path.join(os.tmpdir(), 'gt-nao-existe-' + Date.now())
     expect(readAfterUpdate(d, '0.1.0')).toEqual({ kind: 'none' })
     expect(() => clearAfterUpdate(d)).not.toThrow()
+  })
+})
+
+describe('confirmar só com as janelas prontas', () => {
+  it('abre os espaços, espera os renderers e só então confirma', async () => {
+    const log: string[] = []
+    let ready!: () => void
+    const p = openThenConfirm({ ids: ['a', 'b'], open: async (id) => void log.push('open ' + id), rendered: () => new Promise<void>((r) => (ready = r)), confirm: () => log.push('ok') })
+    await new Promise((r) => setTimeout(r, 10))
+    expect(log).toEqual(['open a', 'open b'])
+    ready()
+    await p
+    expect(log).toEqual(['open a', 'open b', 'ok'])
+  })
+  it('renderer que nunca fica pronto: não confirma (o script volta para a anterior)', async () => {
+    let confirmed = false
+    void openThenConfirm({ ids: ['a'], open: async () => {}, rendered: () => new Promise<void>(() => {}), confirm: () => (confirmed = true) })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(confirmed).toBe(false)
   })
 })

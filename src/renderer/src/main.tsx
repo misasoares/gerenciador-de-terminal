@@ -134,6 +134,7 @@ function bootWorkspace(): void {
       syncKeybindings((getUi().app?.settings ?? app.settings).keybindings)
       // instalação nova: sem agentes, abre o assistente
       if ((getUi().app?.accounts ?? app.accounts).length === 0) setUi({ modal: { kind: 'setup' } })
+      window.gt.rendererReady()
       // primeira abertura na versão nova: retoma tudo e avisa
       if (UPDATED_TO) {
         const v = UPDATED_TO

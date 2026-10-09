@@ -67,4 +67,6 @@ export interface GtApi {
   onUpdate(cb: (s: UpdateStatus) => void): () => void
   /** instala a versão baixada (confirma se há sessões trabalhando); false = cancelado ou nada pronto */
   installUpdate(): Promise<boolean>
+  /** (janela de espaço) o estado chegou e a interface montou: a versão nova pode confirmar que abriu */
+  rendererReady(): void
 }

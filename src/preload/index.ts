@@ -54,6 +54,7 @@ const api: GtApi = {
     return () => ipcRenderer.removeListener('gt:update', l)
   },
   installUpdate: () => ipcRenderer.invoke('gt:installUpdate'),
+  rendererReady: () => ipcRenderer.send('gt:rendererReady'),
 }
 
 contextBridge.exposeInMainWorld('gt', api)

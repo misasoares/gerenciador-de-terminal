@@ -27,3 +27,10 @@ export function markStarted(updatesDir: string, version: string): void {
 export function clearAfterUpdate(updatesDir: string): void {
   for (const f of ['pending.json', 'failed.json']) fs.rmSync(path.join(updatesDir, f), { force: true })
 }
+
+/** primeira abertura na versão nova: só confirma depois que os renderers das janelas abertas subiram (tela branca → sem ok → o script volta) */
+export async function openThenConfirm(o: { ids: string[]; open(id: string): Promise<void>; rendered(): Promise<void>; confirm(): void }): Promise<void> {
+  for (const id of o.ids) await o.open(id)
+  await o.rendered()
+  o.confirm()
+}
