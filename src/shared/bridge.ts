@@ -1,4 +1,5 @@
 import type { BridgeEvent, ClientRequest } from './protocol'
+import type { UpdateStatus } from './update'
 
 export interface ConfirmOptions {
   message: string
@@ -61,4 +62,9 @@ export interface GtApi {
   toWorkspace(cmd: WorkspaceCommand): Promise<void>
   /** (janela do espaço) pedidos vindos das flutuantes */
   onWorkspaceCommand(cb: (cmd: WorkspaceCommand) => void): () => void
+  /** estado do atualizador (pronta, só aviso, bloqueada, falhou) */
+  updateStatus(): Promise<UpdateStatus>
+  onUpdate(cb: (s: UpdateStatus) => void): () => void
+  /** instala a versão baixada (confirma se há sessões trabalhando); false = cancelado ou nada pronto */
+  installUpdate(): Promise<boolean>
 }

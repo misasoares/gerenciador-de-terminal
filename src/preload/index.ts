@@ -47,6 +47,13 @@ const api: GtApi = {
     ipcRenderer.on('gt:wsCommand', l)
     return () => ipcRenderer.removeListener('gt:wsCommand', l)
   },
+  updateStatus: () => ipcRenderer.invoke('gt:updateStatus'),
+  onUpdate: (cb) => {
+    const l = (_e: unknown, s: Parameters<typeof cb>[0]) => cb(s)
+    ipcRenderer.on('gt:update', l)
+    return () => ipcRenderer.removeListener('gt:update', l)
+  },
+  installUpdate: () => ipcRenderer.invoke('gt:installUpdate'),
 }
 
 contextBridge.exposeInMainWorld('gt', api)

@@ -56,6 +56,8 @@ export class WindowManager {
   desktop = false
   /** encerrando o app: as janelas fecham sem perguntar e os espaços continuam "abertos" para a próxima vez */
   quitting = false
+  /** versão recém-instalada: as janelas de espaço abertas agora retomam as sessões sozinhas (query updated) */
+  afterUpdate: string | null = null
 
   constructor(private o: WindowManagerOptions) {}
 
@@ -164,7 +166,7 @@ export class WindowManager {
       link.close()
       if (this.entries.get(id) === entry) this.entries.delete(id)
     })
-    this.load(win, { ws: id, desktop: transparent ? '1' : '0' })
+    this.load(win, { ws: id, desktop: transparent ? '1' : '0', ...(this.afterUpdate ? { updated: this.afterUpdate } : {}) })
     try {
       await link.start()
     } catch (e) {
@@ -383,6 +385,11 @@ export class WindowManager {
   detachAll(): void {
     for (const e of this.entries.values()) e.link.close()
     for (const f of this.floats.values()) f.link.close()
+  }
+
+  /** manda para todas as janelas de espaço (não para as flutuantes) */
+  broadcast(channel: string, payload: unknown): void {
+    for (const e of this.entries.values()) if (!e.win.isDestroyed()) e.win.webContents.send(channel, payload)
   }
 
   /** manda a ação do menu para a janela em foco (ou a primeira) */

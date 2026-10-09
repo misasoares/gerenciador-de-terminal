@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, Notification, shell } from 'electron'
+import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -14,7 +15,10 @@ import { WindowManager } from './windows'
 import { handleMediaProtocol, registerMediaScheme } from './media-protocol'
 import { readWindowBg, readWindowDesktop, writeWindowBg, writeWindowDesktop } from './window-bg'
 import { fitWidth, listBackgrounds, removeBackground, userBgName } from './backgrounds'
-import { badgeTotal, decideStartup } from './workspaces-model'
+import { badgeTotal, busySessions, decideStartup, openAfterUpdate } from './workspaces-model'
+import { Updater } from './updater/updater'
+import { canWriteTarget, installTarget, runInstall, waitSocketGone } from './updater/install'
+import { clearAfterUpdate, markStarted, readAfterUpdate } from './updater/after-update'
 
 const notifications = new NotifyKeeper()
 const platform = platformOf(process.platform)
@@ -51,6 +55,79 @@ const windowBgFile = path.join(home, 'window-bg')
 manager.background = readWindowBg(windowBgFile)
 const windowDesktopFile = path.join(home, 'window-desktop')
 manager.desktop = readWindowDesktop(windowDesktopFile)
+
+const updatesDir = path.join(home, 'updates')
+const updateTarget = installTarget(process.platform, process.execPath, process.env.APPIMAGE)
+const updater = new Updater({
+  current: app.getVersion(),
+  platform: process.platform,
+  arch: process.arch,
+  appImage: !!process.env.APPIMAGE,
+  updatesDir,
+  apiUrl: process.env.GT_UPDATE_URL ?? 'https://api.github.com/repos/misasoares/gerenciador-de-terminal/releases/latest',
+  fetch: (url, init) => fetch(url, init),
+  canWrite: () => !!updateTarget && canWriteTarget(updateTarget),
+  onStatus: (s) => manager.broadcast('gt:update', s),
+})
+let installing = false
+
+/** botão "Atualizar": confirma se há sessões trabalhando; o daemon salva as sessões e o script troca a versão */
+async function installUpdate(w: BrowserWindow | undefined): Promise<boolean> {
+  const ready = updater.ready
+  if (!ready || !updateTarget || installing) return false
+  const busy = busySessions(manager.summary)
+  if (busy > 0) {
+    const opts = {
+      type: 'question' as const,
+      message: `Atualizar para ${ready.version}?`,
+      detail: `${busy === 1 ? '1 sessão está trabalhando' : `${busy} sessões estão trabalhando`}. Elas param agora e são retomadas na nova versão.`,
+      buttons: ['Atualizar', 'Cancelar'],
+      defaultId: 1,
+      cancelId: 1,
+    }
+    const r = w ? await dialog.showMessageBox(w, opts) : await dialog.showMessageBox(opts)
+    if (r.response !== 0) return false
+  }
+  installing = true
+  try {
+    await runInstall({
+      updatesDir,
+      stateFile: path.join(home, 'state.json'),
+      helperSource: path.join(process.resourcesPath, 'update-helper.sh'),
+      from: app.getVersion(),
+      ready,
+      target: updateTarget,
+      appPid: process.pid,
+      env: process.env,
+      // como no "Encerrar tudo": as janelas soltam o daemon antes (senão reconectariam e subiriam outro)
+      stopDaemon: async () => {
+        manager.quitting = true
+        manager.detachAll()
+        await service.shutdownDaemon(false)
+        if (!(await waitSocketGone(socketPath, 10_000))) console.error('atualização: o daemon não encerrou em 10 s; seguindo')
+      },
+      spawnDetached: (cmd, args, env) => spawn(cmd, args, { detached: true, stdio: 'ignore', env }).unref(),
+      quit: () => app.quit(),
+    })
+    return true
+  } catch (e) {
+    installing = false
+    throw e
+  }
+}
+
+/** primeira abertura na versão nova: reabre os espaços abertos direto e cada janela retoma as sessões */
+async function startupAfterUpdate(version: string): Promise<void> {
+  const list = await service.request<WorkspaceSummary[]>({ t: 'workspace.list' })
+  manager.summary = list
+  manager.afterUpdate = version
+  try {
+    for (const id of openAfterUpdate(list)) await manager.open(id)
+  } finally {
+    manager.afterUpdate = null
+  }
+  markStarted(updatesDir, version)
+}
 
 function onSummary(list: WorkspaceSummary[], askOnClose: boolean): void {
   manager.summary = list
@@ -223,6 +300,8 @@ ipcMain.handle('gt:importBackground', async (e) => {
   return name
 })
 ipcMain.handle('gt:removeBackground', (_e, name: string) => void removeBackground(path.join(home, 'fundos'), name))
+ipcMain.handle('gt:updateStatus', () => updater.status)
+ipcMain.handle('gt:installUpdate', (e) => installUpdate(winOf(e)))
 ipcMain.handle('gt:toWorkspace', (e, cmd: WorkspaceCommand) => manager.toWorkspace(e, cmd))
 ipcMain.handle('gt:revealIn', async (_e, workspaceId: string, paneId: string | null) => {
   if (paneId) await manager.reveal(workspaceId, paneId)
@@ -262,14 +341,23 @@ registerMediaScheme()
 
 app.whenReady().then(async () => {
   handleMediaProtocol()
+  const after = readAfterUpdate(updatesDir, app.getVersion())
   try {
     await service.start()
     applyMenu()
-    await startup()
+    if (after.kind === 'updated') await startupAfterUpdate(after.to)
+    else await startup()
   } catch (e) {
     dialog.showErrorBox('Gerenciador de Terminal', `Não foi possível iniciar o daemon.\n\n${String(e)}\n\nVeja ${path.join(home, 'daemon.log')}`)
     app.quit()
     return
+  }
+  if (after.kind === 'failed') updater.setFailed(after.to, after.current)
+  if (after.kind !== 'none') clearAfterUpdate(updatesDir)
+  // só o app empacotado se atualiza (no dev o "bundle" seria o Electron do node_modules)
+  if (app.isPackaged) {
+    setTimeout(() => void updater.check(), 10_000)
+    setInterval(() => void updater.check(), 6 * 60 * 60 * 1000)
   }
   // mac: clique no Dock sem janelas → tela de reabrir (ou direto, com 1 espaço)
   app.on('activate', () => {

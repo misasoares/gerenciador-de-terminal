@@ -59,6 +59,12 @@
       "node_modules/node-pty/**",
       "node_modules/electron-liquid-glass/**"
     ],
+    "extraResources": [
+      {
+        "from": "resources/update-helper.sh",
+        "to": "update-helper.sh"
+      }
+    ],
     "mac": {
       "target": "dir",
       "identity": null,
