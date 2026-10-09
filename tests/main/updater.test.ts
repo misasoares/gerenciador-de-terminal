@@ -28,7 +28,7 @@ function setup(o: { tag?: string; zip?: Buffer; sums?: string; canWrite?: boolea
       return new Response(JSON.stringify(release(tag)))
     }
     if (url === 'https://dl/sums') return new Response(o.sums ?? `${sha(ZIP)}  gerenciador-de-terminal-${tag.slice(1)}-mac-arm64.zip\n`)
-    if (url === 'https://dl/zip') return new Response(o.zip ?? ZIP)
+    if (url === 'https://dl/zip') return new Response(new Uint8Array(o.zip ?? ZIP))
     return new Response('', { status: 404 })
   }
   const statuses: UpdateStatus[] = []

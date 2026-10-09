@@ -12,7 +12,7 @@ const fetchOf = (body: Buffer, status = 200) => {
   let calls = 0
   const f = async () => {
     calls++
-    return new Response(body, { status })
+    return new Response(new Uint8Array(body), { status })
   }
   return { f, calls: () => calls }
 }
