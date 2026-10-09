@@ -12,7 +12,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper 2>/dev/null || true",
-    "pack": "electron-vite build && electron-builder --mac --dir && codesign --force --deep --sign - \"dist/mac-arm64/Gerenciador de Terminal.app\"",
+    "pack": "electron-vite build && electron-builder --mac --dir && sh scripts/mac-sign.sh",
     "pack:linux": "sh scripts/build-linux.sh"
   },
   "dependencies": {
