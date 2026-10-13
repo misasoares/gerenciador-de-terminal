@@ -37,3 +37,6 @@ Build: `npm run pack:linux` (precisa de Docker; roda os testes no Linux, gera os
 ## Encerrar de verdade
 Menu do app → "Encerrar tudo" (as sessões ficam disponíveis para retomar na próxima abertura).
 Logs: `~/.gerenciador-terminal/daemon.log`.
+
+## Licença
+Todos os direitos reservados. Usar, copiar, modificar ou distribuir exige autorização prévia e por escrito do autor. Ver [LICENSE](LICENSE).
