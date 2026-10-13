@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>A · Qual desses Claudes tá esperando você?</title>
+<link rel="stylesheet" href="../lib/promo.css">
+<style>
+  #bg { position: absolute; inset: 0; background: radial-gradient(120% 80% at 0% 0%, #23263a, var(--bg-deep) 62%); }
+  #bgLight { position: absolute; inset: 0; background: #f5f5f7; }
+  .cell { position: absolute; overflow: hidden; border-radius: 14px; background: #111219; }
+  .cell img, .screen img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .num { position: absolute; width: 132px; height: 132px; margin: -66px 0 0 -66px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: rgba(12, 13, 18, .82); border: 4px solid rgba(255,255,255,.85); color: #fff; font: 900 78px/1 var(--sans); letter-spacing: -.04em; }
+  #hook { width: 940px; color: var(--fg); }
+  #bar { position: absolute; height: 10px; border-radius: 5px; background: rgba(255,255,255,.14); overflow: hidden; }
+  #bar i { position: absolute; inset: 0; background: var(--yellow); transform-origin: 0 50%; }
+  #ans { font: 900 210px/0.9 var(--sans); letter-spacing: -.05em; color: var(--fg); white-space: nowrap; }
+  .key.big { font-size: 128px; }
+  .cap { font: 800 60px/1.25 var(--sans); letter-spacing: -.02em; width: 900px; }
+  #mTitle { font: 800 76px/1.02 var(--sans); letter-spacing: -.035em; color: #1d1d1f; width: 900px; }
+  .pill { display: inline-flex; align-items: center; gap: 12px; padding: 14px 26px; border-radius: 999px; background: var(--green); color: #06210f; font: 800 46px/1 var(--sans); white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  #t5 { font: 800 84px/1.02 var(--sans); letter-spacing: -.035em; width: 920px; color: var(--fg); }
+  #cta { width: 1080px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 34px; }
+  #cta .name { font: 900 104px/0.95 var(--sans); letter-spacing: -.045em; color: #15140a; }
+  #cta .dots { display: flex; gap: 26px; font-size: 92px; }
+  #cta .sub { font: 700 46px/1.2 var(--sans); color: #4a3d0a; }
+  #cta .url { font: 600 40px/1.25 var(--mono); color: #15140a; }
+  #cta .btn { background: #111219; color: var(--yellow); font: 800 52px/1 var(--sans); padding: 30px 50px; border-radius: 26px; }
+  #icon { width: 220px; height: 220px; border-radius: 48px; object-fit: cover; }
+  #flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 20; }
+  .num { z-index: 5; } #hook, #bar, #ans, #t5, #mTitle { z-index: 6; } .cap, #ok { z-index: 7; } #kc { z-index: 8; } #cta { z-index: 9; }
+  .cap span { background: #fff; color: #111219; padding: .08em .26em; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  .cap span b.hlG { color: #137a43; }
+  #cta .dot { box-shadow: 0 0 0 7px #111219, inset 0 -.08em .12em rgba(0,0,0,.25); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg" class="abs"></div>
+  <div id="bgLight" class="abs"></div>
+
+  <!-- S1: quiz -->
+  <div class="cell" id="c1"><img></div><div class="cell" id="c2"><img></div>
+  <div class="cell" id="c3"><img></div><div class="cell" id="c4"><img></div>
+  <div class="num abs" id="n1">1</div><div class="num abs" id="n2">2</div><div class="num abs" id="n3">3</div><div class="num abs" id="n4">4</div>
+  <div class="hook abs" id="hook">Qual desses Claudes tá esperando <span class="hlY">você?</span></div>
+  <div class="abs" id="bar"><i></i></div>
+  <div class="abs" id="ans">É o <span class="hlY">4.</span></div>
+
+  <!-- S2: ⌘J no dev-3 -->
+  <div class="screen" id="big"><img></div>
+  <div class="abs ring" id="ring" style="width:150px;height:150px;border-radius:50%;border-color:var(--green)"></div>
+  <div class="cap abs" id="cap1" style="width:560px"><span>⌘J te leva direto pra ele</span></div>
+  <div class="cap abs" id="cap2" style="width:560px"><span>aprovou, ele segue <b class="hlG">sozinho</b></span></div>
+
+  <!-- S4: montagem na lateral -->
+  <div class="abs" id="mTitle">qualquer projeto,<br>qualquer aba</div>
+  <div class="screen" id="side"><img></div>
+  <div class="abs pill" id="ok">✓ aprovado</div>
+
+  <!-- S5: equipe calma -->
+  <div class="screen" id="wide"><img></div>
+  <div class="abs" id="t5">você só aparece quando é a <span class="hlB">sua vez</span></div>
+
+  <!-- tecla ⌘J (S2 e S4) -->
+  <div class="key big abs" id="kc">⌘J</div>
+
+  <!-- S6: CTA -->
+  <div class="abs" id="cta">
+    <img id="icon" src="../assets/icone.png" alt="" onerror="this.style.display='none';document.getElementById('dots').style.display='flex'">
+    <div class="dots" id="dots" style="display:none"><span class="dot g"></span><span class="dot y"></span><span class="dot b"></span></div>
+    <div class="name">Gerenciador<br>de Terminal</div>
+    <div class="btn" id="btn">grátis no GitHub</div>
+    <div class="url">github.com/misasoares/<br>gerenciador-de-terminal</div>
+    <div class="sub">macOS e Linux</div>
+  </div>
+  <div id="flash" class="abs"></div>
+</div>
+
+<script src="../lib/promo.js"></script>
+<script>
+const { put, prog, lerp, clamp, ease, win, seq, cam, format, W, H, $ } = P;
+const B = 0.5;
+window.__DURATION = 15;
+const Q = new URLSearchParams(location.search);
+const SEQ = '../assets/seq/a';
+const N = { quiz: 210, j2: 84, j3: 81, j4: 81, fim: 120 };
+
+// colunas da aba Loja na gravação (px de quadro 3840×2160): tech-lead, dev-1, dev-2, dev-3
+const COLX = [544, 1368, 2192, 3016], COLW = 808, PANE_TOP = 84, HEAD = 100;
+
+// ---------- layout por formato ----------
+const v = format === '4x5';
+const L = v ? {
+  hook: { x: 70, y: 100, fs: 84 }, bar: { x: 70, y: 268, w: 940 },
+  grid: { x: 52, y: 340, w: 476, h: 480, gap: 20 },
+  ans: { x: 70, y: 110 }, big: { x: 40, y: 320, w: 1000, h: 990 }, key: { x: 760, y: 110 },
+  cap: { x: 70, y: 110 }, mTitle: { x: 70, y: 80 }, side: { x: 190, y: 330, w: 700 }, t5: { x: 70, y: 80 }, wide: { x: 0, y: 470, w: 1080 }, cta: { y: 130 },
+} : {
+  hook: { x: 70, y: 236, fs: 96 }, bar: { x: 70, y: 470, w: 900 },
+  grid: { x: 52, y: 600, w: 476, h: 600, gap: 24 },
+  ans: { x: 70, y: 250 }, big: { x: 40, y: 520, w: 1000, h: 1330 }, key: { x: 640, y: 300 },
+  cap: { x: 70, y: 268 }, mTitle: { x: 70, y: 250 }, side: { x: 80, y: 500, w: 920 }, t5: { x: 70, y: 260 }, wide: { x: 0, y: 700, w: 1080 }, cta: { y: 360 },
+};
+$('#hook').style.fontSize = L.hook.fs + 'px';
+const G = L.grid;
+const STRIPY = v ? 560 : 860;  // faixa do cabeçalho ampliado (S2, depois do corte)
+const cellRect = (i) => ({ x: G.x + (i % 2) * (G.w + G.gap), y: G.y + Math.floor(i / 2) * (G.h + G.gap), w: G.w, h: G.h });
+
+// lateral (quadro em px): x 0–560, y 20–700
+const SIDE = { u0: 0, v0: 20, w: 526, h: 680 };
+const sideS = L.side.w / SIDE.w, sideH = SIDE.h * sideS;
+$('#side').style.width = L.side.w + 'px'; $('#side').style.height = sideH + 'px';
+// montagem: [clip, t do salto no clipe, t do 🟢 no clipe, y da linha selecionada (px de quadro)]
+const JUMPS = [['j2', 0.28, 2.5, 276], ['j4', 0.30, 2.48, 368], ['j3', 0.30, 2.48, 256]];
+
+function box(el, r) { el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px'; }
+
+window.__seek = (t) => { draw(t); return P.settle(); };
+function draw(t) {
+  // ---------- fundos ----------
+  const light = t >= 6.5 && t < 10.0, yel = t >= 12.8 && t < 14.75;
+  $('#bgLight').style.opacity = light || yel ? 1 : 0;
+  $('#bgLight').style.background = yel ? 'var(--yellow)' : '#f5f5f7';
+
+  // ---------- S1 + revelação: 4 colunas (0–3,5) ----------
+  const s1 = t < 3.6;
+  const rev = ease.outExpo(prog(t, 3.0, 0.4));            // cabeçalhos descem
+  const push = 1 + 0.025 * ease.inOutCubic(prog(t, 0, 3.0)); // push-in lento
+  for (let i = 0; i < 4; i++) {
+    const c = $('#c' + (i + 1)), img = c.querySelector('img');
+    const r = cellRect(i);
+    // dev-3 (célula 4) cresce de leve na resposta; as outras escurecem
+    const ansS = i === 3 ? 1 + 0.05 * rev : 1;
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    box(c, r);
+    // soco na batida da própria célula (0,5 / 1,0 / 1,5 / 2,0 s)
+    const kick = Math.max(0, 1 - Math.abs(t - (0.5 + i * B)) / 0.22);
+    c.style.transform = `translate(${(cx - 540) * (push - 1)}px, ${(cy - (G.y + G.h)) * (push - 1)}px) scale(${push * ansS * (1 + 0.07 * ease.outCubic(kick))})`;
+    c.style.outline = kick > 0.05 ? `${Math.round(6 * kick)}px solid rgba(255, 255, 255, ${0.9 * kick})` : 'none';
+    c.style.filter = i === 3 ? 'none' : `brightness(${1 - 0.55 * rev})`;
+    c.style.visibility = s1 ? 'visible' : 'hidden';
+    c.style.zIndex = i === 3 ? 2 : 1;
+    if (s1) {
+      seq(img, `${SEQ}/quiz`, N.quiz, t);
+      // escondido: começa no conteúdo (sem cabeçalho nem contorno); revelado: pane inteiro com contorno
+      const s0 = G.w / (COLW - 16), s1v = G.w / (COLW + 8);
+      const s = lerp(s0, s1v, rev);
+      const top = lerp(PANE_TOP + HEAD, PANE_TOP - 6, rev);
+      cam(img, r.w, r.h, [[0, COLX[i] + COLW / 2, top + r.h / s / 2, s]], t);
+    }
+    // números
+    const n = $('#n' + (i + 1));
+    const pop = 1;
+    const beat = 1 + 0.12 * Math.max(0, 1 - Math.abs(t - (0.5 + i * B)) / 0.18);
+    const out = 1 - ease.inCubic(prog(t, 3.0, 0.25));
+    const lit = Math.max(0, 1 - Math.abs(t - (0.5 + i * B)) / 0.16);
+    n.style.background = `rgba(${Math.round(12 + 243 * lit)}, ${Math.round(13 + 242 * lit)}, ${Math.round(18 + 237 * lit)}, .9)`; n.style.color = lit > 0.5 ? '#111219' : '#fff';
+    // escala por tamanho (não por transform): o Chrome reaproveita raster de escala pequena ao voltar no tempo
+    const k = (0.6 + 0.4 * pop) * beat * (0.4 + 0.6 * out), D = Math.round(132 * k);
+    n.style.width = n.style.height = D + 'px'; n.style.margin = `${-D / 2}px 0 0 ${-D / 2}px`; n.style.fontSize = Math.round(78 * k) + 'px'; n.style.borderWidth = Math.max(1, Math.round(4 * k)) + 'px';
+    put(n, { x: r.x + r.w / 2, y: r.y + r.h * 0.36, o: Math.min(1, pop * 1.4) * out });
+  }
+  // pergunta + barra de tempo (ciclo aberto)
+  const hookOut = ease.inCubic(prog(t, 2.9, 0.2));
+  put('#hook', { x: L.hook.x, y: L.hook.y - 40 * hookOut, o: 1 - hookOut });
+  put('#bar', { x: L.bar.x, y: L.hook.y + $('#hook').offsetHeight + 14, o: 1 - hookOut });
+  $('#bar').style.width = L.bar.w + 'px';
+  $('#bar i').style.transform = `scaleX(${prog(t, 0, 3.0)})`;
+  // resposta
+  const a = ease.outBack(prog(t, 3.0, 0.35));
+  put('#ans', { x: L.ans.x, y: L.ans.y, s: 0.7 + 0.3 * a, o: win(t, 3.0, 3.75, 0.12, 0.2), ox: '0%', oy: '50%' });
+
+  // ---------- S2: close no dev-3, ⌘J real em 3,72 s, aprovação em 5,13 s, 🟢 em 5,95 s (3,5–6,5) ----------
+  const s2 = t >= 3.5 && t < 6.6;
+  $('#big').style.visibility = s2 ? 'visible' : 'hidden';
+  if (s2) {
+    const m = ease.outExpo(prog(t, 3.5, 0.45));
+    const c4 = cellRect(3);
+    const shrink = t >= 5.5 ? 1 : 0;  // corte seco na batida
+    const r0 = { x: lerp(c4.x, L.big.x, m), y: lerp(c4.y, L.big.y, m), w: lerp(c4.w * 1.05, L.big.w, m), h: lerp(c4.h * 1.05, L.big.h, m) };
+    const r = shrink ? { x: 0, y: STRIPY, w: 1080, h: 330 } : r0;   // faixa do cabeçalho em largura total
+    box($('#big'), r);
+    const img = $('#big img'); seq(img, `${SEQ}/quiz`, N.quiz, t);
+    const u = COLX[3] + COLW / 2;
+    const sTop = L.big.w / (COLW + 8);
+    const vTop = PANE_TOP - 6 + L.big.h / sTop / 2;
+    const sCell = c4.w / (COLW + 8), vCell = PANE_TOP - 6 + c4.h / sCell / 2;
+    const vLow = 2190 - L.big.h / sTop / 2;            // mostra o pedido de permissão até as opções
+    const DOT = [3580, 112];  // bolinha do dev-3 no quadro
+    const sZ = 1080 / 500, vZ = 132;  // centro da faixa do cabeçalho (y 84–180 no quadro)  // cabeçalho do dev-3 grande: ⎇ dev-3 · dev-3 · bolinha
+    cam(img, r.w, r.h, [[3.5, u, vCell, sCell * 1.05], [3.95, u, vTop, sTop], [4.1, u, vTop, sTop], [4.5, u, vLow, sTop], [5.49, u, vLow, sTop], [5.5, 3478, vZ, sZ], [6.6, 3478, vZ, sZ * 1.03]], t);
+    $('#big').style.opacity = 1 - ease.inCubic(prog(t, 6.35, 0.25));
+  }
+  // anel na bolinha do dev-3 quando ela fica verde (5,95 s); bolinha no quadro (3580,112) → tela pela câmera da faixa
+  const ringP = ease.outExpo(prog(t, 5.95, 0.4));
+  const rx = (3580 - 3478) * (1080 / 500) + 540 + 10, ry = STRIPY + 330 / 2 + (112 - 132) * (1080 / 500);
+  put('#ring', { x: rx - 75, y: ry - 75, s: 0.4 + 0.6 * ringP, o: t >= 5.95 && t < 6.5 ? 1 - 0.6 * ringP : 0, ox: '50%', oy: '50%' });
+  $('#ring').style.zIndex = 7;
+  put('#cap1', { x: L.cap.x, y: L.cap.y, o: win(t, 3.6, 5.2, 0.25, 0.15) });
+  put('#cap2', { x: L.cap.x, y: L.cap.y, o: win(t, 5.3, 6.45, 0.25, 0.2) });
+
+  // ---------- tecla ⌘J ----------
+  const keyTimes = [3.62, 7.0 + 0.12, 8.0 + 0.12, 9.0 + 0.12];
+  let press = 0; for (const k of keyTimes) press = Math.max(press, Math.max(0, 1 - Math.abs(t - k) / 0.12));
+  const kIn = t < 6.6 ? ease.outBack(prog(t, 3.45, 0.3)) * (1 - ease.inCubic(prog(t, 6.3, 0.3))) : ease.outBack(prog(t, 6.75, 0.3)) * (1 - ease.inCubic(prog(t, 9.75, 0.25)));
+  const kPos = t < 6.6 ? L.key : { x: L.side.x + L.side.w - 380, y: L.side.y - 110 };
+  put('#kc', { x: kPos.x, y: kPos.y + 14 * press, s: (0.7 + 0.3 * kIn) * (1 - 0.06 * press), o: Math.min(1, kIn * 1.3), ox: '50%', oy: '50%' });
+  $('#kc').style.boxShadow = `0 ${0.09 * (1 - press)}em 0 #8d8f9c, 0 .2em .5em rgba(0,0,0,.45)`;
+
+  // ---------- S4: lateral, 3 saltos (7–10) ----------
+  const s4 = t >= 6.6 && t < 10.1;
+  $('#side').style.visibility = s4 ? 'visible' : 'hidden';
+  put('#mTitle', { x: L.mTitle.x, y: L.mTitle.y, o: win(t, 6.6, 10.0, 0.3, 0.2) });
+  let okO = 0, okY = 0;
+  if (s4) {
+    const k = clamp(Math.floor(t - 7.0), 0, 2), T = 7.0 + k;
+    const [clip, tj, tg, rowY] = JUMPS[k];
+    const lt = t - T;
+    const ct = t < 7.0 ? Math.max(0, tj - 0.4 + (t - 6.6)) : lt < 0.55 ? tj - 0.1 + lt : tg + (lt - 0.55);
+    seq($('#side img'), `${SEQ}/${clip}`, N[clip], ct, { from: 0 });
+    const enter = ease.outExpo(prog(t, 6.6, 0.45)), leave = ease.inCubic(prog(t, 9.8, 0.3));
+    put('#side', { x: L.side.x, y: L.side.y + 60 * (1 - enter) - 80 * leave, s: 0.94 + 0.06 * enter, o: enter * (1 - leave), ox: '50%', oy: '0%' });
+    cam($('#side img'), L.side.w, sideH, [[0, SIDE.w / 2, SIDE.v0 + SIDE.h / 2, sideS]], t);
+    if (lt >= 0.55) { okO = ease.outBack(prog(lt, 0.55, 0.25)) * (1 - ease.inCubic(prog(lt, 0.9, 0.1))); okY = L.side.y + (rowY - SIDE.v0) * sideS - 40; }
+  }
+  put('#ok', { x: L.side.x + L.side.w - 360, y: okY, s: 0.6 + 0.4 * okO, o: Math.min(1, okO), ox: '0%', oy: '50%' });
+
+  // ---------- S5: os 4 cabeçalhos reais do mesmo instante, empilhados e ampliados (10–12,8) ----------
+  const s5 = t >= 9.9 && t < 13.0;
+  $('#wide').style.visibility = 'hidden';
+  if (s5) {
+    const out = ease.inCubic(prog(t, 12.6, 0.3));
+    const hw = 1000, hs = hw / (COLW + 8), hh = 112 * hs, gap = v ? 30 : 64;   // faixa: y 78–190 do quadro (cabeçalho de 2 linhas)
+    const top = L.t5.y + (v ? 230 : 360);
+    for (let i = 0; i < 4; i++) {
+      const c = $('#c' + (i + 1)), img = c.querySelector('img');
+      const d = ease.outExpo(prog(t, 10.0 + i * 0.12, 0.45));
+      box(c, { x: 40, y: top + i * (hh + gap), w: hw, h: hh });
+      c.style.visibility = 'visible'; c.style.filter = 'none'; c.style.zIndex = 1; c.style.outline = 'none';
+      const pulse = Math.max(0, 1 - Math.abs(t - (10.6 + i * B)) / 0.25);
+      const drift = 1 + 0.05 * ease.inOutCubic(prog(t, 10.0, 2.8));
+      c.style.transform = `translateX(${(i % 2 ? 1 : -1) * 260 * (1 - d)}px) translateY(${(i - 1.5) * (drift - 1) * (hh + gap)}px) scale(${drift * (1 + 0.04 * pulse)})`;
+      c.style.outline = pulse > 0.05 ? `${Math.round(7 * pulse)}px solid rgba(59, 130, 246, ${pulse})` : 'none';
+      c.style.opacity = d * (1 - out);
+      seq(img, `${SEQ}/fim`, N.fim, t, { from: 9.4 });
+      cam(img, hw, hh, [[10.0, COLX[i] + COLW / 2, 78 + hh / hs / 2, hs]], t);
+    }
+  }
+  put('#t5', { x: L.t5.x, y: L.t5.y, o: win(t, 10.15, 12.75, 0.3, 0.2) });
+
+  // ---------- S6: CTA (12,5–15) ----------
+  const c = ease.outExpo(prog(t, 12.85, 0.45));
+  put('#cta', { x: 0, y: L.cta.y + 60 * (1 - c), o: c * (1 - ease.inCubic(prog(t, 14.7, 0.3))) });
+  const ic = ease.outBack(prog(t, 12.85, 0.45));
+  $('#icon').style.transform = `scale(${0.5 + 0.5 * ic})`;
+  [...document.querySelectorAll('#dots .dot')].forEach((d, i) => { const p = ease.outBack(prog(t, 12.9 + i * 0.08, 0.35)); d.style.transform = `scale(${p})`; });
+  $('#btn').style.transform = `scale(${1 + 0.05 * Math.sin(Math.max(0, t - 13.4) * Math.PI * 2 / B / 2)})`;
+
+  // loop: o fim volta para os 4 terminais (o quadro 0)
+  if (t >= 14.75) {
+    const k = ease.outExpo(prog(t, 14.75, 0.25));
+    for (let i = 0; i < 4; i++) { const ce = $('#c' + (i + 1)); ce.style.visibility = 'visible'; ce.style.filter = 'none'; ce.style.opacity = k; seq(ce.querySelector('img'), `${SEQ}/quiz`, N.quiz, 0); const r = cellRect(i); box(ce, r); ce.style.transform = 'none'; const s = G.w / (COLW - 16); cam(ce.querySelector('img'), r.w, r.h, [[0, COLX[i] + COLW / 2, PANE_TOP + HEAD + r.h / s / 2, s]], 0); }
+    put('#hook', { x: L.hook.x, y: L.hook.y, o: k });
+  } else if (!(t >= 9.9 && t < 13.0)) for (let i = 0; i < 4; i++) $('#c' + (i + 1)).style.opacity = 1;
+
+  // flash de impacto na revelação
+  $('#flash').style.opacity = 0.35 * Math.max(0, 1 - Math.abs(t - 3.02) / 0.06);
+}
+
+// ---------- áudio (rascunho: groove sintetizado; a entrega usa faixa real) ----------
+window.__audio = async (sr) => {
+  const D = window.__DURATION, S = P.Synth(sr, D);
+  const M = P.musica('escura'), SEGS = { escura: [[0, 17.094]], leve: [[0, 25.044]] };
+  if (M) await S.track(M.url, { segs: SEGS[M.id], breaks: [[2.0, 3.0, 500, 0.5]] });
+  else S.groove({ from: 0, to: D, mutes: [[2.5, 3.0], [6.5, 7.0]], padOn: true });
+  [0.5, 1.0, 1.5, 2.0].forEach((x, i) => S.tick(x, 1 + i * 0.2));
+  S.riser(2.0, 1.0, 0.8);
+  S.thump(3.0, 1); S.pop(3.02, 1.1);
+  S.click(3.62, 1.2); S.whoosh(3.5, 0.4, 0.7);
+  S.pop(5.13, 0.7); S.whoosh(5.38, 0.15, 0.6); S.pop(5.95, 0.9);
+  S.whoosh(6.45, 0.45, 0.8);
+  [7.12, 8.12, 9.12].forEach((x) => S.click(x, 1.2));
+  [10.6, 11.1, 11.6, 12.1].forEach((x, i) => S.tick(x, 0.8 + i * 0.15));
+  [7.55, 8.55, 9.55].forEach((x) => S.pop(x, 0.9));
+  S.whoosh(9.85, 0.4, 0.7);
+  S.thump(12.85, 0.9); S.pop(12.9, 0.8);
+  return S.render();
+};
+</script>
+</body>
+</html>

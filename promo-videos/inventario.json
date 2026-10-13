@@ -1,0 +1,242 @@
+{
+  "gerado": "2026-10-12T03:19:01.767Z",
+  "projeto": {
+    "tipo": "web/node",
+    "nome": "gerenciador-de-terminal",
+    "descricao": ""
+  },
+  "dependencias": {
+    "ffmpeg": true,
+    "ffprobe": true,
+    "playwright": true,
+    "yt-dlp": true,
+    "adb": true,
+    "xcrun": true
+  },
+  "screenshots": [
+    "promo-videos/assets/screens/app-aurora.png",
+    "promo-videos/assets/screens/app-noite.png",
+    "promo-videos/assets/screens/app-padrao.png",
+    "promo-videos/assets/screens/app-vidro.png"
+  ],
+  "icones_logos": [],
+  "fontes": [
+    "promo-videos/assets/fonts/Geist-latin-ext.woff2",
+    "promo-videos/assets/fonts/Geist-latin.woff2",
+    "promo-videos/assets/fonts/GeistMono-latin-ext.woff2",
+    "promo-videos/assets/fonts/GeistMono-latin.woff2",
+    "promo-videos/assets/fonts/MesloLGSNerdFontMono-Bold.ttf",
+    "promo-videos/assets/fonts/MesloLGSNerdFontMono-Regular.ttf"
+  ],
+  "fontes_google": [],
+  "audio": [
+    "promo-videos/assets/musica/escura.mp3",
+    "promo-videos/assets/musica/leve-120.mp3",
+    "promo-videos/assets/musica/leve.mp3"
+  ],
+  "videos": [],
+  "imagens_de_assets": [
+    "promo-videos/assets/screens/app-aurora.png",
+    "promo-videos/assets/screens/app-noite.png",
+    "promo-videos/assets/screens/app-padrao.png",
+    "promo-videos/assets/screens/app-vidro.png",
+    "promo-videos/assets/seq/a/fim/f00001.jpg",
+    "promo-videos/assets/seq/a/fim/f00002.jpg",
+    "promo-videos/assets/seq/a/fim/f00003.jpg",
+    "promo-videos/assets/seq/a/fim/f00004.jpg",
+    "promo-videos/assets/seq/a/fim/f00005.jpg",
+    "promo-videos/assets/seq/a/fim/f00006.jpg",
+    "promo-videos/assets/seq/a/fim/f00007.jpg",
+    "promo-videos/assets/seq/a/fim/f00008.jpg",
+    "promo-videos/assets/seq/a/fim/f00009.jpg",
+    "promo-videos/assets/seq/a/fim/f00010.jpg",
+    "promo-videos/assets/seq/a/fim/f00011.jpg",
+    "promo-videos/assets/seq/a/fim/f00012.jpg",
+    "promo-videos/assets/seq/a/fim/f00013.jpg",
+    "promo-videos/assets/seq/a/fim/f00014.jpg",
+    "promo-videos/assets/seq/a/fim/f00015.jpg",
+    "promo-videos/assets/seq/a/fim/f00016.jpg",
+    "promo-videos/assets/seq/a/fim/f00017.jpg",
+    "promo-videos/assets/seq/a/fim/f00018.jpg",
+    "promo-videos/assets/seq/a/fim/f00019.jpg",
+    "promo-videos/assets/seq/a/fim/f00020.jpg",
+    "promo-videos/assets/seq/a/fim/f00021.jpg",
+    "promo-videos/assets/seq/a/fim/f00022.jpg",
+    "promo-videos/assets/seq/a/fim/f00023.jpg",
+    "promo-videos/assets/seq/a/fim/f00024.jpg",
+    "promo-videos/assets/seq/a/fim/f00025.jpg",
+    "promo-videos/assets/seq/a/fim/f00026.jpg",
+    "promo-videos/assets/seq/a/fim/f00027.jpg",
+    "promo-videos/assets/seq/a/fim/f00028.jpg",
+    "promo-videos/assets/seq/a/fim/f00029.jpg",
+    "promo-videos/assets/seq/a/fim/f00030.jpg",
+    "promo-videos/assets/seq/a/fim/f00031.jpg",
+    "promo-videos/assets/seq/a/fim/f00032.jpg",
+    "promo-videos/assets/seq/a/fim/f00033.jpg",
+    "promo-videos/assets/seq/a/fim/f00034.jpg",
+    "promo-videos/assets/seq/a/fim/f00035.jpg",
+    "promo-videos/assets/seq/a/fim/f00036.jpg",
+    "promo-videos/assets/seq/a/fim/f00037.jpg",
+    "promo-videos/assets/seq/a/fim/f00038.jpg",
+    "promo-videos/assets/seq/a/fim/f00039.jpg",
+    "promo-videos/assets/seq/a/fim/f00040.jpg",
+    "promo-videos/assets/seq/a/fim/f00041.jpg",
+    "promo-videos/assets/seq/a/fim/f00042.jpg",
+    "promo-videos/assets/seq/a/fim/f00043.jpg",
+    "promo-videos/assets/seq/a/fim/f00044.jpg",
+    "promo-videos/assets/seq/a/fim/f00045.jpg",
+    "promo-videos/assets/seq/a/fim/f00046.jpg",
+    "promo-videos/assets/seq/a/fim/f00047.jpg",
+    "promo-videos/assets/seq/a/fim/f00048.jpg",
+    "promo-videos/assets/seq/a/fim/f00049.jpg",
+    "promo-videos/assets/seq/a/fim/f00050.jpg",
+    "promo-videos/assets/seq/a/fim/f00051.jpg",
+    "promo-videos/assets/seq/a/fim/f00052.jpg",
+    "promo-videos/assets/seq/a/fim/f00053.jpg",
+    "promo-videos/assets/seq/a/fim/f00054.jpg",
+    "promo-videos/assets/seq/a/fim/f00055.jpg",
+    "promo-videos/assets/seq/a/fim/f00056.jpg",
+    "promo-videos/assets/seq/a/fim/f00057.jpg",
+    "promo-videos/assets/seq/a/fim/f00058.jpg",
+    "promo-videos/assets/seq/a/fim/f00059.jpg",
+    "promo-videos/assets/seq/a/fim/f00060.jpg",
+    "promo-videos/assets/seq/a/fim/f00061.jpg",
+    "promo-videos/assets/seq/a/fim/f00062.jpg",
+    "promo-videos/assets/seq/a/fim/f00063.jpg",
+    "promo-videos/assets/seq/a/fim/f00064.jpg",
+    "promo-videos/assets/seq/a/fim/f00065.jpg",
+    "promo-videos/assets/seq/a/fim/f00066.jpg",
+    "promo-videos/assets/seq/a/fim/f00067.jpg",
+    "promo-videos/assets/seq/a/fim/f00068.jpg",
+    "promo-videos/assets/seq/a/fim/f00069.jpg",
+    "promo-videos/assets/seq/a/fim/f00070.jpg",
+    "promo-videos/assets/seq/a/fim/f00071.jpg",
+    "promo-videos/assets/seq/a/fim/f00072.jpg",
+    "promo-videos/assets/seq/a/fim/f00073.jpg",
+    "promo-videos/assets/seq/a/fim/f00074.jpg",
+    "promo-videos/assets/seq/a/fim/f00075.jpg",
+    "promo-videos/assets/seq/a/fim/f00076.jpg"
+  ],
+  "cores_mais_usadas": [
+    {
+      "hex": "#FFFFFF",
+      "usos": 35
+    },
+    {
+      "hex": "#D9F99D",
+      "usos": 7
+    },
+    {
+      "hex": "#1A2E05",
+      "usos": 7
+    },
+    {
+      "hex": "#1D1D1F",
+      "usos": 7
+    },
+    {
+      "hex": "#1E1E1E",
+      "usos": 6
+    },
+    {
+      "hex": "#D70015",
+      "usos": 6
+    },
+    {
+      "hex": "#000000",
+      "usos": 6
+    },
+    {
+      "hex": "#F2C94C",
+      "usos": 5
+    },
+    {
+      "hex": "#8B95FF",
+      "usos": 5
+    },
+    {
+      "hex": "#111219",
+      "usos": 4
+    },
+    {
+      "hex": "#E6E6EA",
+      "usos": 4
+    },
+    {
+      "hex": "#5E6AD2",
+      "usos": 4
+    },
+    {
+      "hex": "#EB5757",
+      "usos": 4
+    },
+    {
+      "hex": "#F5F5F7",
+      "usos": 4
+    },
+    {
+      "hex": "#9A6700",
+      "usos": 4
+    },
+    {
+      "hex": "#252526",
+      "usos": 4
+    }
+  ],
+  "arquivos_de_cor": [
+    "promo-videos/lib/promo.css",
+    "src/renderer/public/theme-boot.js",
+    "src/renderer/src/app-themes.ts",
+    "src/renderer/src/components/Palette.tsx",
+    "src/renderer/src/styles.css",
+    "src/renderer/src/themes.ts",
+    "tests/renderer/app-themes.test.ts",
+    "tests/renderer/styles-tokens.test.ts",
+    "tests/renderer/theme-boot.test.ts",
+    "tests/renderer/themes.test.ts"
+  ],
+  "textos_de_loja": [],
+  "docs": [
+    "CLAUDE.md",
+    "README.md",
+    "docs/superpowers/handoffs/2026-10-02-handoff.md",
+    "docs/superpowers/plans/2026-09-25-gerenciador-de-terminal-fase-1.md",
+    "docs/superpowers/plans/2026-09-28-agentes-codex-linux.md",
+    "docs/superpowers/plans/2026-09-28-gerenciador-de-terminal-fase-2.md",
+    "docs/superpowers/plans/2026-09-28-uso-do-plano.md",
+    "docs/superpowers/plans/2026-09-29-atalhos-e-controle-do-terminal.md",
+    "docs/superpowers/plans/2026-10-01-conversas-e-retomar.md",
+    "docs/superpowers/plans/2026-10-01-leitor-de-arquivos.md",
+    "docs/superpowers/plans/2026-10-01-worktree-do-agente.md",
+    "docs/superpowers/plans/2026-10-02-espacos-de-trabalho.md",
+    "docs/superpowers/plans/2026-10-03-contratar-sessoes.md",
+    "docs/superpowers/plans/2026-10-05-janela-flutuante.md",
+    "docs/superpowers/plans/2026-10-05-movimento.md",
+    "docs/superpowers/plans/2026-10-05-sistema-de-temas.md",
+    "docs/superpowers/plans/2026-10-05-temas-premium-fundos.md",
+    "docs/superpowers/plans/2026-10-08-atualizacao-pelo-app.md",
+    "docs/superpowers/specs/2026-09-25-gerenciador-de-terminal-design.md",
+    "docs/superpowers/specs/2026-09-28-agentes-codex-linux-design.md",
+    "docs/superpowers/specs/2026-09-28-gerenciador-de-terminal-fase-2-design.md",
+    "docs/superpowers/specs/2026-09-28-uso-do-plano-design.md",
+    "docs/superpowers/specs/2026-09-29-atalhos-e-controle-do-terminal-design.md",
+    "docs/superpowers/specs/2026-10-01-conversas-e-retomar-design.md",
+    "docs/superpowers/specs/2026-10-01-leitor-de-arquivos-design.md",
+    "docs/superpowers/specs/2026-10-01-worktree-do-agente-design.md",
+    "docs/superpowers/specs/2026-10-02-espacos-de-trabalho-design.md",
+    "docs/superpowers/specs/2026-10-03-contratar-sessoes-design.md",
+    "docs/superpowers/specs/2026-10-05-janela-flutuante-design.md",
+    "docs/superpowers/specs/2026-10-05-movimento-design.md",
+    "docs/superpowers/specs/2026-10-05-sistema-de-temas-design.md",
+    "docs/superpowers/specs/2026-10-05-temas-premium-fundos-design.md",
+    "docs/superpowers/specs/2026-10-08-atualizacao-pelo-app-design.md"
+  ],
+  "videos_anteriores": [
+    "promo-videos/2026-10-11-contratei-3-devs/index.html",
+    "promo-videos/2026-10-11-fechei-o-app/index.html",
+    "promo-videos/2026-10-11-quiz-qual-claude/index.html"
+  ],
+  "repo_principal": null,
+  "midia_no_repo_principal": [],
+  "tem_brand_md": true
+}

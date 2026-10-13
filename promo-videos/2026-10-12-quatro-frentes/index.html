@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>F · 4 tarefas do mesmo projeto</title>
+<link rel="stylesheet" href="../lib/promo.css">
+<style>
+  #bg { position: absolute; inset: 0; background: radial-gradient(120% 80% at 0% 0%, #23263a, var(--bg-deep) 62%); }
+  #bg2 { position: absolute; inset: 0; background: #f5f5f7; }
+  .strip { position: absolute; overflow: hidden; border-radius: 14px; background: #111219; box-shadow: 0 18px 44px rgba(26,46,5,.35); }
+  .strip img, .screen img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .t1 { font: 900 104px/0.98 var(--sans); letter-spacing: -.045em; color: var(--fg); width: 960px; z-index: 6; }
+  .t2 { font: 800 78px/1.04 var(--sans); letter-spacing: -.035em; color: var(--fg); width: 960px; z-index: 6; }
+  .ink { color: var(--lime-ink); } .dark { color: #15161c; }
+  .st { font: 800 72px/1 var(--sans); letter-spacing: -.03em; color: var(--fg); white-space: nowrap; z-index: 6; display: flex; align-items: center; gap: 22px; }
+  .st .dot { font-size: 64px; }
+  .warn { color: #ffb05c; }
+  #scrib { position: absolute; left: 0; top: 0; z-index: 7; overflow: visible; }
+  #tap { z-index: 8; }
+  .chip { display: inline-flex; align-items: center; padding: 12px 20px; border-radius: 14px; background: var(--lime); color: var(--lime-ink); font: 800 44px/1 var(--mono); white-space: nowrap; box-shadow: 0 12px 30px rgba(0,0,0,.5); z-index: 6; }
+  #hook { font-size: 96px; }
+  #cta { width: 1080px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 34px; z-index: 9; }
+  #cta .name { font: 900 104px/0.95 var(--sans); letter-spacing: -.045em; color: #15140a; }
+  #cta .dots { display: flex; gap: 26px; font-size: 92px; }
+  #cta .dot { box-shadow: 0 0 0 7px #111219, inset 0 -.08em .12em rgba(0,0,0,.25); }
+  #cta .sub { font: 700 46px/1.2 var(--sans); color: #4a3d0a; }
+  #cta .url { font: 600 40px/1.25 var(--mono); color: #15140a; }
+  #cta .btn { background: #111219; color: var(--yellow); font: 800 52px/1 var(--sans); padding: 30px 50px; border-radius: 26px; }
+  #icon { width: 220px; height: 220px; border-radius: 48px; object-fit: cover; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg" class="abs"></div>
+  <div id="bg2" class="abs"></div>
+
+  <div class="screen" id="app"><img></div>
+  <div class="strip" id="s0"><img></div><div class="strip" id="s1"><img></div><div class="strip" id="s2"><img></div><div class="strip" id="s3"><img></div>
+  <div class="screen" id="side"><img></div>
+  <div class="screen" id="modal"><img></div>
+  <div class="abs tap" id="tap"></div>
+  <svg id="scrib" width="1080" height="1920"><path id="scribP" fill="none" stroke="#ffb05c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+  <div class="abs chip" id="c0">cupom</div><div class="abs chip" id="c1">frete</div><div class="abs chip" id="c2">parcelas</div><div class="abs chip" id="c3">testes</div>
+  <div class="abs t1" id="hook">4 tarefas do<br>mesmo projeto.<br><span class="hlL">Ao mesmo tempo.</span></div>
+  <div class="abs t2 ink" id="wt1">cada Claude na<br>sua worktree.</div>
+  <div class="abs t2 ink" id="wt2">cada um na<br>sua branch.</div>
+  <div class="abs st" id="st0"><span class="dot y"></span>um te perguntou.</div>
+  <div class="abs st" id="st1"><span class="dot b"></span>um terminou.</div>
+  <div class="abs st" id="st2"><span class="dot b"></span>outro terminou.</div>
+  <div class="abs t2 dark" id="lat">a lateral mostra<br>quem tá onde.</div>
+  <div class="abs t2" id="cf1">e ele avisa quem<br>vai <span class="warn">conflitar</span></div>
+  <div class="abs t2" id="cf2">antes do merge.</div>
+  <div class="abs t1 dark" id="e0">4 tarefas.</div>
+  <div class="abs t1 dark" id="e1">1 projeto.</div>
+  <div class="abs t1 dark" id="e2">1 tela.</div>
+
+  <div class="abs" id="cta">
+    <img id="icon" src="../assets/icone.png" alt="" onerror="this.style.display='none';document.getElementById('dots').style.display='flex'">
+    <div class="dots" id="dots" style="display:none"><span class="dot g"></span><span class="dot y"></span><span class="dot b"></span></div>
+    <div class="name">Gerenciador<br>de Terminal</div>
+    <div class="btn">grátis no GitHub</div>
+    <div class="url">github.com/misasoares/<br>gerenciador-de-terminal</div>
+    <div class="sub">macOS e Linux</div>
+  </div>
+</div>
+
+<script src="../lib/promo.js"></script>
+<script>
+const { put, prog, lerp, clamp, ease, win, seq, cam, format, $ } = P;
+window.__DURATION = 15;
+const v = format === '4x5';
+// gravação recF4 em 2× (3840×2160); clipe c = tempo da gravação − 11 s
+const SEQ = '../assets/seq/f/f', NF = 834;
+const clip = (img, c) => seq(img, SEQ, NF, c);
+// painéis no quadro gravado: cupom (sup. esq.), frete (sup. dir.), parcelas (inf. esq.), testes (inf. dir.)
+const PANE = { cupom: [545, 84], frete: [2194, 84], parcelas: [545, 1098], testes: [2194, 1098] };
+const PW = 1630, PH = 996;
+const APP = [2185, 1090], APPW = 3290, APPH = 2020;
+const SIDE = [265, 290], SIDEW = 530, SIDEH = 460;
+const MOD = [1920, 1080], MODW = 1240, MODH = 652;
+const L = v ? {
+  hook: { x: 70, y: 90 }, app: { y: 470 }, wt: { x: 70, y: 90 }, strips: { y: 330, gap: 34 }, st: { x: 70, y: 92, gap: 86 }, zoom: { y: 420, h: 700 },
+  lat: { x: 70, y: 90 }, side: { y: 330 }, cf: { x: 70, y: 90 }, modal: { y: 430 }, end: { x: 70, y: 90 }, endApp: { y: 470 }, cta: { y: 130 },
+} : {
+  hook: { x: 70, y: 250 }, app: { y: 700 }, wt: { x: 70, y: 280 }, strips: { y: 640, gap: 34 }, st: { x: 70, y: 250, gap: 96 }, zoom: { y: 600, h: 720 },
+  lat: { x: 70, y: 280 }, side: { y: 560 }, cf: { x: 70, y: 260 }, modal: { y: 680 }, end: { x: 70, y: 250 }, endApp: { y: 700 }, cta: { y: 360 },
+};
+function box(el, r) { el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px'; }
+const show = (id, on) => { $(id).style.visibility = on ? 'visible' : 'hidden'; };
+const pulse = (t, at, w = 0.15) => Math.max(0, 1 - Math.abs(t - at) / w);
+
+function draw(t) {
+  const lime = t >= 1.5 && t < 3.5, light = (t >= 6.0 && t < 8.75) || (t >= 11.75 && t < 13.3), yel = t >= 13.25 && t < 14.65;
+  const inv = t >= 0.5 && t < 0.75;   // inversão de meio tempo na batida (gancho)
+  $('#bg2').style.opacity = lime || light || yel || inv ? 1 : 0;
+  $('#hook').style.color = inv ? '#15161c' : 'var(--fg)';
+  $('#hook .hlL').style.color = inv ? 'var(--lime-ink)' : 'var(--lime)';
+  $('#bg2').style.background = yel ? 'var(--yellow)' : lime ? 'var(--lime)' : '#f5f5f7';
+
+  // ---------- S1 (0–1,5) + volta do loop (14,6–15): os 4 trabalhando ----------
+  const s1 = t < 1.5 || t >= 14.6;
+  const back = t >= 14.6 ? ease.outExpo(prog(t, 14.62, 0.36)) : 1;
+  const tt = t >= 14.6 ? 0 : t;
+  const off = 560 * (1 - back);
+  // S3 e S6 também usam #app; aqui só o S1
+  const s3 = t >= 3.5 && t < 6.0, s6 = t >= 11.75 && t < 13.3;
+  show('#app', s1 || s3 || s6);
+  if (s1) {
+    const sc = 1080 / APPW, punch = 0.08 * (pulse(tt, 0.5, 0.22) + pulse(tt, 1.0, 0.22));
+    clip($('#app img'), 0.5 + tt);
+    box($('#app'), { x: 0, y: L.app.y + off, w: 1080, h: APPH * sc }); $('#app').style.borderRadius = '0'; $('#app').style.opacity = 1;
+    cam($('#app img'), 1080, APPH * sc, [[0, APP[0], APP[1], sc * (1 + punch)]], tt);
+  }
+  put('#hook', { x: L.hook.x, y: L.hook.y + off, o: t >= 14.6 ? 1 : 1 - ease.inCubic(prog(t, 1.4, 0.15)) });
+  // os 4 chips ⎇ sobre cada quadrante (as worktrees reais de cada painel)
+  const qh = APPH * 1080 / APPW;
+  [[260, 0.25], [790, 0.25], [260, 0.75], [790, 0.75]].forEach(([cx, fy], i) => {
+    const el = $('#c' + i), bump = 0.08 * (pulse(tt, 0.5 + (i % 2) * 0.0, 0.2) + pulse(tt, 1.0, 0.2));
+    put(el, { x: cx - el.offsetWidth / 2, y: L.app.y + off + qh * fy - 34, s: 1 + bump, o: s1 ? (t >= 14.6 ? 1 : 1 - ease.inCubic(prog(t, 1.4, 0.15))) : 0, ox: '50%', oy: '50%' });
+  });
+
+  // ---------- S2 (1,5–3,5): fundo lima; os cabeçalhos entram um por batida ----------
+  const names = ['cupom', 'frete', 'parcelas', 'testes'];
+  const SW = 1000, ss = SW / 695, SHh = 94 * ss;
+  names.forEach((n, k) => {
+    const el = $('#s' + k), at = 1.5 + k * 0.5;
+    show('#s' + k, lime && t >= at - 0.01);
+    if (!(lime && t >= at - 0.01)) return;
+    const e = ease.outExpo(prog(t, at, 0.4));
+    box(el, { x: 40, y: L.strips.y + k * (SHh + L.strips.gap), w: SW, h: SHh });
+    el.style.transform = `translateX(${(1 - e) * 1100}px) rotate(${(1 - e) * 4}deg)`;
+    el.style.opacity = 1 - ease.inCubic(prog(t, 3.38, 0.12));
+    clip(el.querySelector('img'), 1.6);
+    cam(el.querySelector('img'), SW, SHh, [[0, PANE[n][0] + 347, PANE[n][1] + 47, ss]], t);
+    // a branch acende quando a legenda fala dela
+    el.style.outline = t >= 2.5 ? `${Math.round(6 * (1 - prog(t, 2.5 + k * 0.08, 0.6)))}px solid rgba(26,46,5,.8)` : 'none';
+  });
+  put('#wt1', { x: L.wt.x, y: L.wt.y, o: win(t, 1.55, 2.5, 0.2, 0.12) });
+  put('#wt2', { x: L.wt.x, y: L.wt.y, o: win(t, 2.5, 3.45, 0.15, 0.12) });
+
+  // ---------- S3 (3,5–6): os estados mudam de verdade; a câmera vai em quem mudou ----------
+  if (s3) {
+    // 🟡 parcelas na gravação em c 2,94 → 4,0 · 🔵 cupom em c 11,91 → 4,75 · 🔵 frete em c 12,93 → 5,5
+    const c = t < 4.25 ? 2.44 + (t - 3.5) : t < 5.0 ? 11.41 + (t - 4.25) : 12.43 + (t - 5.0);
+    clip($('#app img'), c);
+    const zs = 1080 / (PW + 60);
+    const ctr = (n) => [PANE[n][0] + PW / 2, PANE[n][1] + PH / 2];
+    const e = ease.outExpo(prog(t, 3.5, 0.4));
+    box($('#app'), { x: 0, y: L.zoom.y, w: 1080, h: L.zoom.h }); $('#app').style.borderRadius = '0'; $('#app').style.opacity = e;
+    const [px, py] = ctr('parcelas'), [cx, cy] = ctr('cupom'), [fx, fy] = ctr('frete');
+    const k = pulse(t, 4.0, 0.18) + pulse(t, 4.75, 0.18) + pulse(t, 5.5, 0.18);
+    cam($('#app img'), 1080, L.zoom.h, [
+      [3.5, px, py - 120, zs * 0.9], [3.9, px, py, zs], [4.25, px, py, zs * 1.03],
+      [4.25, cx, cy, zs], [5.0, cx, cy, zs * 1.03], [5.35, fx, fy, zs], [6.0, fx, fy, zs * 1.04],
+    ].map(([a, u, w, s]) => [a, u, w, s * (1 + 0.025 * k)]), t);
+  }
+  ['st0', 'st1', 'st2'].forEach((id, i) => {
+    const at = 4.0 + i * 0.75;
+    put('#' + id, { x: L.st.x, y: L.st.y + i * L.st.gap, s: 0.85 + 0.15 * ease.outBack(prog(t, at, 0.3)), o: win(t, at, 6.0, 0.15, 0.12), ox: '0%', oy: '50%' });
+  });
+
+  // ---------- S4 (6–8,75): fundo claro; a lateral real; toque no ⇄ ----------
+  const s4 = t >= 6.0 && t < 8.85;
+  show('#side', s4);
+  const sw = 1000, sds = sw / SIDEW, sh = SIDEH * sds;
+  if (s4) {
+    clip($('#side img'), 15.3 + (t - 6.0));
+    const e = ease.outExpo(prog(t, 6.0, 0.45));
+    box($('#side'), { x: 40, y: L.side.y, w: sw, h: sh });
+    $('#side').style.transform = `translateY(${70 * (1 - e)}px)`; $('#side').style.opacity = e;
+    cam($('#side img'), sw, sh, [[6.0, SIDE[0], SIDE[1], sds], [8.85, SIDE[0], SIDE[1], sds * 1.03]], t);
+  }
+  put('#lat', { x: L.lat.x, y: L.lat.y, o: win(t, 6.1, 8.7, 0.25, 0.15) });
+  // ⇄ do projeto no quadro: (243, 87)
+  const tp = win(t, 8.35, 8.95, 0.15, 0.12), press = pulse(t, 8.75, 0.12);
+  put('#tap', { x: 40 + 243 * sds * 1.03 - 60, y: L.side.y + (87 - 60) * sds * 1.03 - 60, s: 1 - 0.25 * press, o: tp, ox: '50%', oy: '50%' });
+
+  // ---------- S5 (8,75–11,75): análise real de conflitos ----------
+  const s5 = t >= 8.75 && t < 11.8;
+  show('#modal', s5);
+  const mw = 1000, ms = mw / MODW, mh = MODH * ms;
+  let st5 = null;
+  if (s5) {
+    clip($('#modal img'), 18.6 + (t - 8.75) * 0.5);
+    const e = ease.outExpo(prog(t, 8.75, 0.4));
+    box($('#modal'), { x: 40, y: L.modal.y, w: mw, h: mh });
+    $('#modal').style.transform = `scale(${0.92 + 0.08 * e})`; $('#modal').style.opacity = e * (1 - ease.inCubic(prog(t, 11.6, 0.15)));
+    st5 = cam($('#modal img'), mw, mh, [[8.75, MOD[0], MOD[1], ms], [9.25, MOD[0], MOD[1], ms * 1.03], [9.75, 1674, 1232, ms * 1.8], [11.8, 1674, 1236, ms * 1.88]], t);
+  }
+  put('#cf1', { x: L.cf.x, y: L.cf.y, o: win(t, 8.85, 11.7, 0.25, 0.15) });
+  put('#cf2', { x: L.cf.x, y: L.cf.y + 166, o: win(t, 9.75, 11.7, 0.25, 0.15) });
+  // rabisco sob "src/carrinho.js" (no quadro: x 1338–1545, y 1200)
+  const sp = ease.outCubic(prog(t, 10.1, 0.4));
+  if (s5 && st5 && t >= 10.1) {
+    const X = (u) => 40 + mw / 2 + (u - st5[1]) * st5[3], Yv = (w) => L.modal.y + mh / 2 + (w - st5[2]) * st5[3];
+    let d = '', len = 0, px = null, py = null;
+    for (let i = 0; i <= 40; i++) {
+      const a = -2.6 + (i / 40) * Math.PI * 2.15, wob = 1 + 0.05 * Math.sin(i * 1.7);
+      const x = X(1441 + Math.cos(a) * 124 * wob), y = Yv(1182 + Math.sin(a) * 17 * wob + i * 0.15);
+      d += (i ? ' L ' : 'M ') + x.toFixed(1) + ' ' + y.toFixed(1);
+      if (px !== null) len += Math.hypot(x - px, y - py); px = x; py = y;
+    }
+    $('#scribP').setAttribute('d', d);
+    $('#scribP').style.strokeDasharray = `${len}`; $('#scribP').style.strokeDashoffset = `${len * (1 - sp)}`;
+    $('#scrib').style.opacity = 1 - ease.inCubic(prog(t, 11.6, 0.15));
+  } else $('#scrib').style.opacity = 0;
+
+  // ---------- S6 (11,75–13,3): fundo claro; os 4 de novo ----------
+  if (s6) {
+    clip($('#app img'), 27.0 + (t - 11.75) * 0.5);
+    const aw = 1000, as = aw / APPW, e = ease.outExpo(prog(t, 11.75, 0.45));
+    box($('#app'), { x: 40, y: L.endApp.y, w: aw, h: APPH * as }); $('#app').style.borderRadius = '22px';
+    $('#app').style.opacity = e * (1 - ease.inCubic(prog(t, 13.15, 0.15)));
+    $('#app').style.transform = `translateY(${80 * (1 - e)}px)`;
+    cam($('#app img'), aw, APPH * as, [[11.75, APP[0], APP[1], as], [13.3, APP[0], APP[1], as * 1.04]], t);
+  } else $('#app').style.transform = 'none';
+  ['e0', 'e1', 'e2'].forEach((id, i) => {
+    const at = 11.8 + i * 0.35;
+    put('#' + id, { x: L.end.x, y: L.end.y + i * 104, s: 0.86 + 0.14 * ease.outBack(prog(t, at, 0.3)), o: win(t, at, 13.25, 0.15, 0.12), ox: '0%', oy: '50%' });
+  });
+
+  // ---------- CTA (13,25–15); sobe e o quadro 0 entra por baixo ----------
+  const c = ease.outExpo(prog(t, 13.25, 0.45)), up = ease.inCubic(prog(t, 14.6, 0.3));
+  put('#cta', { x: 0, y: L.cta.y + 60 * (1 - c) - 700 * up, o: c * (1 - up) });
+  $('#icon').style.transform = `scale(${0.5 + 0.5 * ease.outBack(prog(t, 13.25, 0.45))})`;
+  [...document.querySelectorAll('#dots .dot')].forEach((d, i) => { d.style.transform = `scale(${ease.outBack(prog(t, 13.3 + i * 0.08, 0.35))})`; });
+}
+window.__seek = (t) => { draw(t); return P.settle(); };
+
+window.__audio = async (sr) => {
+  const D = window.__DURATION, S = P.Synth(sr, D);
+  const M = P.musica('leve'), SEGS = { leve: [[0, 30.544]], escura: [[0, 22.594]] };
+  if (M) await S.track(M.url, { segs: SEGS[M.id], breaks: [[1.0, 1.5, 420, 0.45]] });
+  else S.groove({ from: 0, to: D, mutes: [[1.0, 1.5], [14.75, 15]] });
+  S.thump(0.5, 0.55); S.tick(0.5, 1.1); S.thump(1.0, 0.75);
+  S.whoosh(1.42, 0.3, 0.6);
+  [1.5, 2.0, 2.5, 3.0].forEach((x, i) => { S.whoosh(x - 0.05, 0.25, 0.45); S.pop(x + 0.05, 0.8 + i * 0.12); });
+  S.whoosh(3.42, 0.35, 0.6);
+  [4.0, 4.75, 5.5].forEach((x, i) => { S.pop(x, 0.9); S.tick(x + 0.02, 1.4); });
+  S.whoosh(4.2, 0.2, 0.4);
+  S.whoosh(5.95, 0.35, 0.6); S.tick(6.1, 1);
+  S.click(8.75, 1.3); S.whoosh(8.78, 0.3, 0.6);
+  S.thump(9.75, 0.55); S.scribble(10.1, 0.4, 1);
+  S.whoosh(11.7, 0.3, 0.6);
+  [11.8, 12.15, 12.5].forEach((x) => S.pop(x, 0.9));
+  S.thump(13.25, 0.9); S.whoosh(14.55, 0.45, 0.8);
+  return S.render();
+};
+</script>
+</body>
+</html>

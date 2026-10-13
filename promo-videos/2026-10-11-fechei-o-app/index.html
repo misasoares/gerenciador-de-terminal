@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>C · Fechei o app com 4 Claudes trabalhando</title>
+<link rel="stylesheet" href="../lib/promo.css">
+<style>
+  #bg { position: absolute; inset: 0; background: radial-gradient(120% 80% at 0% 0%, #23263a, var(--bg-deep) 62%); }
+  #bg2 { position: absolute; inset: 0; background: #f5f5f7; }
+  .screen img, .strip img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .strip { position: absolute; overflow: hidden; border-radius: 16px; background: #111219; box-shadow: 0 18px 44px rgba(17,18,25,.28); }
+  .strip .after { clip-path: inset(0 0 0 100%); }
+  .wipe { position: absolute; top: 0; bottom: 0; width: 6px; background: #fff; box-shadow: 0 0 18px rgba(255,255,255,.9); }
+  .t1 { font: 900 100px/0.98 var(--sans); letter-spacing: -.045em; color: var(--fg); width: 940px; z-index: 6; }
+  .t2 { font: 800 74px/1.04 var(--sans); letter-spacing: -.035em; width: 850px; z-index: 6; }
+  .dark { color: #15161c; }
+  .mono { font: 600 64px/1.1 var(--mono); color: var(--muted); z-index: 6; white-space: nowrap; }
+  .cap { font: 800 60px/1.25 var(--sans); letter-spacing: -.02em; width: 900px; z-index: 7; }
+  .cap span { background: #fff; color: #111219; padding: .08em .26em; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  #cta { width: 1080px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 34px; z-index: 9; }
+  #cta .name { font: 900 104px/0.95 var(--sans); letter-spacing: -.045em; color: #15140a; }
+  #cta .dots { display: flex; gap: 26px; font-size: 92px; }
+  #cta .dot { box-shadow: 0 0 0 7px #111219, inset 0 -.08em .12em rgba(0,0,0,.25); }
+  #cta .sub { font: 700 46px/1.2 var(--sans); color: #4a3d0a; }
+  #cta .url { font: 600 40px/1.25 var(--mono); color: #15140a; }
+  #cta .btn { background: #111219; color: var(--yellow); font: 800 52px/1 var(--sans); padding: 30px 50px; border-radius: 26px; }
+  #icon { width: 220px; height: 220px; border-radius: 48px; object-fit: cover; }
+  #flash { position: absolute; inset: 0; background: #fff; z-index: 20; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg" class="abs"></div>
+  <div id="bg2" class="abs"></div>
+
+  <div class="screen" id="app"><img></div>
+  <div class="strip" id="k0"><img class="before"><img class="after"><div class="wipe"></div></div>
+  <div class="strip" id="k1"><img class="before"><img class="after"><div class="wipe"></div></div>
+  <div class="strip" id="k2"><img class="before"><img class="after"><div class="wipe"></div></div>
+  <div class="strip" id="k3"><img class="before"><img class="after"><div class="wipe"></div></div>
+  <div class="screen" id="ask"><img></div>
+
+  <div class="abs t1" id="hook">Fechei o app com<br><span class="hlG">4 Claudes</span><br>trabalhando.</div>
+  <div class="abs mono" id="later"><span id="laterTxt"></span><span id="cur">▍</span></div>
+  <div class="abs t1" id="reopen">Reabri.</div>
+  <div class="abs t2 dark" id="done">3 terminaram <span style="color:#1d4ed8">sozinhos.</span></div>
+  <div class="abs t2 dark" id="waits">o líder me <span style="color:#9a6700">esperando.</span></div>
+  <div class="abs cap" id="capK"><span>fechar o app não mata nenhuma sessão</span></div>
+
+  <div class="abs" id="cta">
+    <img id="icon" src="../assets/icone.png" alt="" onerror="this.style.display='none';document.getElementById('dots').style.display='flex'">
+    <div class="dots" id="dots" style="display:none"><span class="dot g"></span><span class="dot y"></span><span class="dot b"></span></div>
+    <div class="name">Gerenciador<br>de Terminal</div>
+    <div class="btn" id="btn">grátis no GitHub</div>
+    <div class="url">github.com/misasoares/<br>gerenciador-de-terminal</div>
+    <div class="sub">macOS e Linux</div>
+  </div>
+  <div id="flash" class="abs"></div>
+</div>
+
+<script src="../lib/promo.js"></script>
+<script>
+const { put, prog, lerp, clamp, ease, win, seq, cam, format, $ } = P;
+const B = 0.5;
+window.__DURATION = 13;
+const SEQ = '../assets/seq/c';
+const N = { antes: 63, depois: 1 };
+const v = format === '4x5';
+const FH = 2160, COLX = [544, 1368, 2192, 3016], COLW = 808, PANE0 = 544, PANEW = 3280;
+const L = v ? { hook: { x: 70, y: 96 }, app: { y: 490 }, later: { y: 600 }, reopen: { x: 70, y: 110 }, strips: { y: 330, gap: 34 }, done: { x: 70, y: 96 }, ask: { y: 380 }, capK: { x: 70, y: 110 }, cta: { y: 130 } }
+                : { hook: { x: 70, y: 250 }, app: { y: 760 }, later: { y: 900 }, reopen: { x: 70, y: 280 }, strips: { y: 640, gap: 50 }, done: { x: 70, y: 260 }, ask: { y: 620 }, capK: { x: 70, y: 300 }, cta: { y: 360 } };
+function box(el, r) { el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px'; }
+const show = (id, on) => { $(id).style.visibility = on ? 'visible' : 'hidden'; };
+const ws = 1080 / PANEW, wh = FH * ws;
+const LATER = '36 segundos depois';
+
+function draw(t) {
+  const light = t >= 4.5 && t < 7.5, yel = t >= 10.5 && t < 12.65;
+  $('#bg2').style.opacity = light || yel ? 1 : 0;
+  $('#bg2').style.background = yel ? 'var(--yellow)' : '#f5f5f7';
+
+  // ---------- S1 (0–1,5) app com os 4 trabalhando; S2 (1,5–2,5) a janela fecha; S4 (3,5–4,5) reabre ----------
+  const back = t >= 12.6 ? ease.outExpo(prog(t, 12.65, 0.3)) : 1;   // loop
+  const before = t < 2.5 || t >= 12.6, after = t >= 3.5 && t < 4.6;
+  show('#app', before || after);
+  if (before || after) {
+    const img = $('#app img');
+    if (before) seq(img, `${SEQ}/antes`, N.antes, t >= 12.6 ? 0 : Math.min(t, 2.0)); else seq(img, `${SEQ}/depois`, 1, 0);
+    box($('#app'), { x: 0, y: L.app.y + 520 * (1 - back), w: 1080, h: wh }); $('#app').style.borderRadius = '0';
+    const punch = (a) => t < a ? 0 : t < a + 0.08 ? ease.outCubic((t - a) / 0.08) : Math.max(0, 1 - (t - a - 0.08) / 0.3);
+    const kick = punch(0.5) + punch(1.0);
+    const close = t >= 12.6 ? 0 : ease.inCubic(prog(t, 1.5, 0.75)), open = ease.outExpo(prog(t, 3.5, 0.55));
+    const pull = 1;
+    const k = (before ? 1 - 0.85 * close : 0.15 + 0.85 * open) * pull;
+    $('#app').style.transform = `scale(${k * (1 + 0.14 * kick)})`; $('#app').style.transformOrigin = '50% 50%';
+    $('#app').style.opacity = t >= 12.6 ? 1 : before ? 1 - ease.inCubic(prog(t, 2.0, 0.35)) : open;
+    $('#app').style.filter = before && t >= 1.5 && t < 12 ? `blur(${8 * close}px)` : 'none';
+    cam(img, 1080, wh, [[0, PANE0 + PANEW / 2, FH / 2, ws * (1 + 0.03 * prog(t, 0, 1.5))]], t);
+  }
+  put('#hook', { x: L.hook.x, y: L.hook.y + 520 * (1 - back), o: t >= 12.6 ? 1 : 1 - ease.inCubic(prog(t, 1.45, 0.25)) });
+
+  // ---------- S3 (2,5–3,5): silêncio, "36 segundos depois" sendo digitado ----------
+  const n = Math.floor(clamp((t - 2.55) / 0.035, 0, LATER.length));
+  $('#laterTxt').textContent = LATER.slice(0, n);
+  $('#cur').style.opacity = Math.floor(t / 0.25) % 2 === 0 || n < LATER.length ? 1 : 0;
+  put('#later', { x: 110, y: L.later.y, o: win(t, 2.5, 3.5, 0.05, 0.12) });
+  put('#reopen', { x: L.reopen.x, y: L.reopen.y, s: 0.85 + 0.15 * ease.outBack(prog(t, 3.5, 0.3)), o: win(t, 3.5, 4.55, 0.15, 0.15), ox: '0%', oy: '50%' });
+  $('#flash').style.opacity = 0.25 * Math.max(0, 1 - Math.abs(t - 3.52) / 0.07) + 0.18 * Math.max(0, 1 - Math.abs(t - 0.52) / 0.06);
+
+  // ---------- S5 (4,5–7,5): cabeçalhos antes → depois, um por batida ----------
+  const s5 = t >= 4.5 && t < 7.6;
+  const sw = 1000, ss = sw / (COLW + 8), sh = 112 * ss;
+  const order = [1, 2, 3, 0], W0 = 5.0;   // dev-1, dev-2, dev-3, líder
+  for (let k = 0; k < 4; k++) {
+    const el = $('#k' + k); show('#k' + k, s5);
+    if (!s5) continue;
+    const y = L.strips.y + k * (sh + L.strips.gap);
+    const d = ease.outExpo(prog(t, 4.5 + k * 0.07, 0.45));
+    box(el, { x: 40, y, w: sw, h: sh });
+    const tw = W0 + order.indexOf(k) * B;
+    const w = ease.inOutCubic(prog(t, tw, 0.3));
+    const pop = Math.max(0, 1 - Math.abs(t - (tw + 0.3)) / 0.2);
+    el.style.transform = `translateX(${(k % 2 ? 1 : -1) * 220 * (1 - d)}px) scale(${1 + 0.035 * pop})`;
+    el.style.opacity = d * (1 - ease.inCubic(prog(t, 7.35, 0.2)));
+    const [bi, ai] = el.querySelectorAll('img');
+    seq(bi, `${SEQ}/antes`, N.antes, 1.0); seq(ai, `${SEQ}/depois`, 1, 0);
+    for (const im of [bi, ai]) cam(im, sw, sh, [[0, COLX[k] + COLW / 2, 78 + sh / ss / 2, ss]], t);
+    ai.style.clipPath = `inset(0 ${100 - 100 * w}% 0 0)`;
+    const wp = el.querySelector('.wipe'); wp.style.left = `${sw * w - 3}px`; wp.style.opacity = w > 0 && w < 1 ? 1 : 0;
+    el.style.outline = pop > 0.05 ? `${Math.round(7 * pop)}px solid ${k === 0 ? 'rgba(242,201,76,' : 'rgba(59,130,246,'}${pop})` : 'none';
+  }
+  put('#done', { x: L.done.x, y: L.done.y, o: win(t, 5.15, 7.45, 0.25, 0.15) });
+  put('#waits', { x: L.done.x, y: L.done.y + 92, o: win(t, 6.7, 7.45, 0.2, 0.15) });
+
+  // ---------- S6 (7,5–10,5): a pergunta real do líder, em close ----------
+  const s6 = t >= 7.5 && t < 10.6;
+  show('#ask', s6);
+  if (s6) {
+    seq($('#ask img'), `${SEQ}/depois`, 1, 0);
+    const aw = 1000, as = aw / COLW, ah = Math.round(520 * as);
+    const e = ease.outExpo(prog(t, 7.5, 0.45));
+    box($('#ask'), { x: 40, y: L.ask.y + 70 * (1 - e), w: aw, h: ah });
+    $('#ask').style.opacity = e * (1 - ease.inCubic(prog(t, 10.35, 0.2)));
+    cam($('#ask img'), aw, ah, [[7.5, COLX[0] + COLW / 2, 1700, as], [10.5, COLX[0] + COLW / 2, 1700, as * 1.06]], t);
+  }
+  put('#capK', { x: L.capK.x, y: L.capK.y, o: win(t, 7.9, 10.45, 0.25, 0.15) });
+
+  // ---------- S7 (10,5–13): CTA; sai por cima e o quadro 0 entra por baixo ----------
+  const c = ease.outExpo(prog(t, 10.55, 0.45)), up = ease.inCubic(prog(t, 12.35, 0.27));
+  put('#cta', { x: 0, y: L.cta.y + 60 * (1 - c) - 700 * up, o: c * (1 - up) });
+  $('#icon').style.transform = `scale(${0.5 + 0.5 * ease.outBack(prog(t, 10.55, 0.45))})`;
+  [...document.querySelectorAll('#dots .dot')].forEach((d, i) => { d.style.transform = `scale(${ease.outBack(prog(t, 10.6 + i * 0.08, 0.35))})`; });
+}
+window.__seek = (t) => { draw(t); return P.settle(); };
+
+window.__audio = async (sr) => {
+  const D = window.__DURATION, S = P.Synth(sr, D);
+  const M = P.musica('escura'), SEGS = { escura: [[0, 20.594]], leve: [[0, 28.544]] };
+  if (M) await S.track(M.url, { segs: SEGS[M.id], breaks: [[1.6, 3.5, 300, 0.15]] });
+  else S.groove({ from: 0, to: D, mutes: [[1.6, 3.5], [12.6, 13]] });
+  S.thump(0.5, 0.6); S.tick(0.5, 1); S.thump(1.0, 0.6); S.tick(1.0, 1.1);
+  S.whoosh(1.45, 0.7, 0.9); S.thump(2.2, 0.5);
+  for (let i = 0; i < LATER.length; i++) S.click(2.55 + i * 0.035, 0.25);
+  S.pop(3.52, 1); S.thump(3.5, 0.8);
+  [5.3, 5.8, 6.3].forEach((x, i) => S.pop(x, 0.9 + i * 0.1));
+  S.tick(6.8, 1.3);
+  S.whoosh(7.45, 0.4, 0.6);
+  S.thump(10.55, 0.9); S.whoosh(12.35, 0.4, 0.7);
+  return S.render();
+};
+</script>
+</body>
+</html>

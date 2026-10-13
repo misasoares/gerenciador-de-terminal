@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>promo</title>
+<style>
+  /* Tokens vêm do promo-videos/brand.md. Troque tudo; isto é só o esqueleto. */
+  :root { --bg:#0e0f12; --fg:#f4f1ea; --accent:#ff5a1f; --font: system-ui, sans-serif; }
+  * { margin:0; box-sizing:border-box; }
+  html, body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); color:var(--fg); font-family:var(--font); }
+  #stage { position:absolute; inset:0; }
+  /* zona segura: nada importante fora dela (UI do TikTok/Reels cobre base e lateral direita) */
+  .safe { position:absolute; left:6%; right:16%; top:12%; bottom:22%; }
+  body[data-format="16x9"] .safe, body[data-format="1x1"] .safe { left:6%; right:6%; top:8%; bottom:8%; }
+  .title { position:absolute; left:0; right:0; top:40%; font-size:min(11vw, 9vh); font-weight:800; line-height:.95; letter-spacing:-.03em; }
+  .dot { position:absolute; width:12vmin; height:12vmin; border-radius:50%; background:var(--accent); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="dot" id="dot"></div>
+  <div class="safe"><div class="title" id="title">Seu app<br>em 3 segundos</div></div>
+</div>
+<script>
+// ---------- contrato ----------
+const BPM = 120, BEAT = 60 / BPM;                 // 0,5 s por batida
+window.__DURATION = 4;                            // segundos
+const format = new URLSearchParams(location.search).get('format') || '9x16';
+document.body.dataset.format = format;
+
+// ---------- utilitários de tempo (puros, sem relógio) ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, start, dur) => clamp((t - start) / dur);           // 0→1 dentro de uma janela
+const ease = {
+  outExpo: (x) => (x === 1 ? 1 : 1 - Math.pow(2, -10 * x)),
+  inOutCubic: (x) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
+  outBack: (x) => 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2),
+};
+const lerp = (a, b, x) => a + (b - a) * x;
+
+// ---------- cena: TODO estado sai de t ----------
+const $ = (id) => document.getElementById(id);
+window.__seek = (t) => {
+  const a = ease.outExpo(prog(t, 0, BEAT * 2));
+  $('title').style.transform = `translateY(${lerp(80, 0, a)}px)`;
+  $('title').style.opacity = a;
+  const b = ease.outBack(prog(t, BEAT * 2, BEAT));
+  $('dot').style.transform = `translate(${lerp(-20, 60, b)}vw, ${lerp(70, 20, b)}vh) scale(${b})`;
+};
+
+// ---------- áudio sincronizado à mesma grade ----------
+window.__audio = async (sr) => {
+  const ctx = new OfflineAudioContext(2, Math.ceil(sr * window.__DURATION), sr);
+  const kick = (time) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(150, time); o.frequency.exponentialRampToValueAtTime(40, time + .15);
+    g.gain.setValueAtTime(.9, time); g.gain.exponentialRampToValueAtTime(.001, time + .3);
+    o.connect(g).connect(ctx.destination); o.start(time); o.stop(time + .3);
+  };
+  for (let i = 0; i < window.__DURATION / BEAT; i++) kick(i * BEAT);
+  return ctx.startRendering();
+};
+
+if (!new URLSearchParams(location.search).has('render')) {   // preview no navegador
+  const t0 = performance.now();
+  const loop = () => { window.__seek(((performance.now() - t0) / 1000) % window.__DURATION); requestAnimationFrame(loop); };
+  loop();
+}
+</script>
+</body>
+</html>

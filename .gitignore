@@ -5,3 +5,9 @@ dist/
 *.log
 .superpowers/
 .vitest/
+
+# video-promo
+promo-videos/**/out/
+promo-videos/assets/clips/
+promo-videos/referencias/*.mp4
+promo-videos/assets/seq/

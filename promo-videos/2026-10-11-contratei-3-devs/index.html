@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>B · Pedi pro Claude contratar 3 devs</title>
+<link rel="stylesheet" href="../lib/promo.css">
+<style>
+  #bg { position: absolute; inset: 0; background: radial-gradient(120% 80% at 0% 0%, #23263a, var(--bg-deep) 62%); }
+  #bg2 { position: absolute; inset: 0; background: #f5f5f7; }
+  .screen img, .strip img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .strip { position: absolute; overflow: hidden; border-radius: 16px; background: #111219; box-shadow: 0 18px 44px rgba(17,18,25,.28); }
+  .t1 { font: 900 100px/0.98 var(--sans); letter-spacing: -.045em; color: var(--fg); width: 940px; }
+  .t2 { font: 800 80px/1.02 var(--sans); letter-spacing: -.035em; width: 940px; }
+  .dark { color: #15161c; }
+  .cap { font: 800 60px/1.25 var(--sans); letter-spacing: -.02em; width: 900px; z-index: 7; }
+  .cap span { background: #fff; color: #111219; padding: .08em .26em; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  .chip { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 14px; background: var(--lime); color: var(--lime-ink); font: 800 44px/1 var(--mono); white-space: nowrap; box-shadow: 0 12px 30px rgba(0,0,0,.45); z-index: 6; }
+  .key.big { font-size: 120px; z-index: 8; }
+  #cta { width: 1080px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 34px; z-index: 9; }
+  #cta .name { font: 900 104px/0.95 var(--sans); letter-spacing: -.045em; color: #15140a; }
+  #cta .dots { display: flex; gap: 26px; font-size: 92px; }
+  #cta .dot { box-shadow: 0 0 0 7px #111219, inset 0 -.08em .12em rgba(0,0,0,.25); }
+  #cta .sub { font: 700 46px/1.2 var(--sans); color: #4a3d0a; }
+  #cta .url { font: 600 40px/1.25 var(--mono); color: #15140a; }
+  #cta .btn { background: #111219; color: var(--yellow); font: 800 52px/1 var(--sans); padding: 30px 50px; border-radius: 26px; }
+  #icon { width: 220px; height: 220px; border-radius: 48px; object-fit: cover; }
+  .t1, .t2 { z-index: 6; }
+  .okb { width: 84px; height: 84px; border-radius: 50%; background: var(--green); color: #06210f; font: 900 54px/84px var(--sans); text-align: center; z-index: 7; box-shadow: 0 10px 26px rgba(0,0,0,.3); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg" class="abs"></div>
+  <div id="bg2" class="abs"></div>
+
+  <div class="screen" id="inp"><img></div>
+  <div class="screen" id="wide"><img></div>
+  <div class="screen" id="lead"><img></div>
+  <div class="strip" id="s1"><img></div><div class="strip" id="s2"><img></div><div class="strip" id="s3"><img></div>
+  <div class="abs okb" id="ok1">✓</div><div class="abs okb" id="ok2">✓</div><div class="abs okb" id="ok3">✓</div>
+  <div class="screen" id="conf"><img></div>
+
+  <div class="abs t1" id="hook">Pedi pro Claude contratar <span class="hlY">3 devs.</span></div>
+  <div class="abs key big" id="enter">enter ⏎</div>
+  <div class="abs t1" id="hired">Ele <span class="hlL">contratou.</span></div>
+  <div class="abs chip" id="c1">⎇ dev-1</div><div class="abs chip" id="c2">⎇ dev-2</div><div class="abs chip" id="c3">⎇ dev-3</div>
+  <div class="abs cap" id="capW"><span>cada um na sua worktree</span></div>
+  <div class="abs t2 dark" id="wait1">os 3 esperando <span style="color:#9a6700">você.</span></div>
+  <div class="abs t2 dark" id="wait2">ao mesmo tempo.</div>
+  <div class="abs t2 dark" id="keys">3 teclas. <span style="color:#137a43">3 aprovados.</span></div>
+  <div class="abs key big" id="kc">⌘J</div>
+  <div class="abs t2" id="confT" style="color:var(--fg)">e avisa quem vai <span class="hlY">conflitar</span> no merge</div>
+  <div class="abs t1" id="lead2">você virou<br><span class="hlY">tech lead.</span></div>
+
+  <div class="abs" id="cta">
+    <img id="icon" src="../assets/icone.png" alt="" onerror="this.style.display='none';document.getElementById('dots').style.display='flex'">
+    <div class="dots" id="dots" style="display:none"><span class="dot g"></span><span class="dot y"></span><span class="dot b"></span></div>
+    <div class="name">Gerenciador<br>de Terminal</div>
+    <div class="btn" id="btn">grátis no GitHub</div>
+    <div class="url">github.com/misasoares/<br>gerenciador-de-terminal</div>
+    <div class="sub">macOS e Linux</div>
+  </div>
+</div>
+
+<script src="../lib/promo.js"></script>
+<script>
+const { put, prog, lerp, clamp, ease, win, seq, cam, format, $ } = P;
+const B = 0.5;
+window.__DURATION = 16;
+const SEQ = '../assets/seq/b';
+const N = { tipo: 46, abre: 168, lider: 60, j1: 90, j2: 90, j3: 90, conf: 21, fim: 48 };
+const v = format === '4x5';
+const FW = 3840, FH = 2160;                       // quadro gravado (2×)
+const COLX = [544, 1368, 2192, 3016], COLW = 808; // colunas com a equipe montada
+const PANE0 = 544, PANEW = 3280;                  // área dos painéis (antes da equipe, um painel só)
+
+const L = v ? {
+  hook: { x: 70, y: 100 }, inp: { y: 470, h: 360 }, wide: { y: 470 }, hired: { x: 70, y: 110 },
+  lead: { x: 40, y: 330, w: 1000, h: 940 }, capW: { x: 70, y: 110 }, wait: { x: 70, y: 100 }, strips: { y: 470, gap: 40 },
+  key: { x: 760, y: 90 }, conf: { y: 420 }, confT: { x: 70, y: 100 }, lead2: { x: 70, y: 110 }, cta: { y: 130 },
+} : {
+  hook: { x: 70, y: 250 }, inp: { y: 780, h: 360 }, wide: { y: 760 }, hired: { x: 70, y: 280 },
+  lead: { x: 40, y: 520, w: 1000, h: 1300 }, capW: { x: 70, y: 300 }, wait: { x: 70, y: 260 }, strips: { y: 720, gap: 60 },
+  key: { x: 660, y: 500 }, conf: { y: 720 }, confT: { x: 70, y: 260 }, lead2: { x: 70, y: 300 }, cta: { y: 360 },
+};
+function box(el, r) { el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px'; }
+const show = (id, on) => { $(id).style.visibility = on ? 'visible' : 'hidden'; };
+// mapa por trechos: [[t do vídeo, t do clipe], ...]; entre chaves é linear; chave repetida = corte
+function retime(t, keys) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 0; i < keys.length - 1; i++) { const [a, ca] = keys[i], [b, cb] = keys[i + 1]; if (t >= a && t < b) return ca + (cb - ca) * (t - a) / (b - a); }
+  return keys[keys.length - 1][1];
+}
+const clip = (img, name, c) => seq(img, `${SEQ}/${name}`, N[name], c);
+
+function draw(t) {
+  for (const k of [1, 2, 3]) put('#ok' + k, { o: 0 });
+  const inv = t >= 0.5 && t < 0.75;   // inversão de meio tempo na batida (gancho)
+  const light = (t >= 5.5 && t < 10.5) || inv, yel = t >= 14.0 && t < 15.65;
+  $('#bg2').style.opacity = light || yel ? 1 : 0;
+  $('#hook').style.color = inv ? '#15161c' : 'var(--fg)';
+  $('#bg2').style.background = yel ? 'var(--yellow)' : '#f5f5f7';
+
+  // ---------- S1 (0–1,5): o prompt sendo digitado, câmera segue o cursor; enter em 1,0 ----------
+  const s1 = t < 1.5 || t >= 15.55;
+  const back = t >= 15.55 ? ease.outExpo(prog(t, 15.62, 0.33)) : 1;   // loop: o quadro 0 sobe de baixo
+  show('#inp', s1);
+  if (s1) {
+    const tt = t >= 15.55 ? 0 : t;
+    const c = tt <= 0.95 ? 0.2 + tt * (1.29 - 0.2) / 0.95 : tt < 1.0 ? 1.29 : 1.47 + (tt - 1.0) * 0.12;
+    clip($('#inp img'), 'tipo', c);
+    const chars = Math.min(170, c * 6 * 22), cursor = 588 + chars * 15.6;
+    const S1 = 1.6, u = Math.max(588 - 40 + 1080 / S1 / 2, cursor - 0.25 * 1080 / S1);
+    const grow = 1 + 0.08 * ease.inOutCubic(prog(tt, 0, 1.0));
+    box($('#inp'), { x: 0, y: L.inp.y + 520 * (1 - back), w: 1080, h: L.inp.h });
+    $('#inp').style.borderRadius = '0'; $('#inp').style.opacity = 1;
+    cam($('#inp img'), 1080, L.inp.h, [[0, u, 2010, S1 * grow]], tt);
+  }
+  put('#hook', { x: L.hook.x, y: L.hook.y + 520 * (1 - back), o: t >= 15.55 ? 1 : 1 - ease.inCubic(prog(t, 1.45, 0.2)) });
+  const ep = Math.max(0, 1 - Math.abs(t - 1.0) / 0.1);
+  put('#enter', { x: 300, y: L.inp.y + L.inp.h + 60 + 12 * ep, s: (0.6 + 0.4 * ease.outBack(prog(t, 0.45, 0.3))) * (1 - 0.06 * ep), o: win(t, 0.45, 1.5, 0.15, 0.15), ox: '50%', oy: '50%' });
+
+  // ---------- S3/S4 (1,5–3,5): app inteiro; os 3 terminais abrem nas batidas 2,0 / 2,5 / 3,0 ----------
+  const s4 = t >= 1.5 && t < 3.6;
+  show('#wide', s4 || (t >= 12.5 && t < 14.1));
+  const ws = 1080 / PANEW, wh = FH * ws;
+  if (s4) {
+    // pops na gravação: 17,19 / 19,26 / 21,43 s → clipe 0,29 / 2,36 / 4,53
+    const c = retime(t, [[1.5, 0.0], [1.95, 0.25], [2.3, 0.6], [2.3, 2.31], [2.8, 2.81], [2.8, 4.48], [3.6, 5.28]]);
+    clip($('#wide img'), 'abre', c);
+    box($('#wide'), { x: 0, y: L.wide.y, w: 1080, h: wh }); $('#wide').style.borderRadius = '0'; $('#wide').style.opacity = 1;
+    const kick = Math.max(...[2.0, 2.5, 3.0].map((k) => Math.max(0, 1 - Math.abs(t - k) / 0.15)));
+    cam($('#wide img'), 1080, wh, [[0, PANE0 + PANEW / 2, FH / 2, ws * (1 + 0.04 * kick)]], t);
+  }
+  put('#hired', { x: L.hired.x, y: L.hired.y, s: 0.8 + 0.2 * ease.outBack(prog(t, 2.0, 0.3)), o: win(t, 2.0, 3.55, 0.2, 0.15), ox: '0%', oy: '50%' });
+  // rótulos das worktrees novas, acima da coluna que acabou de abrir (n painéis lado a lado)
+  [1, 2, 3].forEach((k) => {
+    const p = ease.outBack(prog(t, 1.5 + k * B, 0.3));
+    put('#c' + k, { x: 70 + (k - 1) * 285, y: L.wide.y - 100, s: 0.6 + 0.4 * p, o: Math.min(1, p) * (1 - ease.inCubic(prog(t, 3.4, 0.15))) * (t < 3.6 ? 1 : 0), ox: '50%', oy: '50%' });
+  });
+
+  // ---------- S5 (3,5–5,5): o que o líder respondeu, em close ----------
+  const s5 = t >= 3.5 && t < 5.6;
+  show('#lead', s5);
+  if (s5) {
+    clip($('#lead img'), 'lider', 0.85);
+    const e = ease.outExpo(prog(t, 3.5, 0.45));
+    box($('#lead'), { x: L.lead.x, y: L.lead.y + 80 * (1 - e), w: L.lead.w, h: L.lead.h }); $('#lead').style.opacity = e;
+    const s = L.lead.w / COLW, hv = L.lead.h / s / 2;
+    cam($('#lead img'), L.lead.w, L.lead.h, [[3.5, COLX[0] + COLW / 2, 596 + hv, s], [5.6, COLX[0] + COLW / 2, 596 + hv * 1.0 + 40, s * 1.03]], t);
+  }
+  put('#capW', { x: L.capW.x, y: L.capW.y, o: win(t, 3.7, 5.45, 0.25, 0.15) });
+
+  // ---------- S6/S7 (5,5–10,5): cabeçalhos dos 3 devs; todos 🟡, depois ⌘J aprova um por um ----------
+  const s6 = t >= 5.5 && t < 10.6;
+  const sw = 1000, ss = sw / (COLW + 8), sh = 112 * ss;
+  const J = [['j1', 0.40, 2.64], ['j2', 0.18, 2.69], ['j3', 0.21, 2.71]];
+  for (let k = 0; k < 3; k++) {
+    const el = $('#s' + (k + 1)); show('#s' + (k + 1), s6);
+    if (!s6) continue;
+    const y = L.strips.y + k * (sh + L.strips.gap);
+    const d = ease.outExpo(prog(t, 5.5 + k * 0.08, 0.45));
+    box(el, { x: 40, y, w: sw, h: sh });
+    const T = 7.5 + k;
+    const ding = Math.max(0, 1 - Math.abs(t - (5.75 + k * 0.25)) / 0.2);
+    el.style.transform = `translateX(${(k % 2 ? 1 : -1) * 240 * (1 - d)}px) scale(${1 + 0.05 * ding})`;
+    el.style.opacity = d * (1 - ease.inCubic(prog(t, 10.35, 0.2)));
+    let name, c;
+    if (t < T) { name = J[k][0]; c = 0.35; }
+    else if (t < T + 0.5) { name = J[k][0]; c = J[k][1] - 0.05 + (t - T); }
+    else { name = J[k][0]; c = Math.min(J[k][2] + (t - T - 0.5), 2.95); }
+    if (t < 7.5) { name = 'j1'; c = clamp(0.35 + (t - 5.5) * 0.55, 0.35, 1.45); }
+    clip(el.querySelector('img'), name, c);
+    cam(el.querySelector('img'), sw, sh, [[0, COLX[k + 1] + COLW / 2, 78 + sh / ss / 2, ss]], t);
+    const act = t >= T && t < T + 1.0 ? 1 : 0, glow = t >= T + 0.5 && t < T + 1.2 ? 1 - prog(t, T + 0.5, 0.7) : 0;
+    const lift = act ? ease.outExpo(prog(t, T, 0.25)) * (1 - ease.inCubic(prog(t, T + 0.8, 0.2))) : 0;
+    el.style.transform = `translateX(${(k % 2 ? 1 : -1) * 240 * (1 - d)}px) scale(${(1 + 0.04 * ding) * (1 + 0.025 * lift)})`;
+    el.style.zIndex = act ? 3 : 1;
+    el.style.outline = glow > 0.02 ? `${Math.round(9 * glow)}px solid rgba(76, 183, 130, ${glow})` : act ? '6px solid rgba(94, 106, 210, .9)' : 'none';
+    const ok = $('#ok' + (k + 1)), op = ease.outBack(prog(t, T + 0.5, 0.3));
+    put(ok, { x: 560, y: y - 46, s: 0.4 + 0.6 * op, o: s6 && t >= T + 0.5 ? Math.min(1, op) * (1 - ease.inCubic(prog(t, 10.35, 0.2))) : 0, ox: '50%', oy: '50%' });
+  }
+  put('#wait1', { x: L.wait.x, y: L.wait.y, o: win(t, 5.6, 7.45, 0.25, 0.15) });
+  put('#wait2', { x: L.wait.x, y: L.wait.y + 92, o: win(t, 6.25, 7.45, 0.2, 0.15) });
+  put('#keys', { x: L.wait.x, y: L.wait.y, o: win(t, 7.55, 10.4, 0.25, 0.2) });
+  let press = 0; for (const k of [7.6, 8.6, 9.6]) press = Math.max(press, Math.max(0, 1 - Math.abs(t - k) / 0.12));
+  const kIn = ease.outBack(prog(t, 7.35, 0.3)) * (1 - ease.inCubic(prog(t, 10.3, 0.25)));
+  const ky = L.strips.y + 3 * (sh + L.strips.gap) + 10;
+  put('#kc', { x: v ? 760 : L.key.x, y: (v ? L.strips.y + 3 * (sh + L.strips.gap) - 20 : ky) + 14 * press, s: (0.7 + 0.3 * kIn) * (1 - 0.06 * press), o: Math.min(1, kIn * 1.3), ox: '50%', oy: '50%' });
+  $('#kc').style.boxShadow = `0 ${0.09 * (1 - press)}em 0 #8d8f9c, 0 .2em .5em rgba(0,0,0,.45)`;
+
+  // ---------- S8 (10,5–12,5): análise de conflitos real ----------
+  const s8 = t >= 10.5 && t < 12.6;
+  show('#conf', s8);
+  if (s8) {
+    clip($('#conf img'), 'conf', 0.3);
+    const cw = 1000, cs = cw / 1236, ch = 688 * cs;
+    const e = ease.outExpo(prog(t, 10.5, 0.45));
+    box($('#conf'), { x: 40, y: L.conf.y, w: cw, h: ch });
+    $('#conf').style.transform = `translateY(${60 * (1 - e)}px) scale(${0.94 + 0.06 * e})`; $('#conf').style.opacity = e * (1 - ease.inCubic(prog(t, 12.35, 0.2)));
+    // modal no quadro: x 1300–2536, y 736–1424; aproxima no par em conflito (y ~1150–1250)
+    cam($('#conf img'), cw, ch, [[10.5, 1918, 1080, cs], [11.2, 1918, 1080, cs], [11.7, 1680, 1200, cs * 1.7], [12.6, 1680, 1205, cs * 1.74]], t);
+  }
+  put('#confT', { x: L.confT.x, y: L.confT.y, o: win(t, 10.6, 12.45, 0.25, 0.15) });
+
+  // ---------- S9 (12,5–14): a equipe no fim ----------
+  if (t >= 12.5 && t < 14.1) {
+    clip($('#wide img'), 'fim', t - 12.5);
+    box($('#wide'), { x: 0, y: L.wide.y, w: 1080, h: wh });
+    const e = ease.outExpo(prog(t, 12.5, 0.45));
+    $('#wide').style.opacity = e * (1 - ease.inCubic(prog(t, 13.85, 0.2)));
+    cam($('#wide img'), 1080, wh, [[12.5, PANE0 + PANEW / 2, FH / 2, ws], [14.0, PANE0 + PANEW / 2, 900, ws * 1.12]], t);
+  }
+  put('#lead2', { x: L.lead2.x, y: L.lead2.y, s: 0.85 + 0.15 * ease.outBack(prog(t, 12.6, 0.3)), o: win(t, 12.6, 13.95, 0.2, 0.15), ox: '0%', oy: '50%' });
+
+  // ---------- S10 (14–15,75): CTA; depois volta ao quadro 0 ----------
+  const c = ease.outExpo(prog(t, 14.05, 0.45));
+  const up = ease.inCubic(prog(t, 15.38, 0.27));
+  put('#cta', { x: 0, y: L.cta.y + 60 * (1 - c) - 700 * up, o: c * (1 - up) });
+  $('#icon').style.transform = `scale(${0.5 + 0.5 * ease.outBack(prog(t, 14.05, 0.45))})`;
+  [...document.querySelectorAll('#dots .dot')].forEach((d, i) => { d.style.transform = `scale(${ease.outBack(prog(t, 14.1 + i * 0.08, 0.35))})`; });
+}
+window.__seek = (t) => { draw(t); return P.settle(); };
+
+window.__audio = async (sr) => {
+  const D = window.__DURATION, S = P.Synth(sr, D);
+  const M = P.musica('leve'), SEGS = { leve: [[0, 30.044]], escura: [[0, 22.094]] };
+  if (M) await S.track(M.url, { segs: SEGS[M.id], breaks: [[1.5, 2.0, 400, 0.4]] });
+  else S.groove({ from: 0, to: D, mutes: [[1.0, 2.0], [7.25, 7.5], [15.75, 16]] });
+  for (let x = 0.02; x < 0.95; x += 0.055) S.click(x, 0.35);  // teclas
+  S.thump(0.5, 0.6); S.tick(0.5, 1.2);
+  S.thump(1.0, 1);
+  S.whoosh(1.45, 0.3, 0.6);
+  [2.0, 2.5, 3.0].forEach((x, i) => S.pop(x, 1 + i * 0.15));
+  S.thump(2.0, 0.7);
+  S.whoosh(3.45, 0.4, 0.6);
+  [5.75, 6.0, 6.25].forEach((x) => { S.pop(x, 0.6); S.tick(x + 0.02, 1.3); });
+  [7.6, 8.6, 9.6].forEach((x) => S.click(x, 1.2));
+  [8.0, 9.0, 10.0].forEach((x) => S.pop(x, 0.9));
+  S.whoosh(10.45, 0.4, 0.7); S.thump(11.7, 0.6);
+  S.riser(12.0, 0.5, 0.5); S.pop(12.6, 0.9);
+  S.thump(14.05, 0.9); S.whoosh(15.45, 0.45, 0.8);
+  return S.render();
+};
+</script>
+</body>
+</html>

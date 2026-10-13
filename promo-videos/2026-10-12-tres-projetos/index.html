@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>E · POV: 3 projetos abertos e os 3 te chamando</title>
+<link rel="stylesheet" href="../lib/promo.css">
+<style>
+  #bg { position: absolute; inset: 0; background: radial-gradient(120% 80% at 0% 0%, #23263a, var(--bg-deep) 62%); }
+  #bg2 { position: absolute; inset: 0; background: #f5f5f7; }
+  .screen img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .t1 { font: 900 96px/0.98 var(--sans); letter-spacing: -.045em; color: var(--fg); width: 960px; z-index: 6; }
+  .t2 { font: 800 78px/1.04 var(--sans); letter-spacing: -.035em; color: var(--fg); width: 960px; z-index: 6; }
+  .dark { color: #15161c; }
+  .key.big { font-size: 120px; z-index: 8; }
+  .pchip { font: 700 64px/1 var(--mono); background: #fff; padding: 16px 26px; border-radius: 18px; white-space: nowrap; z-index: 7; box-shadow: 0 14px 34px rgba(0,0,0,.25); }
+  .sub { font: 800 54px/1.1 var(--sans); color: #fff; white-space: nowrap; z-index: 7; }
+  .lb { font-size: 40px; padding: 10px 16px; border-radius: 12px; z-index: 8; }
+  .ringE { position: absolute; left: 0; top: 0; border: 6px solid #fff; border-radius: 999px; z-index: 7; box-shadow: 0 0 0 4px rgba(17,18,25,.55); }
+  .arrow { font: 900 90px/1 var(--sans); color: #15161c; z-index: 7; }
+  #cta { width: 1080px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 34px; z-index: 9; }
+  #cta .name { font: 900 104px/0.95 var(--sans); letter-spacing: -.045em; color: #15140a; }
+  #cta .dots { display: flex; gap: 26px; font-size: 92px; }
+  #cta .dot { box-shadow: 0 0 0 7px #111219, inset 0 -.08em .12em rgba(0,0,0,.25); }
+  #cta .sub2 { font: 700 46px/1.2 var(--sans); color: #4a3d0a; }
+  #cta .url { font: 600 40px/1.25 var(--mono); color: #15140a; }
+  #cta .btn { background: #111219; color: var(--yellow); font: 800 52px/1 var(--sans); padding: 30px 50px; border-radius: 26px; }
+  #icon { width: 220px; height: 220px; border-radius: 48px; object-fit: cover; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg" class="abs"></div>
+  <div id="bg2" class="abs"></div>
+
+  <div class="screen" id="side"><img></div>
+  <div class="screen" id="tabs"><img></div>
+  <div class="screen" id="pane"><img></div>
+  <div class="screen" id="k0"><img></div><div class="screen" id="k1"><img></div><div class="screen" id="k2"><img></div>
+  <div class="ringE" id="r0"></div><div class="ringE" id="r1"></div><div class="ringE" id="r2"></div>
+
+  <div class="abs t1" id="hook">POV: 3 projetos<br>abertos e os 3<br>te chamando.</div>
+  <div class="abs t2 dark" id="aqui">você tá aqui.</div>
+  <div class="abs t2 dark" id="la">eles tão lá.</div>
+  <div class="abs arrow" id="ar0">↓</div><div class="abs arrow" id="ar1">↓</div>
+  <div class="abs key big" id="kj">⌘J</div>
+  <div class="abs pchip" id="pc"></div>
+  <div class="abs sub" id="sozinho">troca de aba sozinho</div>
+  <div class="abs pchip lb" id="lb0" style="color:#fff;background:#30a46c">app-financas ✓</div>
+  <div class="abs pchip lb" id="lb1" style="color:#fff;background:#e5484d">loja-online ✓</div>
+  <div class="abs pchip lb" id="lb2" style="color:#fff;background:#8e4ec6">api-pagamentos ✓</div>
+  <div class="abs t1 dark" id="n0">3 projetos.</div>
+  <div class="abs t1 dark" id="n1">3 teclas.</div>
+  <div class="abs t2" id="fim">você só vai<br>onde te chamam.</div>
+
+  <div class="abs" id="cta">
+    <img id="icon" src="../assets/icone.png" alt="" onerror="this.style.display='none';document.getElementById('dots').style.display='flex'">
+    <div class="dots" id="dots" style="display:none"><span class="dot g"></span><span class="dot y"></span><span class="dot b"></span></div>
+    <div class="name">Gerenciador<br>de Terminal</div>
+    <div class="btn">grátis no GitHub</div>
+    <div class="url">github.com/misasoares/<br>gerenciador-de-terminal</div>
+    <div class="sub2">macOS e Linux</div>
+  </div>
+</div>
+
+<script src="../lib/promo.js"></script>
+<script>
+const { put, prog, lerp, clamp, ease, win, seq, cam, format, $ } = P;
+window.__DURATION = 14;
+const v = format === '4x5';
+// gravação recE3 em 2× (3840×2160); clipe c = tempo da gravação − 38 s
+const SEQ = '../assets/seq/e/e', NE = 840;
+const clip = (img, c) => seq(img, SEQ, NE, c);
+const COR = { loja: '#e5484d', fin: '#30a46c', api: '#8e4ec6' };
+// saltos reais do ⌘J: metas (Finanças) c 6,37 · frete (Loja) c 10,74 · reembolso (API) c 15,19
+const J = [
+  { t: 3.0, c0: 6.22, cor: COR.fin, nome: 'app-financas', fim: [1045, 645, 1.0] },
+  { t: 4.5, c0: 10.59, cor: COR.loja, nome: 'loja-online', fim: [1045, 645, 1.0] },
+  { t: 6.0, c0: 15.04, cor: COR.api, nome: 'api-pagamentos', fim: [1360, 510, 0.64] },
+];
+const RATE = 1.27;
+const L = v ? {
+  hook: { x: 70, y: 90 }, side: { x: 100, y: 430, w: 880 }, aqui: { x: 70, y: 100 }, tabs: { y: 360 }, kj: { x: 70, y: 70 }, pc: { x: 330, y: 88 }, soz: { x: 330, y: 200 },
+  jt: { y: 300 }, jp: { y: 420, h: 680 }, n: { x: 70, y: 90 }, fan: { y: 760 }, fim: { x: 70, y: 90 }, side2: { x: 90, y: 420, w: 900 }, cta: { y: 130 },
+} : {
+  hook: { x: 70, y: 250 }, side: { x: 40, y: 600, w: 1000 }, aqui: { x: 70, y: 300 }, tabs: { y: 600 }, kj: { x: 70, y: 240 }, pc: { x: 330, y: 258 }, soz: { x: 330, y: 380 },
+  jt: { y: 540 }, jp: { y: 670, h: 760 }, n: { x: 70, y: 260 }, fan: { y: 1020 }, fim: { x: 70, y: 260 }, side2: { x: 40, y: 600, w: 1000 }, cta: { y: 360 },
+};
+function box(el, r) { el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px'; }
+const show = (id, on) => { $(id).style.visibility = on ? 'visible' : 'hidden'; };
+const pulse = (t, at, w = 0.15) => Math.max(0, 1 - Math.abs(t - at) / w);
+// lateral no quadro: x 0–530, y 60–540; barra de abas: x 545–1265, y 0–68; painel da esquerda: x 545–2175, y 84–
+const SIDE = { u: 265, v: 300, w: 530, h: 480 };
+const TABS = { u: 905, v: 34, w: 720, h: 68 };
+
+function draw(t) {
+  const light = (t >= 1.5 && t < 3.0) || (t >= 7.5 && t < 9.75), yel = t >= 12.0 && t < 13.65;
+  const jk = J.findIndex((j, i) => t >= j.t && t < j.t + 1.5);
+  // gancho: flash curto na cor de cada projeto quando o anel dele acende (0,25 · 0,5 · 0,75)
+  const fl = t < 1.0 ? [[0.25, COR.loja], [0.5, COR.fin], [0.75, COR.api]].find(([a]) => t >= a && t < a + 0.13) : null;
+  $('#bg2').style.opacity = light || yel || jk >= 0 || fl ? 1 : 0;
+  $('#bg2').style.background = yel ? 'var(--yellow)' : jk >= 0 ? J[jk].cor : fl ? fl[1] : '#f5f5f7';
+  ['#r0', '#r1', '#r2'].forEach((r) => put(r, { o: 0 }));
+
+  // ---------- S1 (0–1,5) e volta do loop (13,6–14): a lateral com os 3 projetos chamando ----------
+  const s1 = t < 1.5 || t >= 13.6, s7 = t >= 9.75 && t < 12.05;
+  const back = t >= 13.6 ? ease.outExpo(prog(t, 13.62, 0.36)) : 1, off = 560 * (1 - back);
+  const tt = t >= 13.6 ? 0 : t;
+  show('#side', s1 || s7);
+  if (s1) {
+    const S = L.side.w / SIDE.w, h = SIDE.h * S;
+    const punch = 0.06 * (pulse(tt, 0.5, 0.22) + pulse(tt, 1.0, 0.22));
+    clip($('#side img'), 3.0 + tt * 0.5);
+    box($('#side'), { x: L.side.x, y: L.side.y + off, w: L.side.w, h }); $('#side').style.opacity = 1;
+    cam($('#side img'), L.side.w, h, [[0, SIDE.u, SIDE.v, S * (1 + punch)], [1.5, SIDE.u, SIDE.v + 10, S * 1.04 * (1 + punch)]], tt);
+    // anel em volta da contagem de cada projeto, um por batida (loja y 87, finanças y 452, API y 506 no quadro)
+    [[465, 87, 110, 0.25], [443, 452, 154, 0.5], [491, 506, 58, 0.75]].forEach(([u, w, uw, at], i) => {
+      const p = ease.outBack(prog(tt, at, 0.3)), X = L.side.x + (u - (SIDE.u - SIDE.w / 2)) * S, Yy = L.side.y + off + (w - (SIDE.v - SIDE.h / 2)) * S;
+      const rw = (uw + 34) * S, rh = 50 * S;
+      box($('#r' + i), { x: X - rw / 2, y: Yy - rh / 2, w: rw, h: rh });
+      put('#r' + i, { x: 0, y: 0, s: 0.7 + 0.3 * p, o: Math.min(1, p) * (1 - ease.inCubic(prog(t, 1.4, 0.1))) * (t >= 13.6 ? 0 : 1), ox: '50%', oy: '50%' });
+    });
+  }
+  put('#hook', { x: L.hook.x, y: L.hook.y + off, o: t >= 13.6 ? 1 : 1 - ease.inCubic(prog(t, 1.4, 0.12)) });
+
+  // ---------- S2 (1,5–3): a barra de abas — "você tá aqui", "eles tão lá" ----------
+  const s2 = t >= 1.5 && t < 3.0;
+  const TW = 1000, TS = TW / TABS.w, TH = TABS.h * TS;
+  show('#tabs', s2 || jk >= 0);
+  if (s2) {
+    clip($('#tabs img'), 4.0 + (t - 1.5));
+    const e = ease.outExpo(prog(t, 1.5, 0.4)), BH = 330 * TS;
+    box($('#tabs'), { x: 40, y: L.tabs.y + 60 * (1 - e), w: TW, h: BH }); $('#tabs').style.opacity = e * (1 - ease.inCubic(prog(t, 2.88, 0.12)));
+    cam($('#tabs img'), TW, BH, [[1.5, TABS.u, 165, TS], [3.0, TABS.u, 165, TS * 1.02]], t);
+  }
+  const tx = (u) => 40 + (u - (TABS.u - TABS.w / 2)) * TS;
+  put('#aqui', { x: L.aqui.x, y: L.aqui.y, o: win(t, 1.6, 2.3, 0.2, 0.12) });
+  put('#la', { x: L.aqui.x, y: L.aqui.y, o: win(t, 2.3, 2.95, 0.15, 0.12) });
+  put('#ar0', { x: tx(620) - 28, y: L.tabs.y - 110 + 10 * Math.sin(t * 12), o: win(t, 1.65, 2.3, 0.15, 0.12) });
+  put('#ar1', { x: tx(1010) - 28, y: L.tabs.y - 110 + 10 * Math.sin(t * 12), o: win(t, 2.35, 2.95, 0.15, 0.12) });
+
+  // ---------- S3–S5 (3–7,5): três ⌘J reais, cada um com a cor do projeto ----------
+  show('#pane', jk >= 0);
+  if (jk >= 0) {
+    const j = J[jk], lt = t - j.t, c = j.c0 + lt * RATE, e = ease.outExpo(prog(lt, 0, 0.3));
+    clip($('#tabs img'), c); clip($('#pane img'), c);
+    box($('#tabs'), { x: 40, y: L.jt.y, w: TW, h: TH }); $('#tabs').style.opacity = 1;
+    $('#tabs').style.transform = `translateX(${(1 - e) * -80}px)`;
+    cam($('#tabs img'), TW, TH, [[0, TABS.u, TABS.v, TS]], lt);
+    const PW = 1000, h = L.jp.h, s0 = PW / 1630;
+    box($('#pane'), { x: 40, y: L.jp.y, w: PW, h }); $('#pane').style.opacity = 1;
+    $('#pane').style.transform = `translateX(${(1 - e) * 120}px)`;
+    const [fu, fv, fs] = j.fim;
+    const k0 = jk < 2 ? [0, 545 + PW / 0.75 / 2, 528 + h / 0.75 / 2, 0.75] : [0, 1360, 84 + h / s0 / 2, s0];
+    cam($('#pane img'), PW, h, [k0, [0.4, k0[1], k0[2], k0[3]], [0.95, fu, fv + h / fs / 2 - 120, fs], [1.5, fu, fv + h / fs / 2 - 110, fs * 1.02]], lt);
+    $('#pc').textContent = j.nome; $('#pc').style.color = j.cor;
+  } else $('#tabs').style.transform = 'none';
+  let press = 0; for (const j of J) press = Math.max(press, pulse(t, j.t + 0.12, 0.12));
+  const kin = jk >= 0 ? ease.outBack(prog(t - J[jk].t, 0, 0.25)) : 0;
+  put('#kj', { x: L.kj.x, y: L.kj.y + 14 * press, s: (0.7 + 0.3 * kin) * (1 - 0.06 * press), o: jk >= 0 ? Math.min(1, kin * 1.4) : 0, ox: '50%', oy: '50%' });
+  $('#kj').style.boxShadow = `0 ${0.09 * (1 - press)}em 0 #8d8f9c, 0 .2em .5em rgba(0,0,0,.45)`;
+  put('#pc', { x: L.pc.x, y: L.pc.y, s: jk >= 0 ? 0.85 + 0.15 * ease.outBack(prog(t - J[jk].t, 0.1, 0.3)) : 1, o: jk >= 0 ? ease.outExpo(prog(t - J[jk].t, 0.1, 0.2)) : 0, ox: '0%', oy: '50%' });
+  put('#sozinho', { x: L.soz.x, y: L.soz.y, o: win(t, 3.35, 4.45, 0.2, 0.1) });
+
+  // ---------- S6 (7,5–9,75): fundo claro; os 3 projetos atendidos, em leque ----------
+  const s6 = t >= 7.5 && t < 9.8;
+  if (!s6) ['#lb0', '#lb1', '#lb2'].forEach((x) => put(x, { o: 0 }));
+  const CARD = [[9.2, -7], [13.3, 0], [17.0, 7]];
+  CARD.forEach(([c, r], i) => {
+    const el = $('#k' + i); show('#k' + i, s6);
+    if (!s6) return;
+    const cw = 500, s = cw / 1630, ch = 1000 * s, e = ease.outExpo(prog(t, 7.5 + i * 0.12, 0.5));
+    clip(el.querySelector('img'), c);
+    box(el, { x: 290 + (i - 1) * 235, y: L.fan.y - ch / 2 + Math.abs(i - 1) * 40, w: cw, h: ch });
+    const lb = $('#lb' + i), le = ease.outBack(prog(t, 7.75 + i * 0.12, 0.3));
+    const lx = [330, 540, 700][i], ly = L.fan.y - ch / 2 + [-28, -165, -98][i];
+    put(lb, { x: lx - lb.offsetWidth / 2, y: ly, s: 0.8 + 0.2 * le, o: Math.min(1, le) * (1 - ease.inCubic(prog(t, 9.6, 0.18))), r: r * 0.5, ox: '50%', oy: '50%' });
+    el.style.transform = `translateY(${(1 - e) * 500}px) rotate(${r * e}deg) scale(${1 + 0.02 * (i === 1 ? 1 : 0)})`;
+    el.style.zIndex = i === 1 ? 3 : 2;
+    el.style.opacity = 1 - ease.inCubic(prog(t, 9.6, 0.18));
+    cam(el.querySelector('img'), cw, ch, [[0, 1360, 584, s]], t);
+  });
+  put('#n0', { x: L.n.x, y: L.n.y, o: win(t, 7.6, 9.7, 0.2, 0.12) });
+  put('#n1', { x: L.n.x, y: L.n.y + 100, o: win(t, 8.1, 9.7, 0.2, 0.12) });
+
+  // ---------- S7 (9,75–12): a lateral depois; ninguém pedindo nada ----------
+  if (s7) {
+    const S = L.side2.w / SIDE.w, h = 440 * S, e = ease.outExpo(prog(t, 9.75, 0.45));
+    clip($('#side img'), 20.0 + (t - 9.75) * 0.5);
+    box($('#side'), { x: L.side2.x, y: L.side2.y, w: L.side2.w, h }); $('#side').style.opacity = e * (1 - ease.inCubic(prog(t, 11.85, 0.15)));
+    cam($('#side img'), L.side2.w, h, [[9.75, SIDE.u, 280, S], [12.0, SIDE.u, 285, S * 1.04]], t);
+  }
+  put('#fim', { x: L.fim.x, y: L.fim.y, o: win(t, 9.85, 11.95, 0.25, 0.15) });
+
+  // ---------- CTA (12–14): sobe e a lateral do quadro 0 entra por baixo ----------
+  const cc = ease.outExpo(prog(t, 12.0, 0.45)), up = ease.inCubic(prog(t, 13.6, 0.3));
+  put('#cta', { x: 0, y: L.cta.y + 60 * (1 - cc) - 700 * up, o: cc * (1 - up) });
+  $('#icon').style.transform = `scale(${0.5 + 0.5 * ease.outBack(prog(t, 12.0, 0.45))})`;
+  [...document.querySelectorAll('#dots .dot')].forEach((d, i) => { d.style.transform = `scale(${ease.outBack(prog(t, 12.05 + i * 0.08, 0.35))})`; });
+}
+window.__seek = (t) => { draw(t); return P.settle(); };
+
+window.__audio = async (sr) => {
+  const D = window.__DURATION, S = P.Synth(sr, D);
+  const M = P.musica('escura'), SEGS = { escura: [[0, 21.094]], leve: [[0, 29.044]] };
+  if (M) await S.track(M.url, { segs: SEGS[M.id], breaks: [[2.5, 3.0, 400, 0.4]] });
+  else S.groove({ from: 0, to: D, mutes: [[2.5, 3.0], [13.75, 14]] });
+  [0.25, 0.5, 0.75].forEach((x, i) => { S.pop(x, 0.7 + i * 0.15); S.tick(x + 0.01, 1.2); });
+  S.thump(0.5, 0.5); S.thump(1.0, 0.7);
+  S.whoosh(1.42, 0.3, 0.6); S.tick(1.65, 1); S.tick(2.35, 1);
+  J.forEach((j) => { S.whoosh(j.t - 0.06, 0.25, 0.6); S.click(j.t + 0.12, 1.4); S.thump(j.t + 0.12, 0.5); S.pop(j.t + 0.3, 0.8); });
+  S.whoosh(7.45, 0.4, 0.6); [7.6, 8.1].forEach((x) => S.pop(x, 0.9));
+  S.whoosh(9.7, 0.35, 0.6); S.tick(9.9, 1);
+  S.thump(12.0, 0.9); S.whoosh(13.55, 0.45, 0.8);
+  return S.render();
+};
+</script>
+</body>
+</html>

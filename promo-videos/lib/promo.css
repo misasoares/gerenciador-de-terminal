@@ -1,0 +1,57 @@
+@import url('../assets/fonts/fonts.css');
+
+/* Tokens: TROQUE pelos do promo-videos/brand.md (cores reais do produto). Fontes locais em ../assets/fonts/fonts.css. */
+:root {
+  /* Noite afiada (src/renderer/src/app-themes.ts) + cores de estado do app */
+  --bg: #111219; --bg-deep: #0c0d12; --surface: #1c1e2a; --inset: #16171f; --fg: #e6e6ea; --muted: #a8aab8;
+  --yellow: #f2c94c; --green: #4cb782; --blue: #3b82f6; --indigo: #5e6ad2; --indigo-soft: #8b95ff;
+  --lime: #d9f99d; --lime-ink: #1a2e05; --loja: #e5484d;
+  --primary: var(--yellow); --primary-soft: var(--yellow); --amber: var(--yellow); --danger: #eb5757; --ok: var(--green);
+  --sans: 'Geist', system-ui, sans-serif; --serif: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', 'MesloLGS Nerd Font Mono', ui-monospace, monospace;
+}
+body.light, .light { --bg: #f5f5f7; --surface: #ffffff; --inset: #ececf0; --fg: #1d1d1f; --muted: #545458; --primary-soft: #9a6700; }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100vw; height: 100vh; overflow: hidden; background: var(--bg); color: var(--fg); font-family: var(--sans); }
+#stage { position: absolute; inset: 0; overflow: hidden; }
+.abs { position: absolute; left: 0; top: 0; }
+
+/* Tipos de texto do vídeo */
+.hook { font: 800 112px/0.98 var(--sans); letter-spacing: -0.035em; }
+.say  { font: 800 84px/1.02 var(--sans); letter-spacing: -0.03em; }
+.small { font: 600 44px/1.2 var(--sans); color: var(--muted); }
+.quote { font: 500 78px/1.12 var(--serif); letter-spacing: -0.01em; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.hl { color: var(--primary); }
+.uline { background: linear-gradient(var(--primary), var(--primary)) no-repeat 0 92% / var(--u, 0%) 0.09em; }
+
+/* Imagem de tela real (recorte de elemento em 3x) */
+.shot { display: block; image-rendering: auto; filter: drop-shadow(0 30px 60px rgba(0,0,0,.45)); }
+body.light .shot { filter: drop-shadow(0 24px 48px rgba(25,27,34,.16)); }
+
+/* Wordmark: reproduza o do produto (ex.: <div class="wordmark">Nome<b>parte</b></div>) */
+.wordmark { font: 800 150px/1 var(--sans); letter-spacing: -0.04em; color: var(--fg); white-space: nowrap; }
+.wordmark b { color: var(--primary); font-weight: 800; }
+.btn { display: inline-block; background: var(--primary); color: #fff; font: 700 52px/1 var(--sans); padding: 34px 54px; border-radius: 30px; white-space: nowrap; }
+
+/* Toque de dedo */
+.tap { width: 120px; height: 120px; border-radius: 50%; border: 6px solid rgba(255,255,255,.9); background: rgba(255,255,255,.18); box-shadow: 0 0 0 0 rgba(255,90,31,.5); }
+body.light .tap { border-color: rgba(25,27,34,.75); background: rgba(25,27,34,.10); }
+
+/* Legenda em caixa (estilo TikTok): use quando o texto cair sobre uma tela real */
+.cap span { background: #0c0e13; color: #fff; padding: 0.06em 0.22em; line-height: 1.32; -webkit-box-decoration-break: clone; box-decoration-break: clone; border-radius: 0.12em; }
+.cap span b { color: var(--primary-soft); font-weight: 800; }
+.ring { border: 7px solid var(--primary); border-radius: 22px; }
+/* NUNCA use will-change: transform aqui: o Chrome congela a escala do raster e o quadro passa a depender da ordem dos seeks. */
+
+/* ---------- Gerenciador de Terminal ---------- */
+.screen { position: absolute; overflow: hidden; border-radius: 22px; background: var(--bg-deep); box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 2px rgba(255,255,255,.07); }
+.screen > img { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: block; }
+.key { display: inline-flex; align-items: center; justify-content: center; gap: .12em; min-width: 1.6em; padding: .12em .32em; border-radius: .22em;
+  background: linear-gradient(#f4f4f7, #d9d9e0); color: #15161c; font: 700 1em/1 var(--sans); box-shadow: 0 .09em 0 #8d8f9c, 0 .2em .5em rgba(0,0,0,.45); }
+.dot { display: inline-block; width: .62em; height: .62em; border-radius: 50%; vertical-align: .02em; box-shadow: inset 0 -.08em .12em rgba(0,0,0,.25); }
+.dot.g { background: radial-gradient(circle at 35% 30%, #8ff0b8, var(--green) 60%); }
+.dot.y { background: radial-gradient(circle at 35% 30%, #fff1b0, var(--yellow) 60%); }
+.dot.b { background: radial-gradient(circle at 35% 30%, #9cc2ff, var(--blue) 60%); }
+.cap span { background: #0c0d12; }
+.hlY { color: var(--yellow); } .hlL { color: var(--lime); } .hlB { color: #7fa8ff; } .hlG { color: #6fd6a0; }
