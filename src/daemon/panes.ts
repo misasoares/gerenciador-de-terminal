@@ -9,6 +9,7 @@ import { PtyHost } from './pty-host'
 import { markSeen, reduceSession } from './session'
 import { EMPTY_INFERENCE, nextInference, worktreeOf, writtenPaths, type InferenceState } from './agent-worktree'
 import { createTitleReader } from './title'
+import type { Hibernation } from './hibernator'
 
 export interface PaneRecord {
   id: string
@@ -34,6 +35,12 @@ export interface PaneRecord {
   agentHooksMissing: boolean
   /** espaço de trabalho dono da sessão */
   workspaceId: string
+  /** agente encerrado por ociosidade; o shell segue vivo (null = não hibernada) */
+  hibernated: Hibernation | null
+  /** comando de retomada digitado, esperando o SessionStart */
+  waking: { since: number } | null
+  /** não tenta hibernar antes disso (falha anterior) */
+  hibernateCooldownUntil: number
 }
 
 export interface CreatePane {
@@ -158,6 +165,9 @@ export class PaneManager {
       inference: EMPTY_INFERENCE,
       inferredProjectPath: null,
       workspaceId: o.workspaceId ?? existing?.workspaceId ?? 'principal',
+      hibernated: null,
+      waking: null,
+      hibernateCooldownUntil: 0,
     }
     this.recs.set(id, rec)
     if (command) {
@@ -181,6 +191,13 @@ export class PaneManager {
 
   kill(id: string): void {
     this.host.kill(id)
+  }
+
+  /** comando da conta da sessão hibernada com --resume (mesmo --mcp-config das sessões novas) */
+  resumeCommand(h: Hibernation): string {
+    const accounts = this.d.accounts()
+    const account = (h.accountId ? accounts.find((a) => a.id === h.accountId) : undefined) ?? resumeAccount(accounts, h.agent)
+    return buildCommand(account, h.sessionId, { mcpConfig: this.d.mcpConfigPath })
   }
 
   private onPtyOutput(id: string): void {
@@ -231,6 +248,9 @@ export class PaneManager {
     const hadSession = rec.claude !== null
     rec.configDir = configDir
     rec.claude = reduceSession(rec.claude, p, Date.now(), agent)
+    // agente subiu (retomada ou digitado na mão) ou saiu: não está mais hibernada nem acordando
+    if (p.hook_event_name === 'SessionStart' || p.hook_event_name === 'SessionEnd') rec.waking = null
+    if (p.hook_event_name === 'SessionStart') rec.hibernated = null
     if (p.hook_event_name === 'SessionStart' || p.hook_event_name === 'SessionEnd') this.resetInference(rec)
     rec.missingPolls = 0
     if (!rec.claude) {
