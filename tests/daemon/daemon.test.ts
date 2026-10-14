@@ -814,3 +814,60 @@ describe('Daemon', () => {
     await app.waitState((s) => !s.floating.includes(paneId))
   })
 })
+
+describe('monitor da máquina', () => {
+  const G = 1024 ** 3
+  const fakeCpus = () => {
+    let n = 0
+    return () => {
+      n++
+      return [{ model: '', speed: 0, times: { user: n * 50, nice: 0, sys: 0, idle: n * 50, irq: 0 } }]
+    }
+  }
+  const mem = (p: Record<string, unknown> = {}) => async () => ({ ramUsed: 10 * G, ramTotal: 24 * G, swapUsed: 0, swapTotal: 0, pressure: 'normal' as const, ...p })
+
+  it('manda machine às janelas e a última leitura a quem conecta depois', async () => {
+    const { o, app } = await boot({ machineMem: mem(), machineCpus: fakeCpus(), machineIntervalMs: 40 })
+    await waitFor(() => (app.machine().length > 0 ? true : null), 3000)
+    expect(app.machine()[0].machine).toMatchObject({ cpu: 50, level: 'ok', ram: { total: 24 * G } })
+    expect(app.machine()[0].detail).toBeUndefined()
+    const late = await connectApp(o.socketPath)
+    await waitFor(() => (late.machine().length > 0 ? true : null), 3000)
+  })
+
+  it('watch traz o detalhe; unwatch e conexão fechada param o ps', async () => {
+    let psCalls = 0
+    const machinePs = async () => {
+      psCalls++
+      return [{ pid: 1, ppid: 0, rss: 1024, cpu: 1, etime: '01:00', args: '/sbin/launchd' }]
+    }
+    const { o, app } = await boot({ machineMem: mem(), machineCpus: fakeCpus(), machineIntervalMs: 40, machinePs })
+    await waitFor(() => (app.machine().length > 0 ? true : null), 3000)
+    expect(psCalls).toBe(0) // sem painel aberto, sem ps
+    app.client.send({ t: 'machine.watch' })
+    await waitFor(() => (app.machine().some((m) => m.detail) ? true : null), 3000)
+    expect(app.machine().find((m) => m.detail)!.detail!.groups.map((g) => g.key)).toEqual(['colima', 'emulador'])
+    app.client.send({ t: 'machine.unwatch' })
+    await new Promise((r) => setTimeout(r, 100))
+    const after = psCalls
+    await new Promise((r) => setTimeout(r, 200))
+    expect(psCalls).toBe(after)
+    // janela fecha com o painel aberto: para também
+    const other = await connectApp(o.socketPath)
+    other.client.send({ t: 'machine.watch' })
+    await waitFor(() => (other.machine().some((m) => m.detail) ? true : null), 3000)
+    other.client.close()
+    await new Promise((r) => setTimeout(r, 100))
+    const closed = psCalls
+    await new Promise((r) => setTimeout(r, 200))
+    expect(psCalls).toBe(closed)
+  })
+
+  it('limites novos nas preferências recalculam o nível', async () => {
+    const { app } = await boot({ machineMem: mem({ swapUsed: 10 * G }), machineCpus: fakeCpus(), machineIntervalMs: 40 })
+    await waitFor(() => (app.machine().at(-1)?.machine.level === 'warn' ? true : null), 3000)
+    const s0 = (await app.client.request<{ settings: TerminalSettings }>({ t: 'state.get' })).settings
+    await app.client.request({ t: 'settings.save', settings: { ...s0, machine: { ...s0.machine, swapWarn: 50, swapBad: 80 } } })
+    await waitFor(() => (app.machine().at(-1)?.machine.level === 'ok' ? true : null), 3000)
+  })
+})

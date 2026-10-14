@@ -3,6 +3,7 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { makeUsageReader } from './usage/read'
+import { makeMemReader, snapshotPsDetail } from './machine/read'
 import { Daemon, defaultShell } from './daemon'
 import { acquireLock, releaseLock } from './lock'
 
@@ -52,6 +53,8 @@ async function main(): Promise<void> {
     shell: defaultShell(),
     shellArgs: ['-il'],
     usageRead: makeUsageReader({ userHome: os.homedir() }),
+    machineMem: makeMemReader(),
+    machinePs: snapshotPsDetail,
     onShutdown: () => process.exit(0),
   })
   const bye = () => {

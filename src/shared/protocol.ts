@@ -1,4 +1,4 @@
-import type { Account, AgentKind, AppState, Bounds, HookPayload, Layout, FilePaneMeta } from './types'
+import type { Account, AgentKind, AppState, Bounds, HookPayload, Layout, FilePaneMeta, MachineDetail, MachineView } from './types'
 import type { TerminalSettings } from './settings'
 
 export const PROTOCOL_VERSION = 2
@@ -6,6 +6,8 @@ export const PROTOCOL_VERSION = 2
 export type ClientRequest =
   | { t: 'hello'; role: 'app' | 'hook'; version: number; workspaceId?: string }
   | { t: 'state.get' }
+  | { t: 'machine.watch' }
+  | { t: 'machine.unwatch' }
   | { t: 'hook'; paneId: string; configDir: string; agent?: AgentKind; payload: HookPayload }
   | { t: 'pane.create'; paneId?: string; cwd: string; accountId: string | null; resumeSessionId?: string; resumeAgent?: AgentKind; transcriptPath?: string | null; cols: number; rows: number }
   | { t: 'pane.attach'; paneId: string; cols?: number; rows?: number; seq?: number }
@@ -62,6 +64,7 @@ export type ServerMessage =
   | { t: 'state'; state: AppState }
   | { t: 'pane.data'; paneId: string; data: string; seq: number }
   | { t: 'usage.alert'; text: string }
+  | { t: 'machine'; machine: MachineView; detail?: MachineDetail }
   | { t: 'file.changed'; path: string; mtimeMs: number | null }
 
 /** eventos que o processo principal do Electron entrega ao renderer */

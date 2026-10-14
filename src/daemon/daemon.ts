@@ -24,6 +24,9 @@ import { ConversationIndex } from './conversations/index'
 import { existing, FileWatcher, listFiles, readFile, writeFile } from './files'
 import { groupLogins, missingLoginHints } from './usage/logins'
 import type { Login, ReadResult } from './usage/types'
+import { MachineMonitor, type MemSample } from './machine/monitor'
+import { groupProcs, type PsRow } from './machine/groups'
+import type { MachineDetail } from '../shared/types'
 
 export interface DaemonOptions {
   home: string
@@ -45,6 +48,12 @@ export interface DaemonOptions {
   /** leitor do uso do plano; padrão inerte (testes não tocam Keychain nem rede). O main.ts passa o real */
   usageRead?: (login: Login) => Promise<ReadResult>
   usageIntervalMs?: number
+  /** leitor de memória da máquina; padrão inerte (testes não dependem da máquina). O main.ts passa o real */
+  machineMem?: () => Promise<MemSample>
+  /** ps detalhado (sob demanda); padrão inerte */
+  machinePs?: () => Promise<PsRow[]>
+  machineCpus?: () => os.CpuInfo[]
+  machineIntervalMs?: number
   onShutdown?: () => void
   /** script do gt-mcp (padrão: ao lado do daemon.js) */
   mcpScriptPath?: string
@@ -66,6 +75,9 @@ export class Daemon {
   private stopping = false
   private conflicts = new Map<string, ConflictReport>()
   private conflictTimers = new Map<string, NodeJS.Timeout>()
+  private machine!: MachineMonitor
+  private machineWatchers = new Set<Conn>()
+  private machineDetailTimer: NodeJS.Timeout | null = null
   private conflictRerun = new Set<string>()
   private conflictCache = new Map<string, Map<string, string[]>>()
   private usage!: UsageMonitor
@@ -188,6 +200,17 @@ export class Daemon {
       log: (m) => console.error(m),
       intervalMs: this.o.usageIntervalMs,
     })
+    this.machine = new MachineMonitor({
+      readMem: this.o.machineMem ?? (async () => Promise.reject(new Error('sem leitor da máquina'))),
+      cpus: this.o.machineCpus,
+      limits: () => this.persisted.settings.machine,
+      intervalMs: this.o.machineIntervalMs,
+      log: (m) => console.error(m),
+      // mensagem própria, fora do state: o AppState inteiro a cada 3 s faria as janelas renderizarem à toa
+      onChange: (machine) => {
+        for (const c of this.server?.conns ?? []) if (c.role === 'app') c.send({ t: 'machine', machine })
+      },
+    })
 
     this.monitor = new GitMonitor((p) => {
       if (p) this.onWorktreeChanged(p)
@@ -222,6 +245,8 @@ export class Daemon {
     })
     this.hookWarnings = this.checkHookTargets()
     this.server = await startServer(this.o.socketPath, (req, conn) => this.handle(req, conn))
+    // sem leitor (testes que não injetam um): nunca há leitura, e o gate segue com aviso
+    if (this.o.machineMem) this.machine.start()
     this.refreshLogins()
     await this.registry.refreshAll()
     this.monitor.startFetch(() => this.registry.list().map((c) => c.path), this.o.fetchIntervalMs ?? p.fetchIntervalMin * 60_000)
@@ -245,6 +270,8 @@ export class Daemon {
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.monitor.stop()
     this.usage.stop()
+    this.machine.stop()
+    if (this.machineDetailTimer) clearInterval(this.machineDetailTimer)
     this.fileWatcher.stop()
     for (const t of this.conflictTimers.values()) clearTimeout(t)
     if (killPtys) this.panes.host.killAll()
@@ -444,6 +471,34 @@ export class Daemon {
     return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcpConfig: this.mcpConfigPath, name, promptFile }) }
   }
 
+  private panePids(): { id: string; pid: number }[] {
+    const out: { id: string; pid: number }[] = []
+    for (const r of this.panes.records()) {
+      const pid = r.alive ? this.panes.host.pid(r.id) : undefined
+      if (pid) out.push({ id: r.id, pid })
+    }
+    return out
+  }
+
+  private async readDetail(): Promise<MachineDetail> {
+    return groupProcs(await (this.o.machinePs ?? (async () => []))(), this.panePids())
+  }
+
+  private async pushMachineDetail(): Promise<void> {
+    const machine = this.machine.view()
+    if (!machine || this.machineWatchers.size === 0) return
+    const detail = await this.readDetail()
+    for (const c of this.machineWatchers) c.send({ t: 'machine', machine: this.machine.view() ?? machine, detail })
+  }
+
+  private unwatchMachine(conn: Conn): void {
+    this.machineWatchers.delete(conn)
+    if (this.machineWatchers.size === 0 && this.machineDetailTimer) {
+      clearInterval(this.machineDetailTimer)
+      this.machineDetailTimer = null
+    }
+  }
+
   /** espaço dono de um painel: o da sessão; painel de arquivo (sem sessão) é do espaço de quem pediu */
   private floatOwner(paneId: string, connWs: string): Workspace {
     const rec = this.panes.records().find((r) => r.id === paneId)
@@ -540,6 +595,10 @@ export class Daemon {
           }
         }
         if (req.role === 'app') setImmediate(() => conn.send({ t: 'state', state: this.buildState(conn.workspaceId) }))
+        if (req.role === 'app') {
+          const machine = this.machine.view()
+          if (machine) setImmediate(() => conn.send({ t: 'machine', machine }))
+        }
         return { protocolVersion: PROTOCOL_VERSION, buildId: BUILD_ID }
       case 'state.get':
         return this.buildState(conn.workspaceId)
@@ -666,6 +725,19 @@ export class Daemon {
         }
         this.fileWatcher.watch(req.path, conn)
         return null
+      case 'machine.watch':
+        if (!this.machineWatchers.has(conn)) {
+          this.machineWatchers.add(conn)
+          conn.onClose(() => this.unwatchMachine(conn))
+        }
+        if (!this.machineDetailTimer) {
+          this.machineDetailTimer = setInterval(() => void this.pushMachineDetail().catch((e) => console.error('ps da máquina falhou', e)), this.o.machineIntervalMs ?? 3000)
+        }
+        void this.pushMachineDetail().catch((e) => console.error('ps da máquina falhou', e))
+        return null
+      case 'machine.unwatch':
+        this.unwatchMachine(conn)
+        return null
       case 'file.unwatch':
         this.fileWatcher.unwatch(req.path, conn)
         return null
@@ -680,6 +752,7 @@ export class Daemon {
         return this.detectAgents()
       case 'settings.save':
         this.persisted.settings = normalizeSettings(req.settings)
+        this.machine.recompute()
         this.changed()
         return null
       case 'conflicts.analyze':
