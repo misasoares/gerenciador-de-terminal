@@ -57,6 +57,16 @@ export function wantsDesktop(a: Appearance, theme: AppThemeId, premium: boolean,
   return effectiveBackground(a, theme, premium, platform).kind === 'desktop'
 }
 
+/** limites do monitor da máquina; swap em % da RAM física (o macOS cresce o arquivo de swap sozinho) */
+export interface MachineLimits {
+  cpuWarn: number
+  cpuBad: number
+  swapWarn: number
+  swapBad: number
+  /** pressão do sistema: alerta = amarelo, crítica = bloqueia */
+  pressureGate: boolean
+}
+
 export interface TerminalSettings {
   appearance: Appearance
   /** 'match' = acompanha o tema do app */
@@ -70,6 +80,8 @@ export interface TerminalSettings {
   keybindings: KeyOverrides
   /** teto de sessões vivas criadas por um líder pelo MCP */
   maxHiredPerLeader: number
+  /** limites do indicador de CPU/RAM e do gate do contratar_dev */
+  machine: MachineLimits
 }
 
 export const DEFAULT_SETTINGS: TerminalSettings = {
@@ -81,9 +93,29 @@ export const DEFAULT_SETTINGS: TerminalSettings = {
   showGitStatus: true,
   keybindings: {},
   maxHiredPerLeader: 10,
+  machine: { cpuWarn: 70, cpuBad: 90, swapWarn: 25, swapBad: 75, pressureGate: true },
 }
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
+
+function limitPair(w: unknown, b: unknown, dw: number, db: number, min: number, max: number): [number, number] {
+  const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? clamp(Math.round(v), min, max) : d)
+  let warn = num(w, dw)
+  let bad = num(b, db)
+  if (warn >= bad) {
+    if (bad - 5 >= min) warn = bad - 5
+    else bad = Math.min(max, warn + 5)
+  }
+  return [warn, bad]
+}
+
+export function normalizeMachineLimits(v: unknown): MachineLimits {
+  const d = DEFAULT_SETTINGS.machine
+  const m = v && typeof v === 'object' ? (v as Record<string, unknown>) : {}
+  const [cpuWarn, cpuBad] = limitPair(m.cpuWarn, m.cpuBad, d.cpuWarn, d.cpuBad, 10, 100)
+  const [swapWarn, swapBad] = limitPair(m.swapWarn, m.swapBad, d.swapWarn, d.swapBad, 5, 150)
+  return { cpuWarn, cpuBad, swapWarn, swapBad, pressureGate: typeof m.pressureGate === 'boolean' ? m.pressureGate : d.pressureGate }
+}
 
 export function normalizeKeybindings(v: unknown): KeyOverrides {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
@@ -147,6 +179,7 @@ export function normalizeSettings(s: Partial<TerminalSettings> | undefined): Ter
     keybindings: normalizeKeybindings(v.keybindings),
     maxHiredPerLeader:
       typeof v.maxHiredPerLeader === 'number' && Number.isFinite(v.maxHiredPerLeader) ? clamp(Math.round(v.maxHiredPerLeader), 1, 50) : DEFAULT_SETTINGS.maxHiredPerLeader,
+    machine: normalizeMachineLimits(v.machine),
   }
 }
 

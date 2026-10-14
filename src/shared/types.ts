@@ -290,3 +290,50 @@ export interface FilePaneMeta {
   path: string
   mode: 'view' | 'edit'
 }
+
+export type MachineLevel = 'ok' | 'warn' | 'bad'
+/** pressão de memória do sistema; null = indisponível (Linux sem PSI) */
+export type MemPressure = 'normal' | 'alerta' | 'critica' | null
+
+/** leitura da máquina mandada às janelas pela mensagem 'machine' (fora do AppState) */
+export interface MachineView {
+  /** 0–100, leitura atual */
+  cpu: number
+  /** média do último minuto (usada no nível) */
+  cpu1m: number
+  /** bytes */
+  ram: { used: number; total: number }
+  /** bytes; total 0 = sem swap */
+  swap: { used: number; total: number }
+  pressure: MemPressure
+  level: MachineLevel
+  /** critérios que dispararam, ex.: ['swap 18,2 GB', 'pressão crítica'] */
+  reasons: string[]
+  /** ms epoch da última leitura boa */
+  at: number
+  /** a última leitura falhou */
+  stale: boolean
+}
+
+export interface MachineGroup {
+  key: 'sessoes' | 'colima' | 'emulador' | 'navegadores'
+  label: string
+  count: number
+  rss: number
+  cpu: number
+  paneIds?: string[]
+}
+
+export interface MachineProc {
+  pid: number
+  name: string
+  rss: number
+  cpu: number
+  etime: string
+}
+
+export interface MachineDetail {
+  groups: MachineGroup[]
+  top: MachineProc[]
+  perPane: Record<string, { rss: number; cpu: number }>
+}
