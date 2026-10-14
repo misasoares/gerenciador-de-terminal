@@ -49,7 +49,7 @@ describe('gt-mcp: protocolo', () => {
     serveLines(input, output, noCall)
     input.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) + '\n')
     await new Promise((r) => setTimeout(r, 50))
-    expect(JSON.parse(lines[0]).result.tools).toHaveLength(4)
+    expect(JSON.parse(lines[0]).result.tools).toHaveLength(5)
   })
   it('stdio: quando a entrada fecha (o Claude saiu), avisa para o processo encerrar', async () => {
     const input = new PassThrough()
