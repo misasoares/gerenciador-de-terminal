@@ -17,6 +17,7 @@ export type ClientRequest =
   | { t: 'pane.kill'; paneId: string }
   | { t: 'pane.forget'; paneId: string }
   | { t: 'pane.seen'; paneId: string }
+  | { t: 'pane.focus'; paneId: string | null }
   | { t: 'conflicts.analyze'; projectPath: string }
   | { t: 'pane.meta'; paneId: string; name?: string | null; color?: string | null }
   | { t: 'settings.save'; settings: TerminalSettings }

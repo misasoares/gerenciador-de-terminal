@@ -96,6 +96,10 @@ export interface PaneView {
   createdBy: string | null
   /** processo Codex rodando há um tempo sem mandar hooks (não aprovados no /hooks) */
   agentHooksMissing: boolean
+  /** agente encerrado por ociosidade (💤); ausente/null = não */
+  hibernated?: { since: number } | null
+  /** comando de retomada digitado, esperando o agente subir */
+  waking?: boolean
 }
 
 export type LayoutNode =

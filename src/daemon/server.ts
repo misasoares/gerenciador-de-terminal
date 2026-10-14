@@ -9,6 +9,8 @@ export interface Conn {
   workspaceId: string
   /** paneId → seq do último attach desta conexão */
   subscriptions: Map<string, number>
+  /** painel focado nesta janela (null = janela sem foco) */
+  focusedPaneId: string | null
   send(m: ServerMessage): void
   end(): void
   onClose(fn: () => void): void
@@ -39,6 +41,7 @@ export async function startServer(socketPath: string, handler: Handler): Promise
       role: null,
       workspaceId: 'principal',
       subscriptions: new Map(),
+      focusedPaneId: null,
       send: (m) => {
         if (!sock.destroyed) sock.write(encode(m))
       },

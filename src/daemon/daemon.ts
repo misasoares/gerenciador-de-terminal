@@ -28,6 +28,8 @@ import { MachineMonitor, type MemSample } from './machine/monitor'
 import { groupProcs, type PsRow } from './machine/groups'
 import { gateRefusal, machineReport } from './machine/report'
 import type { MachineDetail } from '../shared/types'
+import { Hibernator } from './hibernator'
+import { snapshotProcs } from './platform/procs'
 
 export interface DaemonOptions {
   home: string
@@ -39,6 +41,10 @@ export interface DaemonOptions {
   shellArgs: string[]
   env?: Record<string, string | undefined>
   pollMs?: number
+  /** intervalo da checagem de hibernação (padrão 30 s) */
+  hibernateCheckMs?: number
+  /** sobrescreve os minutos das Preferências (testes) */
+  hibernateThresholdMs?: number
   gitPollMs?: number
   fetchIntervalMs?: number
   conflictsDebounceMs?: number
@@ -72,6 +78,8 @@ export class Daemon {
   private broadcastTimer: NodeJS.Timeout | null = null
   private saveTimer: NodeJS.Timeout | null = null
   private pollTimer: NodeJS.Timeout | null = null
+  private hibernator!: Hibernator
+  private hibernateTimer: NodeJS.Timeout | null = null
   private worktreeTimer: NodeJS.Timeout | null = null
   private stopping = false
   private conflicts = new Map<string, ConflictReport>()
@@ -183,7 +191,8 @@ export class Daemon {
       codexHomes: () => this.persisted.codexHomes,
       accounts: () => this.persisted.accounts,
       loginDirs: () => this.persisted.loginDirs,
-      openSessions: () => new Map(this.panes.records().filter((r) => r.alive && r.claude).map((r) => [r.claude!.sessionId, r.id])),
+      // hibernada conta como aberta: "Focar" leva ao painel (que acorda) em vez de abrir duplicata
+      openSessions: () => new Map(this.panes.records().filter((r) => r.alive && (r.claude || r.hibernated)).map((r) => [r.claude?.sessionId ?? r.hibernated!.sessionId, r.id])),
       knownPaths: () => this.registry.allWorktreePaths(),
     })
     this.usage = new UsageMonitor({
@@ -259,6 +268,36 @@ export class Daemon {
     this.pollTimer = setInterval(() => {
       this.panes.poll().catch((e) => console.error('poll falhou', e))
     }, this.o.pollMs ?? 2000)
+    this.hibernator = new Hibernator({
+      records: () => this.panes.records(),
+      shellPid: (id) => this.panes.host.pid(id),
+      write: (id, data) => this.panes.write(id, data),
+      resumeCommand: (h) => this.panes.resumeCommand(h),
+      settings: () => this.persisted.settings.hibernate,
+      thresholdMs: this.o.hibernateThresholdMs,
+      meta: (id) => ({ leader: this.persisted.paneMeta[id]?.leader === true, hired: !!this.persisted.paneMeta[id]?.createdBy }),
+      focused: () => new Set([...(this.server?.conns ?? [])].flatMap((c) => (c.role === 'app' && c.focusedPaneId ? [c.focusedPaneId] : []))),
+      onChange: () => this.changed(),
+      snapshot: snapshotProcs,
+      signal: (pid, sig) => {
+        try {
+          process.kill(pid, sig)
+        } catch {
+          // já saiu
+        }
+      },
+      exists: (pid) => {
+        try {
+          process.kill(pid, 0)
+          return true
+        } catch {
+          return false
+        }
+      },
+    })
+    this.hibernateTimer = setInterval(() => {
+      this.hibernator.tick().catch((e) => console.error('hibernação falhou', e))
+    }, this.o.hibernateCheckMs ?? 30_000)
     this.save()
   }
 
@@ -267,6 +306,7 @@ export class Daemon {
     this.save() // antes de matar: os painéis vivos viram retomáveis no próximo início
     this.stopping = true
     if (this.pollTimer) clearInterval(this.pollTimer)
+    if (this.hibernateTimer) clearInterval(this.hibernateTimer)
     if (this.worktreeTimer) clearInterval(this.worktreeTimer)
     if (this.broadcastTimer) clearTimeout(this.broadcastTimer)
     if (this.saveTimer) clearTimeout(this.saveTimer)
@@ -315,7 +355,19 @@ export class Daemon {
       panes: this.panes
         .records()
         .filter((r) => r.alive)
-        .map((r) => ({ id: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude', transcriptPath: r.claude?.transcriptPath ?? null, workspaceId: r.workspaceId })),
+        .map((r) => {
+          // hibernada: o agente não está rodando, a sessão a retomar é a da hibernação
+          const h = r.hibernated
+          return {
+            id: r.id,
+            cwd: r.cwd,
+            accountId: h ? h.accountId : r.accountId,
+            sessionId: r.claude?.sessionId ?? h?.sessionId ?? null,
+            agent: r.claude?.agent ?? h?.agent ?? 'claude',
+            transcriptPath: r.claude?.transcriptPath ?? h?.transcriptPath ?? null,
+            workspaceId: r.workspaceId,
+          }
+        }),
     })
   }
 
@@ -372,6 +424,8 @@ export class Daemon {
         shellWorktreePath: r.worktreePath,
         worktreeInferred: r.inference.inferred !== null,
         agentHooksMissing: r.agentHooksMissing,
+        hibernated: r.hibernated ? { since: r.hibernated.since } : null,
+        waking: r.waking !== null,
         name: this.persisted.paneMeta[r.id]?.name ?? null,
         color: this.persisted.paneMeta[r.id]?.color ?? null,
         leader: this.persisted.paneMeta[r.id]?.leader === true,
@@ -787,6 +841,10 @@ export class Daemon {
         return null
       case 'pane.seen':
         this.panes.markSeen(req.paneId)
+        return null
+      case 'pane.focus':
+        conn.focusedPaneId = req.paneId
+        if (req.paneId) await this.hibernator.wake(req.paneId)
         return null
       case 'project.add': {
         const cfg = await this.registry.add(req.path, suggestAccount(this.persisted.accounts, req.path, this.o.userHome))

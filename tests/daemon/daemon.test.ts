@@ -78,6 +78,14 @@ function fakeCodexConv(o: DaemonOptions, cwd: string, id: string): string {
   return f
 }
 
+/** `claude` falso no PATH: imprime os argumentos e espera; sai com SIGTERM */
+function fakeAgentEnv(home: string): Record<string, string> {
+  const bin = path.join(home, 'fakebin')
+  fs.mkdirSync(bin, { recursive: true })
+  fs.writeFileSync(path.join(bin, 'claude'), "#!/bin/sh\necho \"fake-claude $*\"\ntrap 'exit 143' TERM\nwhile :; do sleep 0.2; done\n", { mode: 0o755 })
+  return { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(home, 'user') }
+}
+
 async function leaderIn(repoDir: string, extra: Partial<DaemonOptions> = {}) {
   const b = await boot(extra)
   await b.app.client.request({ t: 'project.add', path: repoDir })
@@ -300,6 +308,62 @@ describe('Daemon', () => {
     const { snapshot } = await second.app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
     await second.app.waitState((s) => s.resumable.length === 0 && s.panes[0]?.id === paneId)
     await second.app.waitState(() => (snapshot + second.app.output(paneId)).includes('claude --resume abcd-1234'))
+  })
+
+  it('hibernação: sessão ociosa hiberna e acorda com --resume ao focar', async () => {
+    repo = makeRepo()
+    const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
+    const { o, app } = await boot({ env: fakeAgentEnv(home), pollMs: 200, hibernateCheckMs: 100, hibernateThresholdMs: 300 }, home)
+    const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'misa', cols: 80, rows: 24 })
+    const { snapshot } = await app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
+    await waitFor(() => (snapshot + app.output(paneId)).includes('fake-claude'))
+    await hook(o, paneId, { hook_event_name: 'SessionStart', session_id: 'feed-0001', cwd: repo.dir, source: 'startup' })
+    await hook(o, paneId, { hook_event_name: 'Stop', session_id: 'feed-0001', cwd: repo.dir })
+
+    const st = await app.waitState((s) => !!s.panes[0]?.hibernated)
+    expect(st.panes[0].alive).toBe(true)
+
+    app.client.send({ t: 'pane.focus', paneId })
+    await app.waitState((s) => !s.panes[0]?.hibernated && s.panes[0]?.waking === true)
+    await waitFor(() => (snapshot + app.output(paneId)).includes('fake-claude --resume feed-0001'))
+    await hook(o, paneId, { hook_event_name: 'SessionStart', session_id: 'feed-0001', cwd: repo.dir, source: 'resume' })
+    await app.waitState((s) => s.panes[0]?.waking === false && s.panes[0]?.claude?.sessionId === 'feed-0001')
+  })
+
+  it('hibernação: painel em foco ou líder não hiberna', async () => {
+    repo = makeRepo()
+    const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
+    const { o, app } = await boot({ env: fakeAgentEnv(home), pollMs: 200, hibernateCheckMs: 100, hibernateThresholdMs: 300 }, home)
+    const mk = async () => (await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo!.dir, accountId: 'misa', cols: 80, rows: 24 })).paneId
+    const focused = await mk()
+    const leader = await mk()
+    app.client.send({ t: 'pane.focus', paneId: focused })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    for (const [id, s] of [[focused, 'f-1'], [leader, 'l-1']]) {
+      await hook(o, id, { hook_event_name: 'SessionStart', session_id: s, cwd: repo.dir, source: 'startup' })
+      await hook(o, id, { hook_event_name: 'Stop', session_id: s, cwd: repo.dir })
+    }
+    await new Promise((r) => setTimeout(r, 1500))
+    const st = app.state()!
+    expect(st.panes.filter((p) => p.claude).length).toBe(2)
+    expect(st.panes.every((p) => !p.hibernated)).toBe(true)
+  })
+
+  it('reinício do daemon: sessão hibernada vira retomável com a sessão da hibernação', async () => {
+    repo = makeRepo()
+    const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
+    const first = await boot({ env: fakeAgentEnv(home), pollMs: 200, hibernateCheckMs: 100, hibernateThresholdMs: 300 }, home)
+    const { paneId } = await first.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'misa', cols: 80, rows: 24 })
+    await hook(first.o, paneId, { hook_event_name: 'SessionStart', session_id: 'beef-0002', cwd: repo.dir, source: 'startup' })
+    await hook(first.o, paneId, { hook_event_name: 'Stop', session_id: 'beef-0002', cwd: repo.dir })
+    await first.app.waitState((s) => !!s.panes[0]?.hibernated)
+    first.app.client.close()
+    await first.d.stop(true)
+    daemons = []
+
+    const second = await boot({}, home)
+    const st = await second.app.waitState((s) => s.resumable.length === 1)
+    expect(st.resumable[0]).toMatchObject({ paneId, accountId: 'misa', sessionId: 'beef-0002', agent: 'claude' })
   })
 
   it('reinício do daemon: sessão Codex sem agente Codex retoma com codex, não com o Claude padrão', async () => {
