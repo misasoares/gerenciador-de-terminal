@@ -7,6 +7,7 @@ import { panesToAutoClose } from './focus'
 import { headerView } from './header'
 import { leaves } from './layout'
 import { getUi, setLayoutOwner, setUi, showError } from './store'
+import { startFocusSync } from './focus-sync'
 import { syncKeybindings } from './shortcuts'
 import { terminals } from './terminals'
 import { emitFileChanged } from './file-events'
@@ -126,6 +127,7 @@ function bootWorkspace(): void {
     else openFilePicker(cmd.root)
   })
   window.addEventListener('focus', () => markSeenIfLooking(getUi().focusedPaneId))
+  startFocusSync()
   window.gt.onReveal((paneId) => revealPane(paneId))
   window.gt.onUpdate((s) => setUi({ update: s }))
   window.gt.updateStatus().then((s) => setUi({ update: s })).catch(() => {})
@@ -151,6 +153,7 @@ function bootWorkspace(): void {
 function bootFloat(paneId: string): void {
   setLayoutOwner(false)
   setUi({ focusedPaneId: paneId })
+  startFocusSync()
   window.gt.onEvent((e) => {
     switch (e.t) {
       case 'state': {

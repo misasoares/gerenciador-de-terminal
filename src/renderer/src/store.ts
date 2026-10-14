@@ -53,6 +53,9 @@ const subscribe = (cb: () => void) => {
   return () => subs.delete(cb)
 }
 
+/** escuta toda mudança do estado da interface (fora do React) */
+export const subscribeUi = subscribe
+
 export function getUi(): UiState {
   return state
 }
