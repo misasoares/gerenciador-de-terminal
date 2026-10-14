@@ -90,7 +90,7 @@ export function parseLsofCwd(out: string): Map<number, string> {
   return result
 }
 
-function run(cmd: string, args: string[]): Promise<string> {
+export function run(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve) => {
     // lsof sai com código 1 se algum pid sumiu; a saída parcial ainda vale.
     // App aberto pelo Finder não tem LANG: força UTF-8 para caminhos com acento.
