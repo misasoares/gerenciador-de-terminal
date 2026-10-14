@@ -1,6 +1,22 @@
 import type { AppState, Layout, PaneView, SessionStatus } from '../../shared/types'
 import { leaves } from './layout'
 
+/** status mostrado: o da sessão, ou 💤 (agente encerrado por ociosidade) / acordando */
+export type DisplayStatus = SessionStatus | 'shell' | 'hibernated' | 'waking'
+
+export function displayStatus(p: Pick<PaneView, 'claude' | 'hibernated' | 'waking'>): DisplayStatus {
+  if (p.hibernated) return 'hibernated'
+  if (p.waking && !p.claude) return 'waking'
+  return p.claude?.status ?? 'shell'
+}
+
+export function hibernatedLabel(since: number, now: number): string {
+  const min = Math.max(0, Math.floor((now - since) / 60_000))
+  if (min < 1) return 'hibernada agora'
+  if (min < 60) return `hibernada há ${min} min`
+  return `hibernada há ${Math.floor(min / 60)} h`
+}
+
 export interface HeaderView {
   project: string
   worktree: string
@@ -10,7 +26,9 @@ export interface HeaderView {
   ahead: number
   behind: number
   hasUpstream: boolean
-  status: SessionStatus | 'shell'
+  status: DisplayStatus
+  /** quando hibernou (só com status 'hibernated') */
+  hibernatedSince: number | null
   account: { label: string; color: string } | null
   warning: string | null
   label: string
@@ -46,7 +64,8 @@ export function headerView(pane: PaneView, app: Pick<AppState, 'projects' | 'acc
     ahead: git?.ahead ?? 0,
     behind: git?.behind ?? 0,
     hasUpstream: Boolean(git?.upstream),
-    status: pane.claude?.status ?? 'shell',
+    status: displayStatus(pane),
+    hibernatedSince: pane.hibernated?.since ?? null,
     account: account ? { label: account.label, color: account.color } : null,
     warning: git?.error ?? project?.fetchError ?? null,
     label: (pane.leader ? '👑 ' : '') + (pane.name ?? pane.claude?.title ?? (pane.claude ? `sessão ${pane.seq}` : `terminal ${pane.seq}`)),

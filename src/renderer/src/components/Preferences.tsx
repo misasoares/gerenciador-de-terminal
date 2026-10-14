@@ -6,6 +6,7 @@ import { AppearancePanel } from './AppearancePanel'
 import { AgentsPanel } from './AgentsPanel'
 import { KeybindingsPanel } from './KeybindingsPanel'
 import { MachinePrefs } from './MachinePrefs'
+import { HibernatePrefs } from './HibernatePrefs'
 import { setUi, showError, useUi } from '../store'
 import { ModalFrame } from './ModalFrame'
 
@@ -45,7 +46,10 @@ export function Preferences() {
       ) : tab === 'agents' ? (
         <AgentsPanel />
       ) : tab === 'machine' ? (
-        <MachinePrefs value={draft.machine} onChange={(machine) => update({ machine })} />
+        <>
+          <MachinePrefs value={draft.machine} onChange={(machine) => update({ machine })} />
+          <HibernatePrefs value={draft.hibernate} onChange={(hibernate) => update({ hibernate })} />
+        </>
       ) : tab === 'shortcuts' ? (
         <KeybindingsPanel overrides={draft.keybindings} onChange={(keybindings) => update({ keybindings })} />
       ) : (

@@ -66,3 +66,11 @@ describe('splitWorktrees', () => {
     expect(main.sessions.find((s) => s.paneId === 'p1')).toMatchObject({ floating: false, hidden: true })
   })
 })
+
+describe('sidebar com sessão hibernada', () => {
+  it('sessão hibernada aparece como 💤 e não entra no resumo de atenção', () => {
+    const m = buildSidebar({ ...app, panes: [pane('p1', { hibernated: { since: 0 } })] })
+    expect(m.projects[0].worktrees[0].sessions[0].status).toBe('hibernated')
+    expect(m.projects[0].summary).toEqual({ working: 0, needsYou: 0, yourTurn: 0, idle: 0 })
+  })
+})

@@ -296,6 +296,7 @@ kbd { font-family: inherit; background: var(--bg-control); border-radius: var(--
 .ph-row1 .ph-path { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ph-row2 .ph-branch { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ph-fixed { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; }
+.ph-hibernated { color: var(--fg-dim); font-size: var(--text-xs); white-space: nowrap; }
 .ph-block { flex-shrink: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ph-row1 .ph-block { display: block; line-height: var(--header-height); height: var(--header-height); }
 .ph-row1 .ph-project { max-width: 34%; }

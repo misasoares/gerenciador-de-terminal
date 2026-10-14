@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gitBadges, headerView, sharesContext, tildify } from '../../src/renderer/src/header'
+import { displayStatus, gitBadges, headerView, hibernatedLabel, sharesContext, tildify } from '../../src/renderer/src/header'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import { sessionLabel } from '../../src/renderer/src/sidebar-model'
 import type { Layout, PaneView, ProjectView } from '../../src/shared/types'
@@ -19,7 +19,7 @@ describe('headerView', () => {
     const h = headerView(pane({ worktreePath: '/r/api/.claude/worktrees/auth', accountId: 'mslabs', claude: { sessionId: 's', agent: 'claude' as const, status: 'needs-you', statusSince: 0, title: null, transcriptPath: null } }), app)
     expect(h).toEqual({
       project: 'api', worktree: 'auth', isMainWorktree: false, branch: 'feat/auth', changed: 5, ahead: 2, behind: 0,
-      hasUpstream: false, status: 'needs-you', account: { label: 'mslabs', color: '#c586c0' }, warning: null, label: 'sessão 1', projectColor: null, sessionColor: null, worktreeInferred: false, shellWorktree: null,
+      hasUpstream: false, status: 'needs-you', hibernatedSince: null, account: { label: 'mslabs', color: '#c586c0' }, warning: null, label: 'sessão 1', projectColor: null, sessionColor: null, worktreeInferred: false, shellWorktree: null,
     })
   })
 
@@ -113,5 +113,20 @@ describe('líder', () => {
     expect(headerView(p, app).label).toBe('👑 Techlead')
     expect(sessionLabel({ ...p, leader: false })).toBe('Techlead')
     expect(sessionLabel(pane({ leader: true }))).toBe('👑 terminal 1')
+  })
+})
+
+describe('hibernação no cabeçalho', () => {
+  const claude = { sessionId: 's', agent: 'claude' as const, status: 'idle' as const, statusSince: 0, title: null, transcriptPath: null }
+  it('status de exibição', () => {
+    expect(displayStatus({ claude: null, hibernated: { since: 1 }, waking: false })).toBe('hibernated')
+    expect(displayStatus({ claude: null, hibernated: null, waking: true })).toBe('waking')
+    expect(displayStatus({ claude, hibernated: null, waking: true })).toBe('idle')
+    expect(displayStatus({ claude: null })).toBe('shell')
+  })
+  it('rótulo do tempo hibernada', () => {
+    expect(hibernatedLabel(0, 30_000)).toBe('hibernada agora')
+    expect(hibernatedLabel(0, 42 * 60_000)).toBe('hibernada há 42 min')
+    expect(hibernatedLabel(0, 130 * 60_000)).toBe('hibernada há 2 h')
   })
 })

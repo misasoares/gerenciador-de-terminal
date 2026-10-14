@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PaneView } from '../../../shared/types'
 import { floatPane, hidePaneAnimated, PANE_MIME } from '../actions'
-import { gitBadges, headerView, sharesContext, textOn } from '../header'
+import { gitBadges, headerView, hibernatedLabel, sharesContext, textOn } from '../header'
 import { getUi, setUi, useUi } from '../store'
 
-export const STATUS_DOT = { working: '🟢', 'needs-you': '🟡', 'your-turn': '🔵', idle: '⚪', shell: '' } as const
+export const STATUS_DOT = { working: '🟢', 'needs-you': '🟡', 'your-turn': '🔵', idle: '⚪', shell: '', hibernated: '💤', waking: '⏳' } as const
 
 /** Cabeçalho "C" do wireframe: bloco do projeto + bloco da worktree colados no início */
 export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; compact: boolean; onAddProject?: (dir: string) => void }) {
@@ -84,6 +84,12 @@ export function PaneHeader({ pane, compact, onAddProject }: { pane: PaneView; co
         {/* à direita, fixos: nunca somem por falta de espaço */}
         <span className="ph-fixed">
           {h.status !== 'shell' && <span className="ph-status">{STATUS_DOT[h.status]}</span>}
+          {h.status === 'hibernated' && h.hibernatedSince !== null && (
+            <span className="ph-hibernated" title="Agente encerrado por ociosidade; foque o painel para retomar a conversa">
+              {hibernatedLabel(h.hibernatedSince, Date.now())}
+            </span>
+          )}
+          {h.status === 'waking' && <span className="ph-hibernated">acordando…</span>}
           {h.account &&
             (compact ? (
               <span className="ph-account-square" style={{ background: h.account.color }} title={h.account.label} />

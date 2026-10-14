@@ -82,6 +82,10 @@ function MachinePanel({ anchor, onClose }: { anchor: HTMLElement; onClose: () =>
       <div className="mp-dim">
         swap {gb(v.swap.used)} GB · {pressureLabel(v.pressure)}
       </div>
+      {(() => {
+        const n = panes.filter((p) => p.hibernated).length
+        return n > 0 ? <div className="mp-dim">💤 {n === 1 ? '1 sessão hibernada' : `${n} sessões hibernadas`}</div> : null
+      })()}
       {v.level !== 'ok' && (
         <div className={v.level === 'bad' ? 'u-bad' : 'u-warn'}>
           {v.level === 'bad' ? 'Bloqueia contratar' : 'No limite'}: {v.reasons.join(' · ')}
