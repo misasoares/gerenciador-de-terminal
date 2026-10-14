@@ -17,7 +17,10 @@ export function MachineChip() {
   useEffect(() => {
     if (!open) return
     window.gt.send({ t: 'machine.watch' })
+    // o daemon trata o watch como aluguel: renova enquanto o painel está aberto
+    const renew = setInterval(() => window.gt.send({ t: 'machine.watch' }), 3000)
     return () => {
+      clearInterval(renew)
       window.gt.send({ t: 'machine.unwatch' })
       setUi({ machineDetail: null })
     }

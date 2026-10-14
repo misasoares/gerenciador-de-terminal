@@ -896,6 +896,26 @@ describe('monitor da máquina', () => {
     expect(await call('uso_da_maquina', {})).toMatchObject({ nivel: 'bad', pressao: 'pressão crítica', ram: '10,0/24,0 GB' })
   })
 
+  it('watch é um aluguel: sem renovar (janela recarregou), o ps para; renovando, continua', async () => {
+    let psCalls = 0
+    const machinePs = async () => {
+      psCalls++
+      return []
+    }
+    const { app } = await boot({ machineMem: mem(), machineCpus: fakeCpus(), machineIntervalMs: 40, machinePs })
+    await waitFor(() => (app.machine().length > 0 ? true : null), 3000)
+    const renew = setInterval(() => app.client.send({ t: 'machine.watch' }), 40)
+    await new Promise((r) => setTimeout(r, 400))
+    clearInterval(renew)
+    const renewed = psCalls
+    expect(renewed).toBeGreaterThan(4)
+    // parou de renovar e nunca mandou unwatch
+    await new Promise((r) => setTimeout(r, 400))
+    const settled = psCalls
+    await new Promise((r) => setTimeout(r, 300))
+    expect(psCalls).toBe(settled)
+  })
+
   it('limites novos nas preferências recalculam o nível', async () => {
     const { app } = await boot({ machineMem: mem({ swapUsed: 10 * G }), machineCpus: fakeCpus(), machineIntervalMs: 40 })
     await waitFor(() => (app.machine().at(-1)?.machine.level === 'warn' ? true : null), 3000)

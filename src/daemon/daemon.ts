@@ -77,7 +77,8 @@ export class Daemon {
   private conflicts = new Map<string, ConflictReport>()
   private conflictTimers = new Map<string, NodeJS.Timeout>()
   private machine!: MachineMonitor
-  private machineWatchers = new Set<Conn>()
+  /** conexão com o painel aberto → fim do aluguel (ms epoch); o painel renova enquanto está aberto */
+  private machineWatchers = new Map<Conn, number>()
   private machineDetailTimer: NodeJS.Timeout | null = null
   private conflictRerun = new Set<string>()
   private conflictCache = new Map<string, Map<string, string[]>>()
@@ -507,10 +508,13 @@ export class Daemon {
   }
 
   private async pushMachineDetail(): Promise<void> {
+    // janela que recarregou (ou perdeu a conexão) com o painel aberto não renova: sai sem unwatch
+    const now = Date.now()
+    for (const [c, until] of this.machineWatchers) if (until < now) this.unwatchMachine(c)
     const machine = this.machine.view()
     if (!machine || this.machineWatchers.size === 0) return
     const detail = await this.readDetail()
-    for (const c of this.machineWatchers) c.send({ t: 'machine', machine: this.machine.view() ?? machine, detail })
+    for (const c of this.machineWatchers.keys()) c.send({ t: 'machine', machine: this.machine.view() ?? machine, detail })
   }
 
   private unwatchMachine(conn: Conn): void {
@@ -747,16 +751,17 @@ export class Daemon {
         }
         this.fileWatcher.watch(req.path, conn)
         return null
-      case 'machine.watch':
-        if (!this.machineWatchers.has(conn)) {
-          this.machineWatchers.add(conn)
-          conn.onClose(() => this.unwatchMachine(conn))
-        }
+      case 'machine.watch': {
+        const fresh = !this.machineWatchers.has(conn)
+        this.machineWatchers.set(conn, Date.now() + 4 * (this.o.machineIntervalMs ?? 3000))
+        if (!fresh) return null // só renovou o aluguel
+        conn.onClose(() => this.unwatchMachine(conn))
         if (!this.machineDetailTimer) {
           this.machineDetailTimer = setInterval(() => void this.pushMachineDetail().catch((e) => console.error('ps da máquina falhou', e)), this.o.machineIntervalMs ?? 3000)
         }
         void this.pushMachineDetail().catch((e) => console.error('ps da máquina falhou', e))
         return null
+      }
       case 'machine.unwatch':
         this.unwatchMachine(conn)
         return null
