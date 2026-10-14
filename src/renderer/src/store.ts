@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { AppState, Layout, RemoveCheck } from '../../shared/types'
+import type { AppState, Layout, MachineDetail, MachineView, RemoveCheck } from '../../shared/types'
 import { errorMessage } from './api'
 import type { MotionPersonality } from './motion-presets'
 import type { UpdateStatus } from '../../shared/update'
@@ -26,6 +26,10 @@ export interface UiState {
   update: UpdateStatus
   /** "Atualizado para X · N sessões retomadas" na primeira abertura da versão nova */
   updateNotice: string | null
+  /** leitura da máquina (mensagem 'machine' do daemon, fora do AppState) */
+  machine: MachineView | null
+  /** consumidores: só chega com o painel do chip aberto */
+  machineDetail: MachineDetail | null
 }
 
 export type Modal =
@@ -41,7 +45,7 @@ export type Modal =
   | { kind: 'conversations'; paths: string[]; title: string; accountId?: string | null; replacePaneId?: string; projectPaths?: string[] }
   | { kind: 'release-notes'; version: string; notes: string }
 
-let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [], desktopMismatch: false, motion: 'subtle', update: { kind: 'idle' }, updateNotice: null }
+let state: UiState = { app: null, connected: false, versionMismatch: null, focusedPaneId: null, newSession: null, error: null, sidebarCollapsed: false, flashPaneId: null, modal: null, renamingPaneId: null, missingResume: [], desktopMismatch: false, motion: 'subtle', update: { kind: 'idle' }, updateNotice: null, machine: null, machineDetail: null }
 const subs = new Set<() => void>()
 
 const subscribe = (cb: () => void) => {

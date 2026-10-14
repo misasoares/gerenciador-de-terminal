@@ -114,6 +114,9 @@ function bootWorkspace(): void {
       case 'file.changed':
         emitFileChanged(e.path, e.mtimeMs)
         break
+      case 'machine':
+        setUi(e.detail ? { machine: e.machine, machineDetail: e.detail } : { machine: e.machine })
+        break
     }
   })
   window.gt.onMenu(runMenuAction)
