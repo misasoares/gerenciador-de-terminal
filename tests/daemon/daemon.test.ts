@@ -78,6 +78,16 @@ function fakeCodexConv(o: DaemonOptions, cwd: string, id: string): string {
   return f
 }
 
+async function leaderIn(repoDir: string, extra: Partial<DaemonOptions> = {}) {
+  const b = await boot(extra)
+  await b.app.client.request({ t: 'project.add', path: repoDir })
+  const { paneId } = await b.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repoDir, accountId: 'mslabs', cols: 80, rows: 24 })
+  await b.app.waitState((s) => s.panes.find((p) => p.id === paneId)?.projectPath === repoDir)
+  await b.app.client.request({ t: 'layout.save', layout: { tabs: [{ id: 't', name: 'Lider', root: { type: 'leaf', paneId } }], activeTabId: 't' } })
+  const call = (tool: string, args: Record<string, unknown>) => b.app.client.request<Record<string, unknown>>({ t: 'mcp.call', callerPaneId: paneId, tool, args })
+  return { ...b, leader: paneId, call }
+}
+
 describe('buildPaneEnv', () => {
   it('remove variáveis do daemon/Claude e garante LANG e TERM', () => {
     const env = buildPaneEnv({ PATH: '/bin', ELECTRON_RUN_AS_NODE: '1', CLAUDECODE: '1', CLAUDE_CONFIG_DIR: '/x', CLAUDE_CODE_ENTRYPOINT: 'cli', GT_PANE_ID: 'a', HOME: '/h' })
@@ -679,15 +689,6 @@ describe('Daemon', () => {
     const st = await second.app.waitState((s) => s.panes.some((p) => p.id === paneId))
     expect(st.panes.find((p) => p.id === paneId)).toMatchObject({ leader: true, createdBy: null })
   })
-  async function leaderIn(repoDir: string) {
-    const b = await boot()
-    await b.app.client.request({ t: 'project.add', path: repoDir })
-    const { paneId } = await b.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repoDir, accountId: 'mslabs', cols: 80, rows: 24 })
-    await b.app.waitState((s) => s.panes.find((p) => p.id === paneId)?.projectPath === repoDir)
-    await b.app.client.request({ t: 'layout.save', layout: { tabs: [{ id: 't', name: 'Lider', root: { type: 'leaf', paneId } }], activeTabId: 't' } })
-    const call = (tool: string, args: Record<string, unknown>) => b.app.client.request<Record<string, unknown>>({ t: 'mcp.call', callerPaneId: paneId, tool, args })
-    return { ...b, leader: paneId, call }
-  }
 
   it('contratar: só o líder cria; worktree, nome, conta, prompt e aba do líder', async () => {
     repo = makeRepo()
@@ -861,6 +862,38 @@ describe('monitor da máquina', () => {
     const closed = psCalls
     await new Promise((r) => setTimeout(r, 200))
     expect(psCalls).toBe(closed)
+  })
+
+  const critical = { machineMem: mem({ pressure: 'critica' }), machineCpus: fakeCpus(), machineIntervalMs: 40, machinePs: async () => [] }
+
+  it('gate: máquina no vermelho recusa sem criar nada; forcar passa com aviso', async () => {
+    repo = makeRepo()
+    const { app, leader, call } = await leaderIn(repo.dir, critical)
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await waitFor(() => (app.machine().at(-1)?.machine.level === 'bad' ? true : null), 3000)
+    await expect(call('contratar_dev', { nome: 'dev-1' })).rejects.toThrow(/Máquina sobrecarregada: pressão crítica .*forcar: true/)
+    expect(fs.existsSync(path.join(repo.dir, '.claude', 'worktrees', 'dev-1'))).toBe(false)
+    expect((await app.client.request<{ panes: unknown[] }>({ t: 'state.get' })).panes).toHaveLength(1)
+    const r = await call('contratar_dev', { nome: 'dev-1', worktree: false, forcar: true })
+    expect(r).toMatchObject({ nome: 'dev-1', aviso: 'contratado com a máquina sobrecarregada (pressão crítica)' })
+  })
+
+  it('gate: amarelo contrata com aviso; sem leitura contrata com aviso', async () => {
+    repo = makeRepo()
+    const warn = await leaderIn(repo.dir, { machineMem: mem({ pressure: 'alerta' }), machineCpus: fakeCpus(), machineIntervalMs: 40 })
+    await warn.app.client.request({ t: 'pane.setLeader', paneId: warn.leader, leader: true })
+    await waitFor(() => (warn.app.machine().length > 0 ? true : null), 3000)
+    expect(await warn.call('contratar_dev', { nome: 'dev-1', worktree: false })).toMatchObject({ aviso: 'máquina no limite: pressão em alerta' })
+    const blind = await leaderIn(repo.dir) // leitor padrão inerte: nunca há leitura
+    await blind.app.client.request({ t: 'pane.setLeader', paneId: blind.leader, leader: true })
+    expect(await blind.call('contratar_dev', { nome: 'dev-2', worktree: false })).toMatchObject({ aviso: 'não consegui medir a máquina' })
+  })
+
+  it('uso_da_maquina: qualquer sessão consulta (sem ser líder)', async () => {
+    repo = makeRepo()
+    const { app, call } = await leaderIn(repo.dir, critical)
+    await waitFor(() => (app.machine().length > 0 ? true : null), 3000)
+    expect(await call('uso_da_maquina', {})).toMatchObject({ nivel: 'bad', pressao: 'pressão crítica', ram: '10,0/24,0 GB' })
   })
 
   it('limites novos nas preferências recalculam o nível', async () => {

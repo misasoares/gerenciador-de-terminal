@@ -12,6 +12,7 @@ export const INSTRUCTIONS = [
   'Quando o usuário pedir para contratar, chamar, abrir ou criar devs, ajudantes, agentes, sessões ou terminais (ex.: "contrata 3 devs", "abre 2 sessões para X"), use contratar_dev uma vez por dev: abre um terminal novo de verdade, ao lado desta sessão, com nome, conta, worktree git própria e o prompt inicial. Isso NÃO é subagente nem Agent/Task: são sessões independentes que o usuário vê e usa.',
   'Dê nomes curtos (dev-1, dev-2…) e mande no prompt a tarefa completa de cada um. Coordene pelo SendMessage nativo, endereçando pelo nome; use listar_equipe para ver quem está trabalhando, pedindo permissão ou esperando (sua-vez).',
   'Quando pedirem para demitir, dispensar, encerrar ou fechar devs, use demitir_dev: o terminal some da tela, mas a worktree, a branch e a conversa ficam. Antes de demitir quem está no meio de algo, peça pelo SendMessage que commite e avise.',
+  'Antes de contratar mais de um dev, consulte uso_da_maquina e ajuste quantos contratar. Se contratar_dev recusar por máquina sobrecarregada, mostre o motivo ao usuário e só use forcar: true se ele autorizar.',
   'Só a sessão marcada pelo usuário como líder (👑) pode usar estas ferramentas; se vier "esta sessão não é líder", explique ao usuário como marcar (menu da sessão na sidebar → Pode contratar sessões).',
 ].join('\n')
 
@@ -28,6 +29,7 @@ export const TOOLS = [
         conta: str('conta do agente (id ou rótulo); padrão: a desta sessão'),
         worktree: { type: 'boolean', description: 'criar worktree git nova em .claude/worktrees/<nome> (padrão true)' },
         base: str('branch de partida da worktree; padrão: a branch atual desta sessão'),
+        forcar: { type: 'boolean', description: 'contratar mesmo com a máquina sobrecarregada; só com autorização explícita do usuário' },
         onde: { type: 'string', enum: ['aba-do-lider', 'flutuante'], description: 'onde a sessão aparece: aba-do-lider (padrão, divide a aba) ou flutuante (janela própria por cima de tudo)' },
       },
       required: ['nome'],
@@ -47,6 +49,12 @@ export const TOOLS = [
     name: 'demitir_dev',
     description: 'Demitir / dispensar um dev: encerra uma sessão criada por esta sessão e tira o terminal da tela. A worktree, a branch e a conversa ficam (o usuário remove a worktree pela sidebar).',
     inputSchema: { type: 'object', properties: { nome: str('nome da sessão') }, required: ['nome'] },
+  },
+  {
+    name: 'uso_da_maquina',
+    description:
+      'Uso atual de CPU, RAM, swap e pressão de memória da máquina, os maiores consumidores (sessões do app, Colima/Docker, emulador, navegadores, top 5 processos), a RAM média por sessão do Claude e quantas sessões ainda cabem. Consulte antes de contratar devs.',
+    inputSchema: { type: 'object', properties: {} },
   },
 ]
 

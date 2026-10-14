@@ -19,10 +19,14 @@ describe('gt-mcp: protocolo', () => {
     expect(await handleMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, noCall)).toBeNull()
     expect(await handleMessage({ jsonrpc: '2.0', id: 2, method: 'x/y' }, noCall)).toMatchObject({ id: 2, error: { code: -32601 } })
   })
-  it('tools/list traz as 4 ferramentas', async () => {
+  it('tools/list traz as 5 ferramentas; contratar aceita forcar', async () => {
     const r = (await handleMessage({ jsonrpc: '2.0', id: 3, method: 'tools/list' }, noCall)) as { result: { tools: { name: string }[] } }
-    expect(r.result.tools.map((t) => t.name)).toEqual(['contratar_dev', 'listar_equipe', 'renomear_dev', 'demitir_dev'])
-    expect(TOOLS[0].inputSchema).toMatchObject({ type: 'object', required: ['nome'] })
+    expect(r.result.tools.map((t) => t.name)).toEqual(['contratar_dev', 'listar_equipe', 'renomear_dev', 'demitir_dev', 'uso_da_maquina'])
+    expect(TOOLS[0].inputSchema).toMatchObject({ type: 'object', required: ['nome'], properties: { forcar: { type: 'boolean' } } })
+  })
+  it('instruções mandam consultar uso_da_maquina e só forçar com autorização', async () => {
+    const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
+    for (const k of ['uso_da_maquina', 'forcar: true', 'autorizar']) expect(r.result.instructions).toContain(k)
   })
   it('tools/call repassa e devolve texto; erro vira isError', async () => {
     const seen: unknown[] = []

@@ -26,6 +26,7 @@ import { groupLogins, missingLoginHints } from './usage/logins'
 import type { Login, ReadResult } from './usage/types'
 import { MachineMonitor, type MemSample } from './machine/monitor'
 import { groupProcs, type PsRow } from './machine/groups'
+import { gateRefusal, machineReport } from './machine/report'
 import type { MachineDetail } from '../shared/types'
 
 export interface DaemonOptions {
@@ -398,6 +399,14 @@ export class Daemon {
       if (!r) throw new Error(`sessão não encontrada neste espaço: ${String(n ?? '')}`)
       return r
     }
+    // só leitura: qualquer sessão pode consultar
+    if (tool === 'uso_da_maquina') {
+      const v = this.machine.view()
+      if (!v) return { aviso: 'ainda sem leitura da máquina; tente de novo em alguns segundos' }
+      const d = await this.readDetail()
+      const claude = this.panes.records().filter((r) => r.alive && r.claude).flatMap((r) => (d.perPane[r.id] ? [d.perPane[r.id]] : []))
+      return machineReport(v, d, claude)
+    }
     // todas as ferramentas, inclusive listar, são só do líder
     if (meta[caller.id]?.leader !== true) throw new Error('esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão')
     if (tool === 'listar_equipe') {
@@ -431,11 +440,24 @@ export class Daemon {
     throw new Error(`ferramenta desconhecida: ${tool}`)
   }
 
+  /** null = segue sem aviso; string = segue com aviso; lança = recusa (antes de qualquer efeito) */
+  private async machineGate(force: boolean): Promise<string | null> {
+    const v = this.machine.view()
+    if (!v || (v.stale && Date.now() - v.at > 60_000)) return 'não consegui medir a máquina'
+    if (v.level === 'bad') {
+      if (force) return `contratado com a máquina sobrecarregada (${v.reasons.join(' · ')})`
+      throw new Error(gateRefusal(v, await this.readDetail()))
+    }
+    if (v.level === 'warn') return `máquina no limite: ${v.reasons.join(' · ')}`
+    return null
+  }
+
   private async hire(caller: PaneRecord, w: Workspace, args: Record<string, unknown>) {
     const meta = this.persisted.paneMeta
     const max = this.persisted.settings.maxHiredPerLeader
     const live = this.panes.records().filter((r) => r.alive)
     if (live.filter((r) => meta[r.id]?.createdBy === caller.id).length >= max) throw new Error(`limite de ${max} sessões atingido; encerre alguma ou aumente o limite nas preferências`)
+    const aviso = await this.machineGate(args.forcar === true)
     const name = uniqueDash(checkName(String(args.nome ?? '')), live.filter((r) => r.workspaceId === w.id).map((r) => meta[r.id]?.name ?? ''))
     const account = pickAccount(this.persisted.accounts, args.conta, caller.accountId)
     let cwd = caller.cwd
@@ -468,7 +490,7 @@ export class Daemon {
     if (args.onde === 'flutuante') w.floating.push(id)
     else w.layout = insertBeside(w.layout, caller.id, id)
     this.changed()
-    return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcpConfig: this.mcpConfigPath, name, promptFile }) }
+    return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcpConfig: this.mcpConfigPath, name, promptFile }), ...(aviso ? { aviso } : {}) }
   }
 
   private panePids(): { id: string; pid: number }[] {
