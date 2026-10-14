@@ -201,6 +201,23 @@ button:disabled { opacity: 0.5; cursor: default; }
 .u-warn { color: var(--warn); }
 .u-bad { color: var(--error); }
 .u-dim { opacity: 0.55; }
+.st-machine { display: flex; align-items: center; gap: 10px; background: none; color: inherit; padding: 0 2px; font-size: var(--text-sm); white-space: nowrap; }
+.st-machine > span { display: inline-flex; align-items: center; }
+.m-bar { display: inline-flex; gap: 1px; margin: 0 4px; }
+.m-seg { width: 4px; height: 9px; border-radius: 1px; background: currentColor; opacity: 0.2; }
+.m-seg.on { opacity: 0.9; }
+.machine-panel { position: fixed; z-index: 1000; width: 320px; max-height: 70vh; overflow-y: auto; padding: 10px 12px; background: var(--bg-bar); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); font-size: var(--text-sm); color: var(--fg); }
+.mp-title { font-weight: 600; margin-bottom: 6px; }
+.mp-sub { margin: 10px 0 4px; font-size: var(--text-xs); color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.mp-dim { color: var(--fg-dim); }
+.mp-row { display: grid; grid-template-columns: 1fr 64px 40px; gap: 8px; padding: 2px 0; align-items: center; }
+.mp-row > span:not(:first-child) { text-align: right; }
+.mp-row4 { grid-template-columns: 1fr 44px 56px 48px; }
+.mp-span2 { grid-column: span 2; }
+.mp-indent { padding-left: 14px; }
+.mp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-link { background: none; color: inherit; padding: 0; text-align: left; font-size: inherit; }
+.mp-link:hover { color: var(--link); }
 
 .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--fg-dim); }
 .empty-title { color: var(--fg); font-size: var(--text-lg); margin: 0; }

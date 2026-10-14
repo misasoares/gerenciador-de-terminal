@@ -5,6 +5,7 @@ import { hidePane } from '../actions'
 import { setUi, showError, useUi } from '../store'
 import { usageChips } from '../usage-model'
 import { liveMissing } from '../conversations-model'
+import { MachineChip } from './MachineChip'
 
 /** 2l: avisos não intrusivos na barra de status inferior */
 export function StatusBar() {
@@ -111,6 +112,7 @@ export function StatusBar() {
         </span>
       )}
       <span className="st-spacer" />
+      <MachineChip />
       {usageChips(app, Date.now()).map((c) => (
         <span key={c.key} className={`st-usage${c.dim ? ' u-dim' : ''}`} title={c.tooltip}>
           <span style={{ color: c.color }}>{c.label}</span>
