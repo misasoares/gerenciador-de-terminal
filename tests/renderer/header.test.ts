@@ -119,7 +119,7 @@ describe('líder', () => {
 describe('hibernação no cabeçalho', () => {
   const claude = { sessionId: 's', agent: 'claude' as const, status: 'idle' as const, statusSince: 0, title: null, transcriptPath: null }
   it('status de exibição', () => {
-    expect(displayStatus({ claude: null, hibernated: { since: 1 }, waking: false })).toBe('hibernated')
+    expect(displayStatus({ claude: null, hibernated: { since: 1, title: null }, waking: false })).toBe('hibernated')
     expect(displayStatus({ claude: null, hibernated: null, waking: true })).toBe('waking')
     expect(displayStatus({ claude, hibernated: null, waking: true })).toBe('idle')
     expect(displayStatus({ claude: null })).toBe('shell')

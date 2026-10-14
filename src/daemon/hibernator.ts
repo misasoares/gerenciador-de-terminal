@@ -8,6 +8,8 @@ export interface Hibernation {
   agent: AgentKind
   accountId: string | null
   transcriptPath: string | null
+  /** título da conversa (a sidebar e o cabeçalho continuam mostrando) */
+  title: string | null
   /** epoch ms em que hibernou */
   since: number
 }
@@ -128,7 +130,7 @@ export class Hibernator {
     const c = r.claude
     if (!c) return
     this.busy.add(r.id)
-    const h: Hibernation = { sessionId: c.sessionId, agent: c.agent, accountId: r.accountId ?? r.launchedAccountId, transcriptPath: c.transcriptPath, since: this.now() }
+    const h: Hibernation = { sessionId: c.sessionId, agent: c.agent, accountId: r.accountId ?? r.launchedAccountId, transcriptPath: c.transcriptPath, title: c.title, since: this.now() }
     const active = () => r.claude?.status === 'working' || r.claude?.status === 'needs-you'
     try {
       this.d.signal(pid, 'SIGTERM')
@@ -169,7 +171,8 @@ export class Hibernator {
       if (atPrompt) {
         r.launchedAccountId = h.accountId
         r.accountId = h.accountId
-        this.d.write(r.id, this.d.resumeCommand(h) + '\r')
+        // Ctrl-U antes: o que o usuário digitou entre o foco e aqui não gruda no comando
+        this.d.write(r.id, '\x15' + this.d.resumeCommand(h) + '\r')
         r.waking = { since: this.now() }
       }
       this.d.onChange()

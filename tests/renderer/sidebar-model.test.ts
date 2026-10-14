@@ -69,8 +69,15 @@ describe('splitWorktrees', () => {
 
 describe('sidebar com sessão hibernada', () => {
   it('sessão hibernada aparece como 💤 e não entra no resumo de atenção', () => {
-    const m = buildSidebar({ ...app, panes: [pane('p1', { hibernated: { since: 0 } })] })
+    const m = buildSidebar({ ...app, panes: [pane('p1', { hibernated: { since: 0, title: null } })] })
     expect(m.projects[0].worktrees[0].sessions[0].status).toBe('hibernated')
     expect(m.projects[0].summary).toEqual({ working: 0, needsYou: 0, yourTurn: 0, idle: 0 })
+  })
+})
+
+describe('rótulo de sessão hibernada', () => {
+  it('mantém o título da conversa', () => {
+    expect(sessionLabel(pane('p7', { hibernated: { since: 0, title: 'Refatorar auth' } }))).toBe('Refatorar auth')
+    expect(sessionLabel(pane('p8', { hibernated: { since: 0, title: null } }))).toBe('sessão 8')
   })
 })

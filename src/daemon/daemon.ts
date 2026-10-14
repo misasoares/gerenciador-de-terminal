@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import os from 'node:os'
 import { PROTOCOL_VERSION, type ClientRequest } from '../shared/protocol'
-import { DEFAULT_FLOAT, type AgentKind, type AppState, type ConflictReport, type LayoutNode, type Workspace } from '../shared/types'
+import { DEFAULT_FLOAT, type AgentKind, type AppState, type ConflictReport, type LayoutNode, type ResumeEntry, type Workspace } from '../shared/types'
 import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
@@ -66,6 +66,19 @@ export interface DaemonOptions {
   mcpScriptPath?: string
   /** binário que roda o gt-mcp (padrão: o do app, com ELECTRON_RUN_AS_NODE) */
   nodeBinary?: string
+}
+
+/** como retomar um painel vivo: a sessão em curso ou, se hibernada, a da hibernação */
+function resumeEntryOf(r: PaneRecord): ResumeEntry {
+  const h = r.hibernated
+  return {
+    paneId: r.id,
+    cwd: r.cwd,
+    accountId: h ? h.accountId : r.accountId,
+    sessionId: r.claude?.sessionId ?? h?.sessionId ?? null,
+    agent: r.claude?.agent ?? h?.agent ?? 'claude',
+    transcriptPath: r.claude?.transcriptPath ?? h?.transcriptPath ?? null,
+  }
 }
 
 export class Daemon {
@@ -356,17 +369,8 @@ export class Daemon {
         .records()
         .filter((r) => r.alive)
         .map((r) => {
-          // hibernada: o agente não está rodando, a sessão a retomar é a da hibernação
-          const h = r.hibernated
-          return {
-            id: r.id,
-            cwd: r.cwd,
-            accountId: h ? h.accountId : r.accountId,
-            sessionId: r.claude?.sessionId ?? h?.sessionId ?? null,
-            agent: r.claude?.agent ?? h?.agent ?? 'claude',
-            transcriptPath: r.claude?.transcriptPath ?? h?.transcriptPath ?? null,
-            workspaceId: r.workspaceId,
-          }
+          const { paneId, ...e } = resumeEntryOf(r)
+          return { id: paneId, ...e, workspaceId: r.workspaceId }
         }),
     })
   }
@@ -384,7 +388,7 @@ export class Daemon {
         // mesmo rótulo da sidebar (sessionLabel): nome dado, título da conversa, "sessão N" ou "terminal N"
         const item = (r: (typeof live)[number]) => ({
           id: r.id,
-          label: this.persisted.paneMeta[r.id]?.name ?? (r.claude ? (r.claude.title ?? `sessão ${r.seq}`) : `terminal ${r.seq}`),
+          label: this.persisted.paneMeta[r.id]?.name ?? (r.claude || r.hibernated ? (r.claude?.title ?? r.hibernated?.title ?? `sessão ${r.seq}`) : `terminal ${r.seq}`),
           status: r.claude?.status ?? null,
         })
         const byId = new Map(live.map((r) => [r.id, r]))
@@ -417,14 +421,15 @@ export class Daemon {
         cwd: r.cwd,
         alive: r.alive,
         exitCode: r.exitCode,
-        accountId: r.accountId,
+        // hibernada: a sessão (e a conta) é a da hibernação, o agente não está rodando
+        accountId: r.hibernated ? r.hibernated.accountId : r.accountId,
         claude: r.claude,
         projectPath: this.panes.effectiveProject(r),
         worktreePath: this.panes.effectiveWorktree(r),
         shellWorktreePath: r.worktreePath,
         worktreeInferred: r.inference.inferred !== null,
         agentHooksMissing: r.agentHooksMissing,
-        hibernated: r.hibernated ? { since: r.hibernated.since } : null,
+        hibernated: r.hibernated ? { since: r.hibernated.since, title: r.hibernated.title } : null,
         waking: r.waking !== null,
         name: this.persisted.paneMeta[r.id]?.name ?? null,
         color: this.persisted.paneMeta[r.id]?.color ?? null,
@@ -934,7 +939,7 @@ export class Daemon {
         const w = this.persisted.workspaces.find((x) => x.id === req.id)
         if (!w) throw new Error(`espaço não encontrado: ${req.id}`)
         for (const r of this.panes.records().filter((x) => x.alive && x.workspaceId === w.id)) {
-          if (!w.resumable.some((e) => e.paneId === r.id)) w.resumable.push({ paneId: r.id, cwd: r.cwd, accountId: r.accountId, sessionId: r.claude?.sessionId ?? null, agent: r.claude?.agent ?? 'claude', transcriptPath: r.claude?.transcriptPath ?? null })
+          if (!w.resumable.some((e) => e.paneId === r.id)) w.resumable.push(resumeEntryOf(r))
           this.panes.kill(r.id)
         }
         w.open = false

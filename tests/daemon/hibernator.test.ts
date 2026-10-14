@@ -96,12 +96,12 @@ function world(recs: PaneRecord[], o: { now?: number; focused?: string[]; extraP
 }
 
 describe('Hibernator', () => {
-  it('hiberna a ociosa: SIGTERM no agente e grava sessão, conta e transcript', async () => {
-    const r = rec('a')
+  it('hiberna a ociosa: SIGTERM no agente e grava sessão, conta, transcript e título', async () => {
+    const r = rec('a', { title: 'Refatorar auth' })
     const w = world([r])
     await w.h.tick()
     expect(w.signals).toEqual([[200, 'SIGTERM']])
-    expect(r.hibernated).toMatchObject({ sessionId: 's-a', agent: 'claude', accountId: 'misa', transcriptPath: '/t/a.jsonl' })
+    expect(r.hibernated).toMatchObject({ sessionId: 's-a', agent: 'claude', accountId: 'misa', transcriptPath: '/t/a.jsonl', title: 'Refatorar auth' })
     expect(r.alive).toBe(true)
   })
 
@@ -159,7 +159,7 @@ describe('Hibernator', () => {
     await w.h.tick()
     r.accountId = null
     expect(await w.h.wake('a')).toBe(true)
-    expect(w.writes).toEqual([['a', 'claude --resume s-a\r']])
+    expect(w.writes).toEqual([['a', '\x15claude --resume s-a\r']])
     expect(r.hibernated).toBeNull()
     expect(r.waking).not.toBeNull()
     expect(r.accountId).toBe('misa')
@@ -190,7 +190,7 @@ describe('Hibernator', () => {
       w.focused.add('a')
     }
     await w.h.tick()
-    expect(w.writes).toEqual([['a', 'claude --resume s-a\r']])
+    expect(w.writes).toEqual([['a', '\x15claude --resume s-a\r']])
     expect(r.hibernated).toBeNull()
     expect(r.waking).not.toBeNull()
   })

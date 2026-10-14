@@ -45,6 +45,7 @@ export function sessionLabel(p: PaneView): string {
   const crown = p.leader ? '👑 ' : ''
   if (p.name) return crown + p.name
   if (p.claude) return crown + (p.claude.title ?? `sessão ${p.seq}`)
+  if (p.hibernated) return crown + (p.hibernated.title ?? `sessão ${p.seq}`)
   return `${crown}terminal ${p.seq}`
 }
 

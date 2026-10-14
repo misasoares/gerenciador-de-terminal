@@ -97,7 +97,7 @@ export interface PaneView {
   /** processo Codex rodando há um tempo sem mandar hooks (não aprovados no /hooks) */
   agentHooksMissing: boolean
   /** agente encerrado por ociosidade (💤); ausente/null = não */
-  hibernated?: { since: number } | null
+  hibernated?: { since: number; title: string | null } | null
   /** comando de retomada digitado, esperando o agente subir */
   waking?: boolean
 }

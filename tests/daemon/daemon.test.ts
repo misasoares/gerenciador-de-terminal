@@ -322,6 +322,9 @@ describe('Daemon', () => {
 
     const st = await app.waitState((s) => !!s.panes[0]?.hibernated)
     expect(st.panes[0].alive).toBe(true)
+    // o poll já zerou a sessão (agente sumiu): a conta segue a da hibernação
+    const gone = await app.waitState((s) => !!s.panes[0]?.hibernated && s.panes[0].claude === null)
+    expect(gone.panes[0].accountId).toBe('misa')
 
     app.client.send({ t: 'pane.focus', paneId })
     await app.waitState((s) => !s.panes[0]?.hibernated && s.panes[0]?.waking === true)
@@ -347,6 +350,22 @@ describe('Daemon', () => {
     const st = app.state()!
     expect(st.panes.filter((p) => p.claude).length).toBe(2)
     expect(st.panes.every((p) => !p.hibernated)).toBe(true)
+  })
+
+  it('encerrar espaço com sessão hibernada guarda a conversa para retomar', async () => {
+    const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
+    repo = makeRepo()
+    const { o, app } = await boot({ env: fakeAgentEnv(home), pollMs: 200, hibernateCheckMs: 100, hibernateThresholdMs: 300 }, home)
+    const { id } = await app.client.request<{ id: string }>({ t: 'workspace.create', name: 'Outro' })
+    const ws = await connectApp(o.socketPath, id)
+    const { paneId } = await ws.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'misa', cols: 80, rows: 24 })
+    await hook(o, paneId, { hook_event_name: 'SessionStart', session_id: 'cafe-0003', cwd: repo.dir, source: 'startup' })
+    await hook(o, paneId, { hook_event_name: 'Stop', session_id: 'cafe-0003', cwd: repo.dir })
+    await ws.waitState((s) => !!s.panes.find((p) => p.id === paneId)?.hibernated && s.panes.find((p) => p.id === paneId)?.claude === null)
+    await app.client.request({ t: 'workspace.end', id })
+    const st = await ws.waitState((s) => s.resumable.some((r) => r.paneId === paneId))
+    expect(st.resumable.find((r) => r.paneId === paneId)).toMatchObject({ accountId: 'misa', sessionId: 'cafe-0003', agent: 'claude' })
+    ws.client.close()
   })
 
   it('reinício do daemon: sessão hibernada vira retomável com a sessão da hibernação', async () => {
