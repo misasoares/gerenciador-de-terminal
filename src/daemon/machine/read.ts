@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import type { MemPressure } from '../../shared/types'
 import { run } from '../platform/procs'
+import { parsePsDetail, type PsRow } from './groups'
 import type { MemSample } from './monitor'
 import { parseMeminfo, parsePressureLevel, parsePsi, parseSwapUsage, parseVmStatUsed } from './parse'
 
@@ -26,4 +27,9 @@ export function makeMemReader(platform: NodeJS.Platform = process.platform): () 
     if (ramUsed === null || swap === null) throw new Error('saída inesperada de vm_stat/sysctl')
     return { ramUsed, ramTotal: os.totalmem(), swapUsed: swap.used, swapTotal: swap.total, pressure: parsePressureLevel(sc) }
   }
+}
+
+/** só sob demanda (painel aberto, gate, uso_da_maquina) */
+export async function snapshotPsDetail(): Promise<PsRow[]> {
+  return parsePsDetail(await run('/bin/ps', ['-A', '-o', 'pid=,ppid=,rss=,pcpu=,etime=,args=']))
 }

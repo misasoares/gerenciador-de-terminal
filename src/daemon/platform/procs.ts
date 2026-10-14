@@ -18,14 +18,14 @@ export function parsePs(out: string): Proc[] {
   return procs
 }
 
-export function descendants(procs: Proc[], rootPid: number): Proc[] {
-  const children = new Map<number, Proc[]>()
+export function descendants<T extends { pid: number; ppid: number }>(procs: T[], rootPid: number): T[] {
+  const children = new Map<number, T[]>()
   for (const p of procs) {
     const list = children.get(p.ppid) ?? []
     list.push(p)
     children.set(p.ppid, list)
   }
-  const out: Proc[] = []
+  const out: T[] = []
   const queue = [rootPid]
   while (queue.length) {
     const pid = queue.shift()!
