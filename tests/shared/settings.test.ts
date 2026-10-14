@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeTerminalStyle, effectiveBackground, normalizeBackground, wantsDesktop, DEFAULT_SETTINGS, normalizeKeybindings, normalizeSettings, SESSION_COLORS, THEME_IDS } from '../../src/shared/settings'
+import { normalizeTerminalStyle, effectiveBackground, normalizeBackground, wantsDesktop, DEFAULT_SETTINGS, normalizeKeybindings, normalizeSettings, normalizeHibernate, SESSION_COLORS, THEME_IDS } from '../../src/shared/settings'
 
 describe('preferências', () => {
   it('padrões e limites', () => {
@@ -73,5 +73,19 @@ describe('preferências', () => {
     expect(normalizeTerminalStyle({ tone: 'roxo', glass: 'sim' })).toEqual({ tone: 'auto', glass: false })
     expect(normalizeTerminalStyle(null)).toEqual({ tone: 'auto', glass: false })
     expect(normalizeSettings({ appearance: { terminals: { padrao: { tone: 'light' }, inventado: { tone: 'dark' } } } as never }).appearance.terminals).toEqual({ padrao: { tone: 'light', glass: false } })
+  })
+})
+
+describe('hibernate', () => {
+  it('padrão ligado com 30 min', () => {
+    expect(DEFAULT_SETTINGS.hibernate).toEqual({ enabled: true, minutes: 30 })
+    expect(normalizeSettings(undefined).hibernate).toEqual({ enabled: true, minutes: 30 })
+  })
+  it('normaliza valores inválidos e limita a 5–240', () => {
+    expect(normalizeHibernate({ enabled: 'sim', minutes: 'x' })).toEqual({ enabled: true, minutes: 30 })
+    expect(normalizeHibernate({ enabled: false, minutes: 1 })).toEqual({ enabled: false, minutes: 5 })
+    expect(normalizeHibernate({ enabled: true, minutes: 999 })).toEqual({ enabled: true, minutes: 240 })
+    expect(normalizeHibernate({ minutes: 47.6 })).toEqual({ enabled: true, minutes: 48 })
+    expect(normalizeHibernate(null)).toEqual({ enabled: true, minutes: 30 })
   })
 })

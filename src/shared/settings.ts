@@ -67,6 +67,13 @@ export interface MachineLimits {
   pressureGate: boolean
 }
 
+/** encerra o agente de sessões ociosas e retoma ao focar */
+export interface HibernateSettings {
+  enabled: boolean
+  /** minutos ociosa (⚪/🔵) e fora de foco até hibernar */
+  minutes: number
+}
+
 export interface TerminalSettings {
   appearance: Appearance
   /** 'match' = acompanha o tema do app */
@@ -82,6 +89,8 @@ export interface TerminalSettings {
   maxHiredPerLeader: number
   /** limites do indicador de CPU/RAM e do gate do contratar_dev */
   machine: MachineLimits
+  /** hibernação de sessões ociosas */
+  hibernate: HibernateSettings
 }
 
 export const DEFAULT_SETTINGS: TerminalSettings = {
@@ -94,6 +103,7 @@ export const DEFAULT_SETTINGS: TerminalSettings = {
   keybindings: {},
   maxHiredPerLeader: 10,
   machine: { cpuWarn: 70, cpuBad: 90, swapWarn: 25, swapBad: 75, pressureGate: true },
+  hibernate: { enabled: true, minutes: 30 },
 }
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
@@ -115,6 +125,15 @@ export function normalizeMachineLimits(v: unknown): MachineLimits {
   const [cpuWarn, cpuBad] = limitPair(m.cpuWarn, m.cpuBad, d.cpuWarn, d.cpuBad, 10, 100)
   const [swapWarn, swapBad] = limitPair(m.swapWarn, m.swapBad, d.swapWarn, d.swapBad, 5, 150)
   return { cpuWarn, cpuBad, swapWarn, swapBad, pressureGate: typeof m.pressureGate === 'boolean' ? m.pressureGate : d.pressureGate }
+}
+
+export function normalizeHibernate(v: unknown): HibernateSettings {
+  const d = DEFAULT_SETTINGS.hibernate
+  const h = v && typeof v === 'object' ? (v as Record<string, unknown>) : {}
+  return {
+    enabled: typeof h.enabled === 'boolean' ? h.enabled : d.enabled,
+    minutes: typeof h.minutes === 'number' && Number.isFinite(h.minutes) ? clamp(Math.round(h.minutes), 5, 240) : d.minutes,
+  }
 }
 
 export function normalizeKeybindings(v: unknown): KeyOverrides {
@@ -180,6 +199,7 @@ export function normalizeSettings(s: Partial<TerminalSettings> | undefined): Ter
     maxHiredPerLeader:
       typeof v.maxHiredPerLeader === 'number' && Number.isFinite(v.maxHiredPerLeader) ? clamp(Math.round(v.maxHiredPerLeader), 1, 50) : DEFAULT_SETTINGS.maxHiredPerLeader,
     machine: normalizeMachineLimits(v.machine),
+    hibernate: normalizeHibernate(v.hibernate),
   }
 }
 
