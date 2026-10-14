@@ -28,7 +28,10 @@ export function procName(args: string): string {
 }
 
 const COLIMA = /colima|limactl|com\.docker|Docker Desktop|qemu-system[^\n]*lima/i
-const EMULATOR = /qemu-system|\/emulator(\s|$)|Simulator\.app|CoreSimulator/
+// serviços do CoreSimulator ficam parados no fundo; só o Simulator e os simuladores ligados (launchd_sim) contam
+const EMULATOR = /qemu-system|\/emulator(\s|$)|Simulator\.app|launchd_sim/
+/** Colima com backend vz: a VM é um XPC do Virtualization.framework, filho do launchd e sem "colima" no nome */
+const VZ_VM = /com\.apple\.Virtualization\.VirtualMachine/
 const BROWSERS = /Google Chrome|Safari\.app|Arc\.app|firefox|Brave Browser/i
 
 const round1 = (n: number) => Math.round(n * 10) / 10
@@ -58,9 +61,10 @@ export function groupProcs(rows: PsRow[], panes: { id: string; pid: number }[]):
   const colima = mk('colima', 'Colima / Docker')
   const emulator = mk('emulador', 'Emulador')
   const browsers = mk('navegadores', 'Navegadores')
+  const colimaUp = rows.some((r) => /colima|limactl/.test(r.args))
   for (const r of rows) {
     if (claimed.has(r.pid)) continue
-    const g = COLIMA.test(r.args) ? colima : EMULATOR.test(r.args) ? emulator : BROWSERS.test(r.args) ? browsers : null
+    const g = COLIMA.test(r.args) || (colimaUp && VZ_VM.test(r.args)) ? colima : EMULATOR.test(r.args) ? emulator : BROWSERS.test(r.args) ? browsers : null
     if (!g) continue
     g.count++
     g.rss += r.rss

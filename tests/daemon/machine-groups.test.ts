@@ -52,6 +52,29 @@ describe('processos', () => {
   })
 })
 
+describe('agrupamento com o Colima no backend vz', () => {
+  const VZ = [
+    '79018     1   4432   0.0 01:32:13 /opt/homebrew/bin/colima daemon start default --inotify',
+    '79061     1  11824   1.9 01:32:12 /opt/homebrew/bin/limactl hostagent --pidfile /Users/x/.colima/_lima/colima/ha.pid',
+    '79068     1 938704 159.1 01:32:11 /System/Library/Frameworks/Virtualization.framework/Versions/A/XPCServices/com.apple.Virtualization.VirtualMachine.xpc/Contents/MacOS/com.apple.Virtualization.VirtualMachine',
+    '35634     1    880   0.0 43-11:00:48 /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Versions/A/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc/Contents/MacOS/com.apple.CoreSimulatorService',
+    '34835     1  55744   6.1 55:41 /Volumes/SSD MISA/Library/Android/sdk/emulator/qemu/darwin-aarch64/qemu-system-aarch64 -avd PadLab -port 5562',
+  ].join('\n')
+  it('VM do Virtualization.framework conta como Colima quando o Colima está rodando', () => {
+    const g = Object.fromEntries(groupProcs(parsePsDetail(VZ), []).groups.map((x) => [x.key, x]))
+    expect(g.colima).toMatchObject({ count: 3, rss: (4432 + 11824 + 938704) * 1024, cpu: 161 })
+  })
+  it('sem Colima, a VM não é atribuída a ele (pode ser outro app)', () => {
+    const rows = parsePsDetail(VZ).filter((r) => !/colima|limactl/.test(r.args))
+    const g = Object.fromEntries(groupProcs(rows, []).groups.map((x) => [x.key, x]))
+    expect(g.colima.count).toBe(0)
+  })
+  it('serviços parados do CoreSimulator não contam como emulador; o emulador Android conta', () => {
+    const g = Object.fromEntries(groupProcs(parsePsDetail(VZ), []).groups.map((x) => [x.key, x]))
+    expect(g.emulador).toMatchObject({ count: 1, rss: 55744 * 1024 })
+  })
+})
+
 describe('relatórios', () => {
   const v: MachineView = { cpu: 64, cpu1m: 61, ram: { used: 22.1 * G, total: 24 * G }, swap: { used: 18.2 * G, total: 20 * G }, pressure: 'critica', level: 'bad', reasons: ['swap 18,2 GB', 'pressão crítica'], at: 1, stale: false }
   const d = groupProcs(parsePsDetail(PS), [{ id: 'p1', pid: 100 }, { id: 'p2', pid: 200 }])
