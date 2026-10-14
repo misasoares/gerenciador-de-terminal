@@ -34,7 +34,7 @@ describe('processos', () => {
     expect(procName('/x/' + 'a'.repeat(60))).toHaveLength(40)
   })
   it('grupos: sessões pela árvore do pane, Colima, emulador, navegadores; top 5 por CPU', () => {
-    const d = groupProcs(parsePsDetail(PS), [{ id: 'p1', pid: 100 }, { id: 'p2', pid: 200 }, { id: 'p3', pid: 999 }])
+    const d = groupProcs(parsePsDetail(PS), [{ id: 'p1', pid: 100 }, { id: 'p2', pid: 200 }, { id: 'p3', pid: 999 }], 'darwin')
     const g = Object.fromEntries(d.groups.map((x) => [x.key, x]))
     expect(g.sessoes).toMatchObject({ label: 'Sessões do app', count: 2, paneIds: ['p1', 'p2'] })
     expect(g.sessoes.rss).toBe((1024 + 348000 + 50000 + 1024 + 300000) * 1024)
@@ -47,7 +47,7 @@ describe('processos', () => {
     expect(d.top[0]).toMatchObject({ pid: 600, etime: '05-19:10:57' })
   })
   it('Colima e emulador aparecem desligados; navegadores e sessões somem sem processos', () => {
-    const d = groupProcs(parsePsDetail('  1 0 10 0.0 01:00 /sbin/launchd'), [])
+    const d = groupProcs(parsePsDetail('  1 0 10 0.0 01:00 /sbin/launchd'), [], 'darwin')
     expect(d.groups.map((x) => [x.key, x.count])).toEqual([['colima', 0], ['emulador', 0]])
   })
 })
@@ -61,23 +61,23 @@ describe('agrupamento com o Colima no backend vz', () => {
     '34835     1  55744   6.1 55:41 /Volumes/SSD MISA/Library/Android/sdk/emulator/qemu/darwin-aarch64/qemu-system-aarch64 -avd PadLab -port 5562',
   ].join('\n')
   it('VM do Virtualization.framework conta como Colima quando o Colima está rodando', () => {
-    const g = Object.fromEntries(groupProcs(parsePsDetail(VZ), []).groups.map((x) => [x.key, x]))
+    const g = Object.fromEntries(groupProcs(parsePsDetail(VZ), [], 'darwin').groups.map((x) => [x.key, x]))
     expect(g.colima).toMatchObject({ count: 3, rss: (4432 + 11824 + 938704) * 1024, cpu: 161 })
   })
   it('sem Colima, a VM não é atribuída a ele (pode ser outro app)', () => {
     const rows = parsePsDetail(VZ).filter((r) => !/colima|limactl/.test(r.args))
-    const g = Object.fromEntries(groupProcs(rows, []).groups.map((x) => [x.key, x]))
+    const g = Object.fromEntries(groupProcs(rows, [], 'darwin').groups.map((x) => [x.key, x]))
     expect(g.colima.count).toBe(0)
   })
   it('serviços parados do CoreSimulator não contam como emulador; o emulador Android conta', () => {
-    const g = Object.fromEntries(groupProcs(parsePsDetail(VZ), []).groups.map((x) => [x.key, x]))
+    const g = Object.fromEntries(groupProcs(parsePsDetail(VZ), [], 'darwin').groups.map((x) => [x.key, x]))
     expect(g.emulador).toMatchObject({ count: 1, rss: 55744 * 1024 })
   })
 })
 
 describe('relatórios', () => {
   const v: MachineView = { cpu: 64, cpu1m: 61, ram: { used: 22.1 * G, total: 24 * G }, swap: { used: 18.2 * G, total: 20 * G }, pressure: 'critica', level: 'bad', reasons: ['swap 18,2 GB', 'pressão crítica'], at: 1, stale: false }
-  const d = groupProcs(parsePsDetail(PS), [{ id: 'p1', pid: 100 }, { id: 'p2', pid: 200 }])
+  const d = groupProcs(parsePsDetail(PS), [{ id: 'p1', pid: 100 }, { id: 'p2', pid: 200 }], 'darwin')
   it('recusa do gate: motivo, números, maiores consumidores e o forcar', () => {
     const t = gateRefusal(v, d)
     expect(t).toContain('Máquina sobrecarregada: swap 18,2 GB · pressão crítica')
