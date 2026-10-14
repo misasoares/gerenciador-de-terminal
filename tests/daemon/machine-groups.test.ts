@@ -93,3 +93,33 @@ describe('relatórios', () => {
     expect(machineReport(v, d, [{ rss: 1 * G }]).cabem_ate_amarelo).toBe(0)
   })
 })
+
+describe('agrupamento com Docker nativo no Linux', () => {
+  const LINUX = [
+    '  900     1  90000   2.0 05:00:00 /usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock',
+    '  901     1  40000   1.0 05:00:00 /usr/bin/containerd',
+    '  902   900   3000   0.0 05:00:00 /usr/bin/docker-proxy -proto tcp -host-ip 0.0.0.0 -host-port 3306',
+    '  910     1  12000   0.1 04:00:00 /usr/bin/containerd-shim-runc-v2 -namespace moby -id abc -address /run/containerd/containerd.sock',
+    '  911   910 400000   3.0 04:00:00 mysqld',
+    '  920     1  12000   0.1 04:00:00 /usr/bin/containerd-shim-runc-v2 -namespace moby -id def -address /run/containerd/containerd.sock',
+    '  921   920  60000   0.5 04:00:00 php-fpm: master process (/usr/local/etc/php-fpm.conf)',
+    '  922   921  50000   0.2 04:00:00 php-fpm: pool www',
+    '  930     1   9000   0.0 06:00:00 /usr/sbin/sshd -D',
+  ].join('\n')
+
+  it('dockerd, containerd e os processos dos containers entram no grupo "Docker"', () => {
+    const g = Object.fromEntries(groupProcs(parsePsDetail(LINUX), [], 'linux').groups.map((x) => [x.key, x]))
+    expect(g.colima).toMatchObject({ label: 'Docker', count: 8 })
+    expect(g.colima.rss).toBe((90000 + 40000 + 3000 + 12000 + 400000 + 12000 + 60000 + 50000) * 1024)
+  })
+
+  it('no Linux sem Docker, o grupo aparece desligado com o nome "Docker"', () => {
+    const g = Object.fromEntries(groupProcs(parsePsDetail('  930 1 9000 0.0 06:00:00 /usr/sbin/sshd -D'), [], 'linux').groups.map((x) => [x.key, x]))
+    expect(g.colima).toMatchObject({ label: 'Docker', count: 0 })
+  })
+
+  it('no Mac o nome continua "Colima / Docker"', () => {
+    const g = Object.fromEntries(groupProcs(parsePsDetail(LINUX), [], 'darwin').groups.map((x) => [x.key, x]))
+    expect(g.colima.label).toBe('Colima / Docker')
+  })
+})

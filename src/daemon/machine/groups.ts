@@ -32,11 +32,14 @@ const COLIMA = /colima|limactl|com\.docker|Docker Desktop|qemu-system[^\n]*lima/
 const EMULATOR = /qemu-system|\/emulator(\s|$)|Simulator\.app|launchd_sim/
 /** Colima com backend vz: a VM é um XPC do Virtualization.framework, filho do launchd e sem "colima" no nome */
 const VZ_VM = /com\.apple\.Virtualization\.VirtualMachine/
+/** Docker nativo (Linux): daemons e o shim de cada container; os processos do container são filhos do shim */
+const DOCKER_NATIVE = /(^|\/)(dockerd|containerd|docker-proxy)(\s|$)/
+const DOCKER_SHIM = /(^|\/)containerd-shim[\w-]*(\s|$)/
 const BROWSERS = /Google Chrome|Safari\.app|Arc\.app|firefox|Brave Browser/i
 
 const round1 = (n: number) => Math.round(n * 10) / 10
 
-export function groupProcs(rows: PsRow[], panes: { id: string; pid: number }[]): MachineDetail {
+export function groupProcs(rows: PsRow[], panes: { id: string; pid: number }[], platform: NodeJS.Platform = process.platform): MachineDetail {
   const claimed = new Set<number>()
   const perPane: MachineDetail['perPane'] = {}
   const sessions: MachineGroup = { key: 'sessoes', label: 'Sessões do app', count: 0, rss: 0, cpu: 0, paneIds: [] }
@@ -58,13 +61,16 @@ export function groupProcs(rows: PsRow[], panes: { id: string; pid: number }[]):
     sessions.paneIds!.push(p.id)
   }
   const mk = (key: MachineGroup['key'], label: string): MachineGroup => ({ key, label, count: 0, rss: 0, cpu: 0 })
-  const colima = mk('colima', 'Colima / Docker')
+  // no Linux o Docker é nativo, não há Colima
+  const colima = mk('colima', platform === 'darwin' ? 'Colima / Docker' : 'Docker')
   const emulator = mk('emulador', 'Emulador')
   const browsers = mk('navegadores', 'Navegadores')
   const colimaUp = rows.some((r) => /colima|limactl/.test(r.args))
+  const containers = new Set(rows.filter((r) => DOCKER_SHIM.test(r.args)).flatMap((r) => [r, ...descendants(rows, r.pid)]).map((r) => r.pid))
+  const isDocker = (r: PsRow) => COLIMA.test(r.args) || DOCKER_NATIVE.test(r.args) || containers.has(r.pid) || (colimaUp && VZ_VM.test(r.args))
   for (const r of rows) {
     if (claimed.has(r.pid)) continue
-    const g = COLIMA.test(r.args) || (colimaUp && VZ_VM.test(r.args)) ? colima : EMULATOR.test(r.args) ? emulator : BROWSERS.test(r.args) ? browsers : null
+    const g = isDocker(r) ? colima : EMULATOR.test(r.args) ? emulator : BROWSERS.test(r.args) ? browsers : null
     if (!g) continue
     g.count++
     g.rss += r.rss
