@@ -5,13 +5,14 @@ import { matchLabel } from '../app-themes'
 import { AppearancePanel } from './AppearancePanel'
 import { AgentsPanel } from './AgentsPanel'
 import { KeybindingsPanel } from './KeybindingsPanel'
+import { MachinePrefs } from './MachinePrefs'
 import { setUi, showError, useUi } from '../store'
 import { ModalFrame } from './ModalFrame'
 
 export function Preferences() {
   const saved = useUi((s) => s.app?.settings)
   const [draft, setDraft] = useState<TerminalSettings | null>(saved ?? null)
-  const [tab, setTab] = useState<'appearance' | 'terminal' | 'agents' | 'shortcuts'>('appearance')
+  const [tab, setTab] = useState<'appearance' | 'terminal' | 'agents' | 'shortcuts' | 'machine'>('appearance')
   if (!saved || !draft) return null
   const update = (patch: Partial<TerminalSettings>) => {
     const next = normalizeSettings({ ...draft, ...patch })
@@ -35,11 +36,16 @@ export function Preferences() {
         <button className={tab === 'shortcuts' ? 'active' : ''} onClick={() => setTab('shortcuts')}>
           Atalhos
         </button>
+        <button className={tab === 'machine' ? 'active' : ''} onClick={() => setTab('machine')}>
+          Máquina
+        </button>
       </div>
       {tab === 'appearance' ? (
         <AppearancePanel value={draft.appearance} onChange={(appearance) => update({ appearance })} />
       ) : tab === 'agents' ? (
         <AgentsPanel />
+      ) : tab === 'machine' ? (
+        <MachinePrefs value={draft.machine} onChange={(machine) => update({ machine })} />
       ) : tab === 'shortcuts' ? (
         <KeybindingsPanel overrides={draft.keybindings} onChange={(keybindings) => update({ keybindings })} />
       ) : (
