@@ -33,7 +33,7 @@ Fora do escopo: matar processos pelo app, histórico/gráfico, otimizar MCPs por
 
 Módulo novo `src/daemon/machine/`, no padrão de `usage/`:
 
-- `parse.ts` — parsers puros: `vm_stat`, `sysctl vm.swapusage`, `/proc/meminfo`, `/proc/stat`, `/proc/pressure/memory`.
+- `parse.ts` — parsers puros: `vm_stat`, `sysctl vm.swapusage`, `kern.memorystatus_vm_pressure_level`, `/proc/meminfo`, `/proc/pressure/memory`.
 - `read.ts` — executa os comandos (`execFile` com timeout, como `platform/procs.ts`) e devolve uma `MachineSample`.
 - `level.ts` — calcula `ok | warn | bad` a partir da amostra e dos limites.
 - `groups.ts` — agrupa a saída do `ps` em grupos + top 5.
@@ -81,7 +81,7 @@ interface MachineView {
   swap: { used: number; total: number }  // bytes; total 0 = sem swap
   pressure: MemPressure
   level: MachineLevel
-  reasons: string[]    // ex.: ['swap 92%', 'pressão crítica']
+  reasons: string[]    // ex.: ['swap 18,2 GB', 'pressão crítica']
   at: number           // ms epoch
   stale: boolean       // última leitura falhou
 }
@@ -105,13 +105,13 @@ Em `TerminalSettings` (`src/shared/settings.ts`), com sanitização no padrão e
 machine: {
   cpuWarn: number   // padrão 70  (CPU 1 min %)
   cpuBad: number    // padrão 90
-  swapWarn: number  // padrão 50  (% do total de swap)
-  swapBad: number   // padrão 90
+  swapWarn: number  // padrão 25  (swap usada em % da RAM física)
+  swapBad: number   // padrão 75
   pressureGate: boolean // padrão true: pressão crítica = bad, alerta = warn
 }
 ```
 
-Regra de nível (`level.ts`): `bad` se qualquer critério bad; senão `warn` se qualquer warn; senão `ok`. `reasons` lista os critérios que dispararam. Swap com total 0 é ignorada. Sanitização garante `warn < bad`, faixa 10–100.
+Regra de nível (`level.ts`): `bad` se qualquer critério bad; senão `warn` se qualquer warn; senão `ok`. `reasons` lista os critérios que dispararam. **A swap é medida em % da RAM física, não do total de swap**: o macOS cresce o arquivo de swap sozinho (medido em 2026-10-14: 10 GB → 15 GB em meia hora, sempre ~95% cheio), então % do total bloquearia sempre. Sanitização garante `warn < bad`; CPU na faixa 10–100, swap 5–150.
 
 Preferências ganham a seção **Máquina**: quatro sliders (CPU amarelo/bloqueio, swap amarelo/bloqueio), o toggle da pressão e "restaurar padrões".
 
@@ -123,7 +123,7 @@ Em `Daemon.hire`, antes de qualquer efeito (antes da worktree):
 
 1. Lê a última `MachineView` do monitor.
 2. Se `level === 'bad'` e `args.forcar !== true`: roda o `ps` uma vez e lança erro com:
-   > Máquina sobrecarregada: swap 92% · pressão crítica (CPU 64%, RAM 22,1/24 GB). Maiores consumidores: Emulador 3,8 GB · java 326% CPU · Sessões do app (9) 6,1 GB. Contratar agora pode travar o computador. Pergunte ao usuário; só repita com forcar: true se ele autorizar.
+   > Máquina sobrecarregada: swap 18,2 GB · pressão crítica (CPU 64%, RAM 22,1/24 GB). Maiores consumidores: Emulador 3,8 GB · java 326% CPU · Sessões do app (9) 6,1 GB. Contratar agora pode travar o computador. Pergunte ao usuário; só repita com forcar: true se ele autorizar.
 3. Se não há leitura válida (monitor nunca leu ou `stale` há mais de 60 s): **deixa passar** e o resultado ganha `aviso: 'não consegui medir a máquina'`.
 4. Se `level === 'warn'`: contrata e inclui `aviso` com os motivos.
 
@@ -190,9 +190,9 @@ java         326%   1,0 GB   1m43s
 
 ## 8. Testes (vitest, TDD)
 
-- `parse.test.ts`: `vm_stat`, `swapusage`, `/proc/meminfo`, `/proc/stat`, `/proc/pressure/memory` com saídas reais capturadas.
+- `parse.test.ts`: `vm_stat`, `swapusage`, pressão, `/proc/meminfo`, `/proc/pressure/memory` com saídas reais capturadas.
 - `monitor.test.ts`: delta de CPU com `os.cpus()` injetado; média de 1 min; `stale` após falha; broadcast só quando muda.
-- `level.test.ts`: cada critério isolado, combinação, swap total 0, pressão null, `pressureGate: false`.
+- `level.test.ts`: cada critério isolado, combinação, swap em % da RAM (total de swap ignorado), pressão null, `pressureGate: false`.
 - `groups.test.ts`: fixture de `ps` com claude (na árvore de um pane), qemu do lima, qemu do emulador, Chrome, esbuild órfão → grupos e top 5 corretos.
 - `settings` sanitização dos limites (`warn < bad`, faixa).
 - Gate (daemon): recusa em `bad`; passa com `forcar`; passa com aviso sem leitura; `warn` contrata com aviso; nada criado (sem worktree) quando recusa.
