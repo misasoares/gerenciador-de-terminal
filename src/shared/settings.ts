@@ -103,7 +103,7 @@ export const DEFAULT_SETTINGS: TerminalSettings = {
   keybindings: {},
   maxHiredPerLeader: 10,
   machine: { cpuWarn: 70, cpuBad: 90, swapWarn: 25, swapBad: 75, pressureGate: true },
-  hibernate: { enabled: true, minutes: 30 },
+  hibernate: { enabled: false, minutes: 30 },
 }
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))

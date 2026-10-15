@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { revealPane } from '../actions'
 import { machineChip } from '../machine-model'
-import { setUi, useUi } from '../store'
+import { setUi, showError, useUi } from '../store'
+import { Switch } from './Switch'
 import { formatEtime, gb, pressureLabel } from '../../../shared/machine-format'
 import type { MachineLevel } from '../../../shared/types'
 
@@ -52,6 +53,7 @@ function MachinePanel({ anchor, onClose }: { anchor: HTMLElement; onClose: () =>
   const v = useUi((s) => s.machine)!
   const detail = useUi((s) => s.machineDetail)
   const panes = useUi((s) => s.app?.panes ?? [])
+  const settings = useUi((s) => s.app?.settings)
   const [showSessions, setShowSessions] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -86,6 +88,16 @@ function MachinePanel({ anchor, onClose }: { anchor: HTMLElement; onClose: () =>
         const n = panes.filter((p) => p.hibernated).length
         return n > 0 ? <div className="mp-dim">💤 {n === 1 ? '1 sessão hibernada' : `${n} sessões hibernadas`}</div> : null
       })()}
+      {settings && (
+        <label className="mp-switch">
+          <span title={`Encerra o agente de sessões paradas há ${settings.hibernate.minutes} min e retoma a conversa ao focar`}>💤 Hibernar sessões ociosas</span>
+          <Switch
+            checked={settings.hibernate.enabled}
+            label="Hibernar sessões ociosas"
+            onChange={(enabled) => window.gt.request({ t: 'settings.save', settings: { ...settings, hibernate: { ...settings.hibernate, enabled } } }).catch(showError)}
+          />
+        </label>
+      )}
       {v.level !== 'ok' && (
         <div className={v.level === 'bad' ? 'u-bad' : 'u-warn'}>
           {v.level === 'bad' ? 'Bloqueia contratar' : 'No limite'}: {v.reasons.join(' · ')}

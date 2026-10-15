@@ -56,6 +56,12 @@ async function boot(extra: Partial<DaemonOptions> = {}, home = fs.realpathSync(f
   return { o, d, app, home }
 }
 
+/** a hibernação vem desligada por padrão */
+async function enableHibernate(app: Awaited<ReturnType<typeof connectApp>>) {
+  const { settings } = await app.client.request<{ settings: TerminalSettings }>({ t: 'state.get' })
+  await app.client.request({ t: 'settings.save', settings: { ...settings, hibernate: { ...settings.hibernate, enabled: true } } })
+}
+
 function hook(o: DaemonOptions, paneId: string, payload: Record<string, unknown>, configDir?: string) {
   return runWithInput('/bin/sh', [o.hookScriptPath], JSON.stringify(payload), {
     PATH: '/usr/bin:/bin', GT_PANE_ID: paneId, GT_SOCKET: o.socketPath, ...(configDir ? { CLAUDE_CONFIG_DIR: configDir } : {}),
@@ -314,6 +320,7 @@ describe('Daemon', () => {
     repo = makeRepo()
     const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
     const { o, app } = await boot({ env: fakeAgentEnv(home), pollMs: 200, hibernateCheckMs: 100, hibernateThresholdMs: 300 }, home)
+    await enableHibernate(app)
     const { paneId } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'misa', cols: 80, rows: 24 })
     const { snapshot } = await app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
     await waitFor(() => (snapshot + app.output(paneId)).includes('fake-claude'))
@@ -337,6 +344,7 @@ describe('Daemon', () => {
     repo = makeRepo()
     const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
     const { o, app } = await boot({ env: fakeAgentEnv(home), pollMs: 200, hibernateCheckMs: 100, hibernateThresholdMs: 300 }, home)
+    await enableHibernate(app)
     const mk = async () => (await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo!.dir, accountId: 'misa', cols: 80, rows: 24 })).paneId
     const focused = await mk()
     const leader = await mk()
@@ -356,6 +364,7 @@ describe('Daemon', () => {
     const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
     repo = makeRepo()
     const { o, app } = await boot({ env: fakeAgentEnv(home), pollMs: 200, hibernateCheckMs: 100, hibernateThresholdMs: 300 }, home)
+    await enableHibernate(app)
     const { id } = await app.client.request<{ id: string }>({ t: 'workspace.create', name: 'Outro' })
     const ws = await connectApp(o.socketPath, id)
     const { paneId } = await ws.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'misa', cols: 80, rows: 24 })
@@ -372,6 +381,7 @@ describe('Daemon', () => {
     repo = makeRepo()
     const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
     const first = await boot({ env: fakeAgentEnv(home), pollMs: 200, hibernateCheckMs: 100, hibernateThresholdMs: 300 }, home)
+    await enableHibernate(first.app)
     const { paneId } = await first.app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: 'misa', cols: 80, rows: 24 })
     await hook(first.o, paneId, { hook_event_name: 'SessionStart', session_id: 'beef-0002', cwd: repo.dir, source: 'startup' })
     await hook(first.o, paneId, { hook_event_name: 'Stop', session_id: 'beef-0002', cwd: repo.dir })

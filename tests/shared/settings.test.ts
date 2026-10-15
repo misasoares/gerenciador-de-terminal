@@ -77,15 +77,15 @@ describe('preferências', () => {
 })
 
 describe('hibernate', () => {
-  it('padrão ligado com 30 min', () => {
-    expect(DEFAULT_SETTINGS.hibernate).toEqual({ enabled: true, minutes: 30 })
-    expect(normalizeSettings(undefined).hibernate).toEqual({ enabled: true, minutes: 30 })
+  it('padrão desligado com 30 min', () => {
+    expect(DEFAULT_SETTINGS.hibernate).toEqual({ enabled: false, minutes: 30 })
+    expect(normalizeSettings(undefined).hibernate).toEqual({ enabled: false, minutes: 30 })
   })
   it('normaliza valores inválidos e limita a 5–240', () => {
-    expect(normalizeHibernate({ enabled: 'sim', minutes: 'x' })).toEqual({ enabled: true, minutes: 30 })
+    expect(normalizeHibernate({ enabled: 'sim', minutes: 'x' })).toEqual({ enabled: false, minutes: 30 })
     expect(normalizeHibernate({ enabled: false, minutes: 1 })).toEqual({ enabled: false, minutes: 5 })
     expect(normalizeHibernate({ enabled: true, minutes: 999 })).toEqual({ enabled: true, minutes: 240 })
-    expect(normalizeHibernate({ minutes: 47.6 })).toEqual({ enabled: true, minutes: 48 })
-    expect(normalizeHibernate(null)).toEqual({ enabled: true, minutes: 30 })
+    expect(normalizeHibernate({ minutes: 47.6 })).toEqual({ enabled: false, minutes: 48 })
+    expect(normalizeHibernate(null)).toEqual({ enabled: false, minutes: 30 })
   })
 })
