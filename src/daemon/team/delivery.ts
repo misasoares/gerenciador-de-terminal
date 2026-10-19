@@ -100,6 +100,8 @@ export class Deliverer {
     this.busy.add(to)
     try {
       const [paste, enter] = pasteAndSubmit(m.text)
+      // depois do Esc a CLI devolve o texto cancelado à caixa de entrada: Ctrl-U antes, senão as duas viram um pedido só
+      if (m.interrupt) this.d.writeRaw(to, '\x15')
       this.d.writeRaw(to, paste)
       await this.d.sleep(PASTE_SETTLE_MS)
       this.d.writeRaw(to, enter)

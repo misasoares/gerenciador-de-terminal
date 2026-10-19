@@ -127,7 +127,21 @@ describe('Deliverer', () => {
     expect(s.written).toEqual(['\x1b'])
     s.panes.p2.lastOutputAt = s.now() - INTERRUPT_QUIET_MS
     await s.d.tick()
-    expect(s.written).toEqual(['\x1b', ...pasteAndSubmit('mude de rumo')])
+    expect(s.written).toEqual(['\x1b', '\x15', ...pasteAndSubmit('mude de rumo')])
+  })
+
+  it('mensagem com interrupt limpa a linha (Ctrl-U) antes da colagem; sem interrupt, não', async () => {
+    const s = setup({ status: 'working' })
+    s.d.interrupt('p2')
+    s.mb.enqueue({ ...msg, text: 'novo rumo', interrupt: true })
+    s.panes.p2.lastOutputAt = 0
+    await s.d.tick()
+    // o Esc devolve o texto cancelado à caixa de entrada: sem limpar, os dois virariam um pedido só
+    expect(s.written).toEqual(['\x1b', '\x15', ...pasteAndSubmit('novo rumo')])
+    const t = setup()
+    t.mb.enqueue(msg)
+    await t.d.tick()
+    expect(t.written).toEqual(pasteAndSubmit('oi'))
   })
 
   it('mensagem comum não aproveita a janela de interrupção', async () => {
