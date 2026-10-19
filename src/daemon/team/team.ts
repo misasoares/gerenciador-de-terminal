@@ -21,9 +21,14 @@ export function displayName(r: { id: string; seq: number }, meta: Meta): string 
   return meta[r.id]?.name ?? `sessão ${r.seq}`
 }
 
+/** corpo do remetente: sem marcadores do app ([equipe], [gerenciador]) nem caracteres de controle C0/C1 além de \n e \t */
+export function sanitizeBody(text: string): string {
+  return text.replace(/\[(equipe|gerenciador)\]/gi, '($1)').replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '')
+}
+
 /** cabeçalho montado pelo app: o remetente nunca escreve o próprio */
 export function teamHeader(o: { fromName: string; fromAgent: AgentKind; toName: string; toAgent: AgentKind; text: string }): string {
   const nativo = profileOf(o.fromAgent).nativeTeam && profileOf(o.toAgent).nativeTeam
   const reply = nativo ? `SendMessage(to: "${o.fromName}")` : `mandar_mensagem(para: "${o.fromName}")`
-  return `[equipe] de ${o.fromName} (${profileOf(o.fromAgent).label}) → para ${o.toName}: ${o.text} (para responder: ${reply})`
+  return `[equipe] de ${o.fromName} (${profileOf(o.fromAgent).label}) → para ${o.toName}: ${sanitizeBody(o.text)} (para responder: ${reply})`
 }
