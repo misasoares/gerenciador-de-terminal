@@ -41,6 +41,15 @@ describe('persistência', () => {
   it('claudeProfiles e codexHomes têm padrão vazio', () => {
     expect(defaultPersisted()).toMatchObject({ claudeProfiles: [], codexHomes: [] })
   })
+  it('estado sem mailbox carrega lista vazia; entradas sem id ou destino são descartadas', () => {
+    expect(defaultPersisted().mailbox).toEqual([])
+    const f = path.join(tmp(), 'state.json')
+    const ok = { id: 'm1', from: null, to: 'p2', fromName: 'app', toName: 'dev', fromAgent: null, kind: 'gerenciador', text: 'x', interrupt: false, createdAt: 1, state: 'na-fila', deliveredAt: null, error: null }
+    fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [], panes: [] }))
+    expect(loadPersisted(f).mailbox).toEqual([])
+    fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [], panes: [], mailbox: [ok, { to: 'p2' }, { id: 'm2' }, null] }))
+    expect(loadPersisted(f).mailbox).toEqual([ok])
+  })
   it('filePanes tem padrão vazio', () => {
     expect(defaultPersisted()).toMatchObject({ filePanes: {} })
   })
