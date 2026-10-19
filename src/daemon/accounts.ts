@@ -46,8 +46,8 @@ export function buildCommand(account: Account, resumeSessionId?: string, extra: 
   if (extra.model) cmd += ` ${profile.modelArgs(extra.model)}`
   // Codex: subcomando no fim (codex --yolo … resume <id>)
   if (resumeSessionId && account.agent === 'codex') cmd += ` resume ${resumeSessionId}`
-  if (account.agent !== 'claude') return cmd
-  if (extra.name) cmd += ` -n ${shq(extra.name)}`
+  if (extra.name && account.agent === 'claude') cmd += ` -n ${shq(extra.name)}`
+  // prompt posicional nas duas CLIs: a sessão já nasce com ele, sem depender de digitar numa tela que pode não ser a da conversa
   if (extra.promptFile) cmd += ` "$(cat ${shq(extra.promptFile)})"`
   return cmd
 }

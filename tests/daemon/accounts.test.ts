@@ -48,11 +48,14 @@ describe('buildCommand', () => {
       `claude-mslabs --resume 6f574752-bb4d-4ff2-8ed1-bb685dce78ed --mcp-config '/h/mcp.json'`,
     )
   })
-  it('Codex ignora -n e o prompt por arquivo do Claude', () => {
+  it('Codex ignora -n; o prompt por arquivo vai como argumento posicional, depois das opções', () => {
     const codex = { ...DEFAULT_ACCOUNTS[0], id: 'codex', agent: 'codex' as const, command: 'codex --yolo' }
-    expect(buildCommand(codex, undefined, { name: 'dev-1', promptFile: '/p.txt' })).toBe('codex --yolo --no-daemon')
+    expect(buildCommand(codex, undefined, { name: 'dev-1' })).toBe('codex --yolo --no-daemon')
     // sem paneId e socketPath o MCP do Codex não é montado
-    expect(buildCommand(codex, undefined, { mcp, name: 'dev-1', promptFile: '/p.txt' })).toBe('codex --yolo --no-daemon')
+    expect(buildCommand(codex, undefined, { mcp, name: 'dev-1', promptFile: '/p/a b.txt' })).toBe(`codex --yolo --no-daemon "$(cat '/p/a b.txt')"`)
+    expect(buildCommand(codex, undefined, { mcp, paneId: 'p1', socketPath: '/s.sock', model: 'gpt-6-sol', promptFile: '/p.txt' })).toBe(
+      `codex --yolo --no-daemon ${profileOf('codex').mcpArgs(mcp, 'p1', '/s.sock')} -m 'gpt-6-sol' "$(cat '/p.txt')"`,
+    )
   })
   it('Codex: MCP e modelo antes do subcomando resume', () => {
     const codex = { ...DEFAULT_ACCOUNTS[0], id: 'codex', agent: 'codex' as const, command: 'codex --yolo' }

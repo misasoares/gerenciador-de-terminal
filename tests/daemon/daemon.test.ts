@@ -867,25 +867,24 @@ describe('Daemon', () => {
     expect(r.modelo).toBe('sonnet')
   })
 
-  it('contratar: dev Codex recebe o MCP e o prompt inicial (preâmbulo + tarefa) pela fila, depois do SessionStart', async () => {
+  it('contratar: dev Codex recebe o MCP e o prompt inicial (preâmbulo + tarefa) na linha de comando, sem passar pela fila', async () => {
     repo = makeRepo()
-    const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })
+    const { o, app, leader, call } = await leaderIn(repo.dir)
     const codex = { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
     await app.client.request({ t: 'accounts.save', accounts: [...DEFAULT_ACCOUNTS, codex] })
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
     await app.client.request({ t: 'pane.meta', paneId: leader, name: 'lider' })
     const r = await call('contratar_dev', { nome: 'dev-1', worktree: false, conta: 'codex', prompt: 'faz X' })
-    expect(String(r.comando)).toContain(`-c 'mcp_servers.gerenciador.env=`)
-    expect(String(r.comando)).not.toContain('faz X')
-    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
-    await app.client.request({ t: 'pane.attach', paneId: dev })
-    expect(app.output(dev)).not.toContain('faz X')
-    await runWithInput('/bin/sh', [o.hookScriptPath, 'codex'], JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'cx-1', cwd: repo.dir, source: 'startup' }), { PATH: '/usr/bin:/bin', GT_PANE_ID: dev, GT_SOCKET: o.socketPath })
-    await app.waitState(() => app.output(dev).includes('faz X'))
-    // o eco do shell quebra linhas compridas: compara sem espaços
-    const flat = app.output(dev).replace(/\s+/g, '')
-    expect(flat).toContain('Vocêédev-1')
-    expect(flat).toContain('mandar_mensagem(para:"lider")')
+    const comando = String(r.comando)
+    expect(comando).toContain(`-c 'mcp_servers.gerenciador.env=`)
+    const file = /"\$\(cat '([^']+)'\)"$/.exec(comando)?.[1]
+    expect(file).toBeDefined()
+    const prompt = fs.readFileSync(file!, 'utf8')
+    expect(prompt).toContain('Você é dev-1')
+    expect(prompt).toContain('mandar_mensagem(para: "lider")')
+    expect(prompt).toContain('faz X')
+    await new Promise((r) => setTimeout(r, 600)) // o estado é salvo 300 ms depois da mudança
+    expect(JSON.parse(fs.readFileSync(o.stateFile, 'utf8')).mailbox ?? []).toEqual([])
   })
 
   it('líder: apresentação entregue só para quem não é Claude', async () => {
@@ -968,21 +967,20 @@ describe('Daemon', () => {
     await waitFor(async () => ((JSON.parse(fs.readFileSync(second.o.stateFile, 'utf8')).mailbox as { state: string }[]).every((m) => m.state === 'entregue') ? true : null), 5000)
   })
 
-  it('contratar Codex sem nenhum hook: o poll vê o processo e o prompt inicial é entregue', async () => {
+  it('Codex aberto e em silêncio, sem nenhum hook: mensagem espera na fila (a tela pode ser um aviso de atualização ou de confiança)', async () => {
     repo = makeRepo()
-    const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
-    const env = fakeAgentEnv(home)
-    // codex falso: silencioso, como o Codex recém-aberto antes da primeira mensagem
-    fs.writeFileSync(path.join(home, 'fakebin', 'codex'), "#!/bin/sh\ntrap 'exit 143' TERM\nwhile :; do sleep 0.2; done\n", { mode: 0o755 })
-    const { app, leader, call } = await leaderIn(repo.dir, { env: { ...env, CLAUDE_CONFIG_DIR: '/x' }, pollMs: 200 })
+    const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv(), pollMs: 200 })
     const codex = { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
     await app.client.request({ t: 'accounts.save', accounts: [...DEFAULT_ACCOUNTS, codex] })
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
-    await call('contratar_dev', { nome: 'dev-1', worktree: false, conta: 'codex', prompt: 'tarefaSemHook' })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false, conta: 'codex' })
     const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
     await app.client.request({ t: 'pane.attach', paneId: dev })
-    await waitFor(async () => (app.output(dev).includes('tarefaSemHook') ? true : null), 20_000)
-  })
+    await call('mandar_mensagem', { para: 'dev-1', texto: 'semHookQ3' })
+    await new Promise((r) => setTimeout(r, 7000)) // mais que processo visto (3 s) + silêncio (2 s) da regra antiga
+    expect(app.output(dev)).not.toContain('semHookQ3')
+    expect((JSON.parse(fs.readFileSync(o.stateFile, 'utf8')).mailbox as { state: string }[]).map((m) => m.state)).toEqual(['na-fila'])
+  }, 15_000)
 
   it('mensagens: status your-turn com a CLI fora do painel (só o shell) não digita no shell', async () => {
     repo = makeRepo()

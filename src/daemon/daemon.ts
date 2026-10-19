@@ -508,7 +508,6 @@ export class Daemon {
       status: r.claude?.status ?? null,
       statusSince: r.claude?.statusSince ?? 0,
       sessionSince: r.sessionStartedAt,
-      agentProcSince: r.agentProcSince,
       createdAt: r.createdAt,
       lastUserInputAt: r.lastUserInputAt,
       lastOutputAt: r.lastOutputAt,
@@ -663,18 +662,12 @@ export class Daemon {
     // preâmbulo sempre: o dev precisa saber quem é o líder e que [equipe] não é o usuário
     const tarefa = typeof args.prompt === 'string' ? args.prompt : ''
     const prompt = hirePreamble({ name, leaderName: displayName(caller, meta), leaderAgent: this.agentOf(caller), agent: account.agent }) + (tarefa ? `\n\n${tarefa}` : '')
-    let promptFile: string | undefined
-    // Claude recebe o prompt na linha de comando; as outras CLIs, pela fila (digitado quando a sessão fica pronta)
-    if (account.agent === 'claude') {
-      fs.mkdirSync(this.promptsDir, { recursive: true, mode: 0o700 })
-      promptFile = path.join(this.promptsDir, `${id}.txt`)
-      fs.writeFileSync(promptFile, prompt, { mode: 0o600 })
-    }
+    // toda CLI recebe o prompt na linha de comando
+    fs.mkdirSync(this.promptsDir, { recursive: true, mode: 0o700 })
+    const promptFile = path.join(this.promptsDir, `${id}.txt`)
+    fs.writeFileSync(promptFile, prompt, { mode: 0o600 })
     meta[id] = { name, color: null, createdBy: caller.id }
     this.panes.create({ paneId: id, cwd, accountId: account.id, cols: 120, rows: 30, workspaceId: w.id, agentName: name, promptFile, model: modelo })
-    if (account.agent !== 'claude') {
-      this.mailbox.enqueue({ from: caller.id, to: id, fromName: displayName(caller, meta), toName: name, fromAgent: this.agentOf(caller), kind: 'prompt-inicial', text: prompt, interrupt: false })
-    }
     if (args.onde === 'flutuante') w.floating.push(id)
     else w.layout = insertBeside(w.layout, caller.id, id)
     this.changed()

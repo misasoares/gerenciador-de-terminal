@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { AgentKind } from '../../shared/types'
 
-export type MessageKind = 'equipe' | 'gerenciador' | 'prompt-inicial'
+export type MessageKind = 'equipe' | 'gerenciador'
 
 export interface TeamMessage {
   id: string
