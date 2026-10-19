@@ -791,7 +791,7 @@ describe('Daemon', () => {
     repo = makeRepo()
     const { o, app, leader, call } = await leaderIn(repo.dir)
     await expect(call('contratar_dev', { nome: 'dev-1' })).rejects.toThrow('esta sessão não é líder')
-    await expect(call('listar_equipe', {})).rejects.toThrow('esta sessão não é líder')
+    await expect(call('listar_equipe', {})).rejects.toThrow('esta sessão não está numa equipe')
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
     const base = repo.git('rev-parse', '--abbrev-ref', 'HEAD').trim()
     const r = await call('contratar_dev', { nome: 'dev-1', prompt: `faça "X" e 'Y'`, conta: 'weboption-max' })
@@ -823,9 +823,11 @@ describe('Daemon', () => {
     await expect(call('contratar_dev', { nome: 'dev-2', worktree: false })).rejects.toThrow('limite de 1 sessões atingido; encerre alguma ou aumente o limite nas preferências')
     const { paneId: mine } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
     await app.client.request({ t: 'pane.meta', paneId: mine, name: 'minha' })
-    const list = (await call('listar_equipe', {})) as unknown as { nome: string; criadaPorMim: boolean; status: string }[]
-    expect(list.find((x) => x.nome === 'dev-1')).toMatchObject({ criadaPorMim: true })
-    expect(list.find((x) => x.nome === 'minha')).toMatchObject({ criadaPorMim: false, status: 'terminal' })
+    const list = (await call('listar_equipe', {})) as unknown as { nome: string; criadaPorMim: boolean; eu: boolean; status: string }[]
+    expect(list.find((x) => x.nome === 'dev-1')).toMatchObject({ criadaPorMim: true, status: 'terminal' })
+    expect(list.filter((x) => x.eu)).toHaveLength(1)
+    // a lista é da equipe: a sessão solta do usuário não entra
+    expect(list.find((x) => x.nome === 'minha')).toBeUndefined()
     await call('renomear_dev', { nome: 'dev-1', novo_nome: 'dev-a' })
     await expect(call('demitir_dev', { nome: 'minha' })).rejects.toThrow('só encerra sessões criadas por esta sessão')
     const devId = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-a'))).panes.find((p) => p.name === 'dev-a')!.id
@@ -835,6 +837,39 @@ describe('Daemon', () => {
     const layout = (await app.client.request<{ layout: { tabs: { root: unknown }[] } }>({ t: 'state.get' })).layout
     expect(JSON.stringify(layout)).not.toContain(devId)
     expect(app.state()!.panes.find((p) => p.id === mine)?.alive).toBe(true)
+  })
+
+  it('mensagens: dev manda ao líder, fila, entrega e regras de equipe', async () => {
+    repo = makeRepo()
+    const { o, app, leader, call } = await leaderIn(repo.dir)
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await app.client.request({ t: 'pane.meta', paneId: leader, name: 'lider' })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    const callDev = (tool: string, args: Record<string, unknown>) => app.client.request<Record<string, unknown>>({ t: 'mcp.call', callerPaneId: dev, tool, args })
+    for (const id of [leader, dev]) {
+      await hook(o, id, { hook_event_name: 'SessionStart', session_id: `s-${id}`, cwd: repo.dir, source: 'startup' })
+      await hook(o, id, { hook_event_name: 'Stop', session_id: `s-${id}`, cwd: repo.dir })
+    }
+    await app.waitState((s) => s.panes.filter((p) => p.claude?.status === 'your-turn').length === 2)
+    await app.client.request({ t: 'pane.attach', paneId: leader })
+    await callDev('mandar_mensagem', { para: 'lider', texto: 'terminei a parte 1' })
+    await app.waitState(() => app.output(leader).includes('[equipe] de dev-1'))
+    expect(app.output(leader)).toContain('terminei a parte 1')
+
+    // regras de equipe
+    const { paneId: solta } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    await app.client.request({ t: 'pane.meta', paneId: solta, name: 'x' })
+    const callSolta = (tool: string, args: Record<string, unknown>) => app.client.request<Record<string, unknown>>({ t: 'mcp.call', callerPaneId: solta, tool, args })
+    await expect(callDev('mandar_mensagem', { para: 'x', texto: 'oi' })).rejects.toThrow('fora da sua equipe: x')
+    await expect(callDev('mandar_mensagem', { para: 'dev-1', texto: 'oi' })).rejects.toThrow('não dá para mandar mensagem para si mesmo')
+    await expect(callDev('mandar_mensagem', { para: 'zzz', texto: 'oi' })).rejects.toThrow('sessão não encontrada neste espaço: zzz')
+    await expect(callSolta('mandar_mensagem', { para: 'lider', texto: 'oi' })).rejects.toThrow('esta sessão não está numa equipe')
+
+    // o dev também enxerga a equipe
+    const equipe = (await callDev('listar_equipe', {})) as unknown as Record<string, unknown>[]
+    expect(equipe.map((m) => m.nome).sort()).toEqual(['dev-1', 'lider'])
+    for (const m of equipe) expect(m).toEqual(expect.objectContaining({ nome: expect.any(String), cli: 'Claude', status: expect.any(String), desde_s: expect.any(Number), fila: expect.any(Number), atrasada: false }))
   })
 
   it('contratar: líder em HEAD solto pedindo worktree → erro e nada criado', async () => {

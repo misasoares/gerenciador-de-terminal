@@ -19,10 +19,18 @@ describe('gt-mcp: protocolo', () => {
     expect(await handleMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, noCall)).toBeNull()
     expect(await handleMessage({ jsonrpc: '2.0', id: 2, method: 'x/y' }, noCall)).toMatchObject({ id: 2, error: { code: -32601 } })
   })
-  it('tools/list traz as 5 ferramentas; contratar aceita forcar', async () => {
+  it('tools/list traz as 7 ferramentas; contratar aceita forcar', async () => {
     const r = (await handleMessage({ jsonrpc: '2.0', id: 3, method: 'tools/list' }, noCall)) as { result: { tools: { name: string }[] } }
-    expect(r.result.tools.map((t) => t.name)).toEqual(['contratar_dev', 'listar_equipe', 'renomear_dev', 'demitir_dev', 'uso_da_maquina'])
+    expect(r.result.tools.map((t) => t.name)).toEqual(['contratar_dev', 'listar_equipe', 'mandar_mensagem', 'interromper', 'renomear_dev', 'demitir_dev', 'uso_da_maquina'])
     expect(TOOLS[0].inputSchema).toMatchObject({ type: 'object', required: ['nome'], properties: { forcar: { type: 'boolean' } } })
+  })
+  it('mandar_mensagem e interromper: parâmetros e instruções da equipe', async () => {
+    const tool = (n: string) => TOOLS.find((t) => t.name === n)!.inputSchema as { required: string[]; properties: Record<string, unknown> }
+    expect(tool('mandar_mensagem').required).toEqual(['para', 'texto'])
+    expect(tool('interromper').required).toEqual(['para'])
+    expect(Object.keys(tool('interromper').properties)).toEqual(['para', 'texto'])
+    const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
+    for (const k of ['[equipe]', 'mandar_mensagem', 'interromper', 'Claude → Claude: SendMessage; para outra CLI: mandar_mensagem']) expect(r.result.instructions).toContain(k)
   })
   it('instruções mandam consultar uso_da_maquina e só forçar com autorização', async () => {
     const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
@@ -49,7 +57,7 @@ describe('gt-mcp: protocolo', () => {
     serveLines(input, output, noCall)
     input.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) + '\n')
     await new Promise((r) => setTimeout(r, 50))
-    expect(JSON.parse(lines[0]).result.tools).toHaveLength(5)
+    expect(JSON.parse(lines[0]).result.tools).toHaveLength(7)
   })
   it('stdio: quando a entrada fecha (o Claude saiu), avisa para o processo encerrar', async () => {
     const input = new PassThrough()

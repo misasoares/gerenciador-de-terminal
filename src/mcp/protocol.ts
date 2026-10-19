@@ -13,7 +13,10 @@ export const INSTRUCTIONS = [
   'Dê nomes curtos (dev-1, dev-2…) e mande no prompt a tarefa completa de cada um. Coordene pelo SendMessage nativo, endereçando pelo nome; use listar_equipe para ver quem está trabalhando, pedindo permissão ou esperando (sua-vez).',
   'Quando pedirem para demitir, dispensar, encerrar ou fechar devs, use demitir_dev: o terminal some da tela, mas a worktree, a branch e a conversa ficam. Antes de demitir quem está no meio de algo, peça pelo SendMessage que commite e avise.',
   'Antes de contratar mais de um dev, consulte uso_da_maquina e ajuste quantos contratar. Se contratar_dev recusar por máquina sobrecarregada, mostre o motivo ao usuário e só use forcar: true se ele autorizar.',
-  'Só a sessão marcada pelo usuário como líder (👑) pode usar estas ferramentas; se vier "esta sessão não é líder", explique ao usuário como marcar (menu da sessão na sidebar → Pode contratar sessões).',
+  'Só a sessão marcada pelo usuário como líder (👑) pode usar contratar_dev, demitir_dev e renomear_dev; se vier "esta sessão não é líder", explique ao usuário como marcar (menu da sessão na sidebar → Pode contratar sessões).',
+  'Hierarquia: o líder (tech lead) e os devs que ele contratou formam uma equipe. Mensagem que começa com [equipe] vem de um colega da equipe; mensagem sem esse prefixo vem do usuário humano.',
+  'Falar com um colega: Claude → Claude: SendMessage; para outra CLI: mandar_mensagem(para, texto). Quem não é Claude sempre usa mandar_mensagem. A mensagem entra na fila e é digitada no terminal do destinatário quando ele fica parado; a resposta chega no seu terminal com o prefixo [equipe].',
+  'Use interromper(para, texto?) só quando a tarefa atual do dev ficou inútil: ele para na hora e recebe o texto em seguida.',
 ].join('\n')
 
 export const TOOLS = [
@@ -37,8 +40,21 @@ export const TOOLS = [
   },
   {
     name: 'listar_equipe',
-    description: 'Lista a equipe: as sessões do espaço de trabalho desta sessão: nome, status (trabalhando, pedindo-permissao, sua-vez, ocioso, terminal), conta, pasta, branch e se foi criada por esta sessão.',
+    description:
+      'Lista a equipe (o líder e os devs que ele contratou): nome, CLI, status (trabalhando, pedindo-permissao, sua-vez, ocioso, terminal), há quantos segundos está nele, mensagens esperando na fila, se a entrega está atrasada, conta, pasta, branch e se foi criada por esta sessão. Qualquer membro da equipe pode chamar.',
     inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'mandar_mensagem',
+    description:
+      'Manda uma mensagem a outro membro da sua equipe (líder ↔ devs, ou entre devs do mesmo líder). Vai para a fila e o Gerenciador a digita no terminal do destinatário quando ele estiver parado, nunca durante um pedido de permissão. O cabeçalho [equipe] é montado pelo app. Entre dois Claudes prefira o SendMessage nativo.',
+    inputSchema: { type: 'object', properties: { para: str('nome do destinatário, como aparece em listar_equipe'), texto: str('a mensagem') }, required: ['para', 'texto'] },
+  },
+  {
+    name: 'interromper',
+    description:
+      'Interrompe um membro da sua equipe agora (tecla Esc no terminal dele) e, se houver texto, entrega a mensagem em seguida. Use só quando a tarefa atual dele ficou inútil; para um recado comum use mandar_mensagem.',
+    inputSchema: { type: 'object', properties: { para: str('nome do destinatário'), texto: str('o que ele deve fazer em vez disso (opcional)') }, required: ['para'] },
   },
   {
     name: 'renomear_dev',

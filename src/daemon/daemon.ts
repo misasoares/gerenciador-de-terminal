@@ -30,6 +30,10 @@ import { groupProcs, type PsRow } from './machine/groups'
 import { gateRefusal, machineReport } from './machine/report'
 import type { MachineDetail } from '../shared/types'
 import { Hibernator } from './hibernator'
+import { Deliverer, type DeliveryPane } from './team/delivery'
+import { Mailbox } from './team/mailbox'
+import { displayName, sameTeam, teamHeader, teamLeaderOf } from './team/team'
+import { profileOf } from './agent-profiles'
 import { snapshotProcs } from './platform/procs'
 
 export interface DaemonOptions {
@@ -94,6 +98,9 @@ export class Daemon {
   private pollTimer: NodeJS.Timeout | null = null
   private hibernator!: Hibernator
   private hibernateTimer: NodeJS.Timeout | null = null
+  private mailbox!: Mailbox
+  private deliverer: Deliverer | null = null
+  private deliveryTimer: NodeJS.Timeout | null = null
   private worktreeTimer: NodeJS.Timeout | null = null
   private stopping = false
   private conflicts = new Map<string, ConflictReport>()
@@ -272,6 +279,15 @@ export class Daemon {
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
       },
     })
+    this.mailbox = new Mailbox(p.mailbox, () => this.changed())
+    this.deliverer = new Deliverer({
+      mailbox: this.mailbox,
+      pane: (id) => this.deliveryPane(id),
+      writeRaw: (id, data) => this.panes.writeRaw(id, data),
+      now: Date.now,
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    })
+    this.deliveryTimer = setInterval(() => this.tickDelivery(), 1000)
     this.hookWarnings = this.checkHookTargets()
     this.server = await startServer(this.o.socketPath, (req, conn) => this.handle(req, conn))
     // sem leitor (testes que não injetam um): nunca há leitura, e o gate segue com aviso
@@ -325,6 +341,7 @@ export class Daemon {
     this.stopping = true
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.hibernateTimer) clearInterval(this.hibernateTimer)
+    if (this.deliveryTimer) clearInterval(this.deliveryTimer)
     if (this.worktreeTimer) clearInterval(this.worktreeTimer)
     if (this.broadcastTimer) clearTimeout(this.broadcastTimer)
     if (this.saveTimer) clearTimeout(this.saveTimer)
@@ -341,6 +358,7 @@ export class Daemon {
   private changed(persist = true): void {
     if (this.stopping) return
     this.monitor.track(this.registry.allWorktreePaths())
+    this.tickDelivery()
     if (!this.broadcastTimer) {
       this.broadcastTimer = setTimeout(() => {
         this.broadcastTimer = null
@@ -361,11 +379,16 @@ export class Daemon {
     }
   }
 
+  private tickDelivery(): void {
+    this.deliverer?.tick().catch((e) => console.error('entrega de mensagens falhou', e))
+  }
+
   private save(): void {
     if (this.stopping) return
     const main = this.ws('principal')
     savePersisted(this.o.stateFile, {
       ...this.persisted,
+      mailbox: this.mailbox.all(),
       // raiz = espaço principal, para quem voltar a uma versão sem espaços
       layout: main.layout,
       resumable: main.resumable,
@@ -452,7 +475,57 @@ export class Daemon {
     }
   }
 
-  /** ferramentas do MCP do líder; o espaço é o do líder */
+  private agentOf(r: PaneRecord): AgentKind {
+    return r.claude?.agent ?? this.persisted.accounts.find((a) => a.id === (r.launchedAccountId ?? r.accountId))?.agent ?? 'claude'
+  }
+
+  private deliveryPane(id: string): DeliveryPane | null {
+    const r = this.panes.get(id)
+    if (!r) return null
+    return {
+      id,
+      alive: r.alive,
+      agent: this.agentOf(r),
+      status: r.claude?.status ?? null,
+      statusSince: r.claude?.statusSince ?? 0,
+      sessionSince: r.sessionStartedAt,
+      createdAt: r.createdAt,
+      lastUserInputAt: r.lastUserInputAt,
+      lastOutputAt: r.lastOutputAt,
+    }
+  }
+
+  /** mensagem de equipe (mandar_mensagem / interromper): o remetente é sempre o painel que chama */
+  private teamMessage(caller: PaneRecord, args: Record<string, unknown>, interrupt: boolean): { nome: string; fila: number } {
+    const meta = this.persisted.paneMeta
+    const para = String(args.para ?? '')
+    const target = this.panes.records().find((r) => r.alive && r.workspaceId === caller.workspaceId && displayName(r, meta) === para)
+    if (!target) throw new Error(`sessão não encontrada neste espaço: ${para}`)
+    if (target.id === caller.id) throw new Error('não dá para mandar mensagem para si mesmo')
+    if (!sameTeam(caller.id, target.id, meta)) throw new Error(`fora da sua equipe: ${para}`)
+    const texto = typeof args.texto === 'string' ? args.texto.trim() : ''
+    if (!texto && !(interrupt && args.texto === undefined)) throw new Error('texto vazio')
+    const toName = displayName(target, meta)
+    if (interrupt) this.deliverer!.interrupt(target.id)
+    if (texto) {
+      const fromAgent = this.agentOf(caller)
+      const fromName = displayName(caller, meta)
+      this.mailbox.enqueue({
+        from: caller.id,
+        to: target.id,
+        fromName,
+        toName,
+        fromAgent,
+        kind: 'equipe',
+        text: teamHeader({ fromName, fromAgent, toName, toAgent: this.agentOf(target), text: texto }),
+        interrupt,
+      })
+    }
+    this.tickDelivery()
+    return { nome: toName, fila: this.mailbox.queued(target.id).length }
+  }
+
+  /** ferramentas do MCP; o espaço é o do chamador */
   private async mcpCall(callerId: string, tool: string, args: Record<string, unknown>): Promise<unknown> {
     const caller = this.panes.records().find((r) => r.id === callerId && r.alive)
     if (!caller) throw new Error('sessão de origem não encontrada')
@@ -472,16 +545,37 @@ export class Daemon {
       const claude = this.panes.records().filter((r) => r.alive && r.claude).flatMap((r) => (d.perPane[r.id] ? [d.perPane[r.id]] : []))
       return machineReport(v, d, claude)
     }
-    // todas as ferramentas, inclusive listar, são só do líder
-    if (meta[caller.id]?.leader !== true) throw new Error('esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão')
-    if (tool === 'listar_equipe') {
-      return inWs().map((r) => {
-        const wt = this.panes.effectiveWorktree(r)
-        const project = this.panes.effectiveProject(r)
-        const branch = project && wt ? (this.registry.worktrees(project).find((x) => x.path === wt)?.branch ?? null) : null
-        return { nome: meta[r.id]?.name ?? `sessão ${r.seq}`, status: statusName(r), conta: r.accountId, pasta: r.cwd, branch, criadaPorMim: meta[r.id]?.createdBy === caller.id, eu: r.id === caller.id }
-      })
+    // equipe: qualquer membro (líder ou contratado) conversa e vê a equipe
+    if (tool === 'mandar_mensagem' || tool === 'interromper' || tool === 'listar_equipe') {
+      const leaderId = teamLeaderOf(caller.id, meta)
+      if (leaderId === null) throw new Error('esta sessão não está numa equipe; peça ao usuário para marcar o líder (menu da sessão → Pode contratar sessões)')
+      if (tool === 'mandar_mensagem') return this.teamMessage(caller, args, false)
+      if (tool === 'interromper') return this.teamMessage(caller, args, true)
+      const now = Date.now()
+      return this.panes
+        .records()
+        .filter((r) => r.alive && teamLeaderOf(r.id, meta) === leaderId)
+        .map((r) => {
+          const wt = this.panes.effectiveWorktree(r)
+          const project = this.panes.effectiveProject(r)
+          const branch = project && wt ? (this.registry.worktrees(project).find((x) => x.path === wt)?.branch ?? null) : null
+          return {
+            nome: displayName(r, meta),
+            cli: profileOf(this.agentOf(r)).label,
+            status: statusName(r),
+            desde_s: r.claude ? Math.max(0, Math.round((now - r.claude.statusSince) / 1000)) : null,
+            fila: this.mailbox.queued(r.id).length,
+            atrasada: this.deliverer!.late(r.id),
+            conta: r.accountId,
+            pasta: r.cwd,
+            branch,
+            criadaPorMim: meta[r.id]?.createdBy === caller.id,
+            eu: r.id === caller.id,
+          }
+        })
     }
+    // contratar, renomear e demitir são só do líder
+    if (meta[caller.id]?.leader !== true) throw new Error('esta sessão não é líder; peça ao usuário para marcá-la no menu da sessão')
     if (tool === 'renomear_dev') {
       const r = byName(args.nome)
       const novo = uniqueDash(checkName(String(args.novo_nome ?? '')), inWs().filter((x) => x !== r).map((x) => meta[x.id]?.name ?? ''))
