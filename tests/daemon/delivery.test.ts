@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Deliverer, INTERRUPT_QUIET_MS, pasteAndSubmit, READY_TIMEOUT_MS, USER_TYPING_GRACE_MS, type DeliveryPane } from '../../src/daemon/team/delivery'
+import { Deliverer, INTERRUPT_QUIET_MS, PICKUP_TIMEOUT_MS, pasteAndSubmit, READY_TIMEOUT_MS, USER_TYPING_GRACE_MS, type DeliveryPane } from '../../src/daemon/team/delivery'
 import { Mailbox } from '../../src/daemon/team/mailbox'
 
 const msg = { from: 'p1', to: 'p2', fromName: 'lider', toName: 'dev-1', fromAgent: 'claude' as const, kind: 'equipe' as const, text: 'oi', interrupt: false }
@@ -60,7 +60,7 @@ describe('Deliverer', () => {
     expect(s.written).toHaveLength(2)
   })
 
-  it('uma por vez: a segunda só sai depois de statusSince mudar', async () => {
+  it('uma por vez: mudar só o statusSince (markSeen: your-turn → idle) não libera a segunda', async () => {
     const s = setup()
     s.mb.enqueue({ ...msg, text: 'um' })
     s.mb.enqueue({ ...msg, text: 'dois' })
@@ -68,7 +68,38 @@ describe('Deliverer', () => {
     await s.d.tick()
     expect(s.written).toEqual(pasteAndSubmit('um'))
     s.advance(1000)
-    s.panes.p2.statusSince = s.now() // trabalhou e voltou a ficar parado
+    s.panes.p2.status = 'idle'
+    s.panes.p2.statusSince = s.now()
+    await s.d.tick()
+    expect(s.written).toEqual(pasteAndSubmit('um'))
+  })
+
+  it('uma por vez: depois de working e de volta a your-turn, a segunda sai', async () => {
+    const s = setup()
+    s.mb.enqueue({ ...msg, text: 'um' })
+    s.mb.enqueue({ ...msg, text: 'dois' })
+    await s.d.tick()
+    s.advance(1000)
+    s.panes.p2.status = 'working'
+    s.panes.p2.statusSince = s.now()
+    await s.d.tick()
+    expect(s.written).toEqual(pasteAndSubmit('um'))
+    s.advance(1000)
+    s.panes.p2.status = 'your-turn'
+    s.panes.p2.statusSince = s.now()
+    await s.d.tick()
+    expect(s.written).toEqual([...pasteAndSubmit('um'), ...pasteAndSubmit('dois')])
+  })
+
+  it('uma por vez: se ele não fica working em 30 s (a CLI ignorou a colagem), a fila anda', async () => {
+    const s = setup()
+    s.mb.enqueue({ ...msg, text: 'um' })
+    s.mb.enqueue({ ...msg, text: 'dois' })
+    await s.d.tick()
+    s.advance(PICKUP_TIMEOUT_MS - 1000)
+    await s.d.tick()
+    expect(s.written).toEqual(pasteAndSubmit('um'))
+    s.advance(1000)
     await s.d.tick()
     expect(s.written).toEqual([...pasteAndSubmit('um'), ...pasteAndSubmit('dois')])
   })

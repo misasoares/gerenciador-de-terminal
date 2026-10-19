@@ -5,6 +5,8 @@ import type { Mailbox } from './mailbox'
 export const USER_TYPING_GRACE_MS = 5000
 export const INTERRUPT_QUIET_MS = 1500
 export const READY_TIMEOUT_MS = 60_000
+/** sem ficar working tanto tempo depois da entrega, a CLI ignorou a colagem: a fila anda */
+export const PICKUP_TIMEOUT_MS = 30_000
 /** o Esc de interromper vale para a entrega por esse tempo */
 const INTERRUPT_WINDOW_MS = 30_000
 /** pausa entre o fim da colagem e o Enter */
@@ -41,14 +43,16 @@ export function pasteAndSubmit(text: string): [string, string] {
 export class Deliverer {
   /** destinatários com colagem em andamento */
   private busy = new Set<string>()
-  /** statusSince do destinatário na última entrega: a próxima espera ele mudar */
-  private deliveredAt = new Map<string, number>()
+  /** última entrega por destinatário: a próxima espera o agente pegar a mensagem (working) e voltar a parar */
+  private delivered = new Map<string, { at: number; sawWorking: boolean }>()
   private interruptedAt = new Map<string, number>()
 
   constructor(private d: DeliveryDeps) {}
 
   /** tenta entregar a próxima de cada destinatário com fila; chamado em onChange e a cada 1 s */
   async tick(): Promise<void> {
+    // working precisa ser visto mesmo sem fila: é o que prova que o agente pegou a mensagem
+    for (const [to, d] of this.delivered) if (this.d.pane(to)?.status === 'working') d.sawWorking = true
     const targets = new Set(this.d.mailbox.all().filter((m) => m.state === 'na-fila').map((m) => m.to))
     await Promise.all([...targets].map((to) => this.deliverTo(to)))
   }
@@ -72,9 +76,9 @@ export class Deliverer {
   private ready(p: DeliveryPane, interrupt: boolean): boolean {
     const now = this.d.now()
     if (!p.alive || now - p.lastUserInputAt < USER_TYPING_GRACE_MS) return false
-    const after = this.deliveredAt.get(p.id)
+    const last = this.delivered.get(p.id)
     const settled = p.status === 'idle' || p.status === 'your-turn'
-    if (settled) return after === undefined || p.statusSince > after
+    if (settled) return !last || last.sawWorking || now - last.at >= PICKUP_TIMEOUT_MS
     // Esc no Claude não dispara Stop: o silêncio do terminal é o sinal de que ele parou
     const at = this.interruptedAt.get(p.id)
     return interrupt && p.status === 'working' && at !== undefined && now - at <= INTERRUPT_WINDOW_MS && now - p.lastOutputAt >= INTERRUPT_QUIET_MS
@@ -91,7 +95,7 @@ export class Deliverer {
       this.d.writeRaw(to, paste)
       await this.d.sleep(PASTE_SETTLE_MS)
       this.d.writeRaw(to, enter)
-      this.deliveredAt.set(to, p.statusSince)
+      this.delivered.set(to, { at: this.d.now(), sawWorking: p.status === 'working' })
       this.interruptedAt.delete(to)
       this.d.mailbox.markDelivered(m.id)
     } finally {
