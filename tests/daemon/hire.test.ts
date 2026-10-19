@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
-import { checkName, insertBeside, pickAccount, statusName, uniqueDash } from '../../src/daemon/hire'
+import { checkName, hirePreamble, insertBeside, pickAccount, statusName, uniqueDash } from '../../src/daemon/hire'
+
+const CODEX = { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
+const MIXED = [...DEFAULT_ACCOUNTS, CODEX]
 
 const leaf = (paneId: string) => ({ type: 'leaf' as const, paneId })
 
@@ -18,6 +21,20 @@ describe('hire', () => {
     expect(pickAccount(DEFAULT_ACCOUNTS, 'MSLABS', 'misa').id).toBe('mslabs')
     expect(pickAccount(DEFAULT_ACCOUNTS, undefined, 'weboption-max').id).toBe('weboption-max')
     expect(() => pickAccount(DEFAULT_ACCOUNTS, 'nada', 'misa')).toThrow('conta desconhecida: nada (contas: misa, mslabs, weboption, weboption-max)')
+  })
+  it('conta de qualquer CLI: a do Codex por id, e sem conta cai na do líder (de qualquer CLI)', () => {
+    expect(pickAccount(MIXED, 'codex', 'misa').id).toBe('codex')
+    expect(pickAccount(MIXED, undefined, 'codex').id).toBe('codex')
+    expect(() => pickAccount(MIXED, 'nada', 'misa')).toThrow('conta desconhecida: nada (contas: misa, mslabs, weboption, weboption-max, codex)')
+  })
+  it('preâmbulo: Claude → Claude cita SendMessage; Codex contratado por Claude cita mandar_mensagem', () => {
+    const claude = hirePreamble({ name: 'dev-1', leaderName: 'lider', leaderAgent: 'claude', agent: 'claude' })
+    expect(claude).toBe(
+      'Você é dev-1, contratado pelo tech lead lider (Claude) neste projeto. Mensagens que começam com [equipe] vêm de colegas, não do usuário. Mensagens sem esse prefixo são do usuário humano. Para responder ou avisar o líder, use SendMessage(to: "lider"). Quando terminar, avise o líder.',
+    )
+    const codex = hirePreamble({ name: 'dev-1', leaderName: 'lider', leaderAgent: 'claude', agent: 'codex' })
+    expect(codex).toContain('use mandar_mensagem(para: "lider").')
+    expect(codex).not.toContain('SendMessage')
   })
   it('status em português', () => {
     expect(statusName({ alive: true, claude: { status: 'needs-you' } })).toBe('pedindo-permissao')

@@ -18,7 +18,7 @@ import { ProjectRegistry } from './projects'
 import { startServer, type Conn, type RpcServer } from './server'
 import { checkRemove, removeWorktree } from './worktree-remove'
 import { uniqueName } from './workspaces'
-import { checkName, insertBeside, pickAccount, statusName, uniqueDash } from './hire'
+import { checkModel, checkName, hirePreamble, insertBeside, pickAccount, statusName, uniqueDash } from './hire'
 import { git } from './git/run'
 import { UsageMonitor } from './usage/monitor'
 import { ConversationIndex } from './conversations/index'
@@ -638,18 +638,26 @@ export class Daemon {
       await this.registry.refresh(project)
     }
     const id = randomUUID()
+    const modelo = typeof args.modelo === 'string' && args.modelo.trim() ? checkModel(args.modelo) : undefined
+    // preâmbulo sempre: o dev precisa saber quem é o líder e que [equipe] não é o usuário
+    const tarefa = typeof args.prompt === 'string' ? args.prompt : ''
+    const prompt = hirePreamble({ name, leaderName: displayName(caller, meta), leaderAgent: this.agentOf(caller), agent: account.agent }) + (tarefa ? `\n\n${tarefa}` : '')
     let promptFile: string | undefined
-    if (typeof args.prompt === 'string' && args.prompt) {
+    // Claude recebe o prompt na linha de comando; as outras CLIs, pela fila (digitado quando a sessão fica pronta)
+    if (account.agent === 'claude') {
       fs.mkdirSync(this.promptsDir, { recursive: true, mode: 0o700 })
       promptFile = path.join(this.promptsDir, `${id}.txt`)
-      fs.writeFileSync(promptFile, args.prompt, { mode: 0o600 })
+      fs.writeFileSync(promptFile, prompt, { mode: 0o600 })
     }
     meta[id] = { name, color: null, createdBy: caller.id }
-    this.panes.create({ paneId: id, cwd, accountId: account.id, cols: 120, rows: 30, workspaceId: w.id, agentName: name, promptFile })
+    this.panes.create({ paneId: id, cwd, accountId: account.id, cols: 120, rows: 30, workspaceId: w.id, agentName: name, promptFile, model: modelo })
+    if (account.agent !== 'claude') {
+      this.mailbox.enqueue({ from: caller.id, to: id, fromName: displayName(caller, meta), toName: name, fromAgent: this.agentOf(caller), kind: 'prompt-inicial', text: prompt, interrupt: false })
+    }
     if (args.onde === 'flutuante') w.floating.push(id)
     else w.layout = insertBeside(w.layout, caller.id, id)
     this.changed()
-    return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcp: this.mcpSpec, paneId: id, socketPath: this.o.socketPath, name, promptFile }), ...(aviso ? { aviso } : {}) }
+    return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcp: this.mcpSpec, paneId: id, socketPath: this.o.socketPath, model: modelo, name, promptFile }), ...(modelo ? { modelo } : {}), ...(aviso ? { aviso } : {}) }
   }
 
   private panePids(): { id: string; pid: number }[] {

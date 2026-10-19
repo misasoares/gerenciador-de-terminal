@@ -23,13 +23,14 @@ export const TOOLS = [
   {
     name: 'contratar_dev',
     description:
-      'Contratar um dev / abrir uma sessão nova: abre um terminal novo do Claude Code no Gerenciador de Terminal, ao lado desta sessão, como se o usuário tivesse aberto, com nome (o SendMessage acha por ele), conta, worktree git própria e prompt inicial. Use para "contrata N devs", "abre sessões para X" (não é subagente). Só funciona se o usuário marcou esta sessão como líder.',
+      'Contratar um dev / abrir uma sessão nova: abre um terminal novo de uma CLI (Claude ou Codex, conforme a conta) no Gerenciador de Terminal, ao lado desta sessão, como se o usuário tivesse aberto, com nome (o SendMessage e o mandar_mensagem acham por ele), conta, modelo, worktree git própria e prompt inicial. Use para "contrata N devs", "abre sessões para X" (não é subagente). Só funciona se o usuário marcou esta sessão como líder.',
     inputSchema: {
       type: 'object',
       properties: {
         nome: str('nome da sessão, ex.: dev-1 (letras, números, ponto, hífen, sublinhado)'),
         prompt: str('primeira mensagem enviada à sessão'),
-        conta: str('conta do agente (id ou rótulo); padrão: a desta sessão'),
+        conta: str('conta do agente, de qualquer CLI (id ou rótulo); padrão: a desta sessão'),
+        modelo: str('modelo da sessão, no nome que a CLI aceita (ex.: sonnet, gpt-5); padrão: o da CLI'),
         worktree: { type: 'boolean', description: 'criar worktree git nova em .claude/worktrees/<nome> (padrão true)' },
         base: str('branch de partida da worktree; padrão: a branch atual desta sessão'),
         forcar: { type: 'boolean', description: 'contratar mesmo com a máquina sobrecarregada; só com autorização explícita do usuário' },

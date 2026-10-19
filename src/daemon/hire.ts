@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import type { Account, Layout, LayoutNode, SessionStatus } from '../shared/types'
+import type { Account, AgentKind, Layout, LayoutNode, SessionStatus } from '../shared/types'
+import { profileOf } from './agent-profiles'
 
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/
 
@@ -10,6 +11,13 @@ export function checkName(n: string): string {
   return v
 }
 
+/** nome do modelo vai para a linha de comando (entre aspas): só barra o que não é um nome */
+export function checkModel(m: string): string {
+  const v = m.trim()
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:/@[\]-]{0,99}$/.test(v)) throw new Error('modelo inválido')
+  return v
+}
+
 export function uniqueDash(name: string, taken: string[]): string {
   if (!taken.includes(name)) return name
   let i = 2
@@ -17,17 +25,24 @@ export function uniqueDash(name: string, taken: string[]): string {
   return `${name}-${i}`
 }
 
+/** conta de qualquer CLI: a pedida, senão a do líder, senão a padrão */
 export function pickAccount(accounts: Account[], wanted: unknown, fallbackId: string | null): Account {
-  const claude = accounts.filter((a) => a.agent === 'claude')
   if (typeof wanted === 'string' && wanted.trim()) {
     const w = wanted.trim().toLowerCase()
-    const hit = claude.find((a) => a.id.toLowerCase() === w || a.label.toLowerCase() === w)
-    if (!hit) throw new Error(`conta desconhecida: ${wanted} (contas: ${claude.map((a) => a.id).join(', ')})`)
+    const hit = accounts.find((a) => a.id.toLowerCase() === w || a.label.toLowerCase() === w)
+    if (!hit) throw new Error(`conta desconhecida: ${wanted} (contas: ${accounts.map((a) => a.id).join(', ')})`)
     return hit
   }
-  const own = claude.find((a) => a.id === fallbackId) ?? claude.find((a) => a.isDefault) ?? claude[0]
-  if (!own) throw new Error('nenhuma conta do Claude configurada')
+  const own = accounts.find((a) => a.id === fallbackId) ?? accounts.find((a) => a.isDefault) ?? accounts[0]
+  if (!own) throw new Error('nenhuma conta configurada')
   return own
+}
+
+/** abertura do prompt de todo dev contratado: papel, hierarquia e como falar com o líder */
+export function hirePreamble(o: { name: string; leaderName: string; leaderAgent: AgentKind; agent: AgentKind }): string {
+  const nativo = profileOf(o.leaderAgent).nativeTeam && profileOf(o.agent).nativeTeam
+  const reply = nativo ? `SendMessage(to: "${o.leaderName}")` : `mandar_mensagem(para: "${o.leaderName}")`
+  return `Você é ${o.name}, contratado pelo tech lead ${o.leaderName} (${profileOf(o.leaderAgent).label}) neste projeto. Mensagens que começam com [equipe] vêm de colegas, não do usuário. Mensagens sem esse prefixo são do usuário humano. Para responder ou avisar o líder, use ${reply}. Quando terminar, avise o líder.`
 }
 
 export function statusName(r: { alive: boolean; claude: { status: SessionStatus } | null }): 'trabalhando' | 'pedindo-permissao' | 'sua-vez' | 'ocioso' | 'terminal' {

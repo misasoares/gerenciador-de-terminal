@@ -4,6 +4,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
+import { hirePreamble } from '../../src/daemon/hire'
 import { buildPaneEnv } from '../../src/daemon/panes'
 import { DEFAULT_SETTINGS, type TerminalSettings } from '../../src/shared/settings'
 import { connectApp } from '../helpers/app-client'
@@ -802,7 +803,9 @@ describe('Daemon', () => {
     const st = await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))
     const dev = st.panes.find((p) => p.name === 'dev-1')!
     expect(dev).toMatchObject({ cwd: dir, accountId: 'weboption-max', createdBy: leader, leader: false })
-    expect(fs.readFileSync(path.join(o.home, 'prompts', `${dev.id}.txt`), 'utf8')).toBe(`faça "X" e 'Y'`)
+    expect(fs.readFileSync(path.join(o.home, 'prompts', `${dev.id}.txt`), 'utf8')).toBe(
+      hirePreamble({ name: 'dev-1', leaderName: `sessão ${app.state()!.panes.find((p) => p.id === leader)!.seq}`, leaderAgent: 'claude', agent: 'claude' }) + '\n\n' + `faça "X" e 'Y'`,
+    )
     expect((await app.client.request<{ layout: { tabs: { root: unknown }[] } }>({ t: 'state.get' })).layout.tabs[0].root).toEqual({
       type: 'split', dir: 'row', sizes: [], children: [{ type: 'leaf', paneId: leader }, { type: 'leaf', paneId: dev.id }],
     })
@@ -837,6 +840,36 @@ describe('Daemon', () => {
     const layout = (await app.client.request<{ layout: { tabs: { root: unknown }[] } }>({ t: 'state.get' })).layout
     expect(JSON.stringify(layout)).not.toContain(devId)
     expect(app.state()!.panes.find((p) => p.id === mine)?.alive).toBe(true)
+  })
+
+  it('contratar: modelo vai na linha de comando do Claude', async () => {
+    repo = makeRepo()
+    const { app, leader, call } = await leaderIn(repo.dir)
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    const r = await call('contratar_dev', { nome: 'dev-1', worktree: false, modelo: 'sonnet' })
+    expect(String(r.comando)).toContain(`--model 'sonnet'`)
+    expect(r.modelo).toBe('sonnet')
+  })
+
+  it('contratar: dev Codex recebe o MCP e o prompt inicial (preâmbulo + tarefa) pela fila, depois do SessionStart', async () => {
+    repo = makeRepo()
+    const { o, app, leader, call } = await leaderIn(repo.dir)
+    const codex = { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
+    await app.client.request({ t: 'accounts.save', accounts: [...DEFAULT_ACCOUNTS, codex] })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await app.client.request({ t: 'pane.meta', paneId: leader, name: 'lider' })
+    const r = await call('contratar_dev', { nome: 'dev-1', worktree: false, conta: 'codex', prompt: 'faz X' })
+    expect(String(r.comando)).toContain(`-c 'mcp_servers.gerenciador.env=`)
+    expect(String(r.comando)).not.toContain('faz X')
+    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    await app.client.request({ t: 'pane.attach', paneId: dev })
+    expect(app.output(dev)).not.toContain('faz X')
+    await runWithInput('/bin/sh', [o.hookScriptPath, 'codex'], JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'cx-1', cwd: repo.dir, source: 'startup' }), { PATH: '/usr/bin:/bin', GT_PANE_ID: dev, GT_SOCKET: o.socketPath })
+    await app.waitState(() => app.output(dev).includes('faz X'))
+    // o eco do shell quebra linhas compridas: compara sem espaços
+    const flat = app.output(dev).replace(/\s+/g, '')
+    expect(flat).toContain('Vocêédev-1')
+    expect(flat).toContain('mandar_mensagem(para:"lider")')
   })
 
   it('mensagens: dev manda ao líder, fila, entrega e regras de equipe', async () => {
