@@ -35,7 +35,7 @@ import { leaderBriefing } from './team/briefing'
 import { Mailbox } from './team/mailbox'
 import { displayName, sameTeam, teamHeader, teamLeaderOf } from './team/team'
 import { profileOf } from './agent-profiles'
-import { snapshotProcs } from './platform/procs'
+import { findAgent, foregroundOf, snapshotProcs } from './platform/procs'
 
 export interface DaemonOptions {
   home: string
@@ -288,6 +288,13 @@ export class Daemon {
       writeRaw: (id, data) => this.panes.writeRaw(id, data),
       now: Date.now,
       sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+      agentAtFront: async (id) => {
+        const pid = this.panes.host.pid(id)
+        if (!pid) return false
+        const procs = await snapshotProcs()
+        // foreground = o próprio shell: a CLI saiu e o que for digitado vira comando
+        return findAgent(procs, pid) !== null && foregroundOf(procs, pid)?.pid !== pid
+      },
     })
     this.deliveryTimer = setInterval(() => this.tickDelivery(), 1000)
     this.hookWarnings = this.checkHookTargets()

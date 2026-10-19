@@ -38,6 +38,8 @@ export interface DeliveryDeps {
   now(): number
   /** espera entre o fim da colagem e o Enter */
   sleep(ms: number): Promise<void>
+  /** o processo da CLI está vivo e na frente do terminal (não o shell): o status pode estar velho se ela caiu sem SessionEnd */
+  agentAtFront(id: string): Promise<boolean>
 }
 
 /** colagem entre marcadores de bracketed paste + Enter; ESC no texto sairia da colagem, então não passa */
@@ -99,13 +101,18 @@ export class Deliverer {
     if (!p || !m || !this.ready(p, m.interrupt)) return
     this.busy.add(to)
     try {
+      // sem a CLI na frente, a colagem e o Enter iriam para o shell e virariam comando
+      if (!(await this.d.agentAtFront(to))) return
+      // o estado pode ter mudado enquanto o ps rodava
+      const cur = this.d.pane(to)
+      if (!cur || this.d.mailbox.next(to)?.id !== m.id || !this.ready(cur, m.interrupt)) return
       const [paste, enter] = pasteAndSubmit(m.text)
       // depois do Esc a CLI devolve o texto cancelado à caixa de entrada: Ctrl-U antes, senão as duas viram um pedido só
       if (m.interrupt) this.d.writeRaw(to, '\x15')
       this.d.writeRaw(to, paste)
       await this.d.sleep(PASTE_SETTLE_MS)
       this.d.writeRaw(to, enter)
-      this.delivered.set(to, { at: this.d.now(), sawWorking: p.status === 'working' })
+      this.delivered.set(to, { at: this.d.now(), sawWorking: cur.status === 'working' })
       this.interruptedAt.delete(to)
       this.d.mailbox.markDelivered(m.id)
     } finally {

@@ -94,6 +94,21 @@ function fakeAgentEnv(home: string): Record<string, string> {
   return { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(home, 'user') }
 }
 
+/** agentes falsos de verdade no painel (claude-mslabs e codex): a entrega só digita com a CLI na frente do shell */
+function fakeTeamEnv(): Record<string, string> {
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-f-')))
+  const env = fakeAgentEnv(home)
+  const bin = path.join(home, 'fakebin')
+  // lê a entrada em modo raw, como uma CLI de verdade, e ecoa: no modo canônico do tty a colagem longa se perde
+  const reader = '#!/bin/sh\nstty raw -echo 2>/dev/null\nwhile :; do cat || sleep 0.2; done\n'
+  const team = path.join(home, 'teambin')
+  fs.mkdirSync(team)
+  fs.writeFileSync(path.join(team, 'claude'), reader, { mode: 0o755 })
+  fs.writeFileSync(path.join(bin, 'claude-mslabs'), `#!/bin/sh\nexec "${path.join(team, 'claude')}" "$@"\n`, { mode: 0o755 })
+  fs.writeFileSync(path.join(bin, 'codex'), reader, { mode: 0o755 })
+  return env
+}
+
 async function leaderIn(repoDir: string, extra: Partial<DaemonOptions> = {}) {
   const b = await boot(extra)
   await b.app.client.request({ t: 'project.add', path: repoDir })
@@ -854,7 +869,7 @@ describe('Daemon', () => {
 
   it('contratar: dev Codex recebe o MCP e o prompt inicial (preâmbulo + tarefa) pela fila, depois do SessionStart', async () => {
     repo = makeRepo()
-    const { o, app, leader, call } = await leaderIn(repo.dir)
+    const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })
     const codex = { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
     await app.client.request({ t: 'accounts.save', accounts: [...DEFAULT_ACCOUNTS, codex] })
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
@@ -875,7 +890,7 @@ describe('Daemon', () => {
 
   it('líder: apresentação entregue só para quem não é Claude', async () => {
     repo = makeRepo()
-    const { o, app, leader } = await leaderIn(repo.dir)
+    const { o, app, leader } = await leaderIn(repo.dir, { env: fakeTeamEnv() })
     const codexHook = (id: string, ev: Record<string, unknown>) => runWithInput('/bin/sh', [o.hookScriptPath, 'codex'], JSON.stringify(ev), { PATH: '/usr/bin:/bin', GT_PANE_ID: id, GT_SOCKET: o.socketPath })
     await codexHook(leader, { hook_event_name: 'SessionStart', session_id: 'cx-L', cwd: repo.dir, source: 'startup' })
     await codexHook(leader, { hook_event_name: 'Stop', session_id: 'cx-L', cwd: repo.dir })
@@ -923,7 +938,8 @@ describe('Daemon', () => {
 
   it('reinício do daemon com mensagem na fila: volta e é entregue uma única vez', async () => {
     repo = makeRepo()
-    const first = await leaderIn(repo.dir)
+    const env = fakeTeamEnv()
+    const first = await leaderIn(repo.dir, { env })
     await first.app.client.request({ t: 'pane.setLeader', paneId: first.leader, leader: true })
     await first.app.client.request({ t: 'pane.meta', paneId: first.leader, name: 'lider' })
     await first.call('contratar_dev', { nome: 'dev-1', worktree: false })
@@ -941,7 +957,7 @@ describe('Daemon', () => {
     const saved = JSON.parse(fs.readFileSync(first.o.stateFile, 'utf8')).mailbox as { state: string }[]
     expect(saved.map((m) => m.state)).toEqual(['na-fila'])
 
-    const second = await boot({}, first.home)
+    const second = await boot({ env }, first.home)
     for (const id of [first.leader, dev]) await second.app.client.request({ t: 'pane.create', paneId: id, cwd: repo.dir, accountId: 'mslabs', cols: 80, rows: 24 })
     await second.app.client.request({ t: 'pane.attach', paneId: dev })
     await hook(second.o, dev, { hook_event_name: 'SessionStart', session_id: 's2', cwd: repo.dir, source: 'startup' })
@@ -968,9 +984,26 @@ describe('Daemon', () => {
     await waitFor(async () => (app.output(dev).includes('tarefaSemHook') ? true : null), 20_000)
   })
 
+  it('mensagens: status your-turn com a CLI fora do painel (só o shell) não digita no shell', async () => {
+    repo = makeRepo()
+    // sem agente falso: claude-mslabs não existe e o painel fica no shell
+    const { o, app, leader, call } = await leaderIn(repo.dir)
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    await hook(o, dev, { hook_event_name: 'SessionStart', session_id: 's-d', cwd: repo.dir, source: 'startup' })
+    await hook(o, dev, { hook_event_name: 'Stop', session_id: 's-d', cwd: repo.dir })
+    await app.waitState((s) => s.panes.find((p) => p.id === dev)?.claude?.status === 'your-turn')
+    await app.client.request({ t: 'pane.attach', paneId: dev })
+    await call('mandar_mensagem', { para: 'dev-1', texto: 'naoExecuteZ9' })
+    await new Promise((r) => setTimeout(r, 2500))
+    expect(app.output(dev)).not.toContain('naoExecuteZ9')
+    expect((JSON.parse(fs.readFileSync(o.stateFile, 'utf8')).mailbox as { state: string }[]).map((m) => m.state)).toEqual(['na-fila'])
+  })
+
   it('mensagens: dev manda ao líder, fila, entrega e regras de equipe', async () => {
     repo = makeRepo()
-    const { o, app, leader, call } = await leaderIn(repo.dir)
+    const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })
     await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
     await app.client.request({ t: 'pane.meta', paneId: leader, name: 'lider' })
     await call('contratar_dev', { nome: 'dev-1', worktree: false })

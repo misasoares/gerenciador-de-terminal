@@ -10,9 +10,18 @@ function setup(over: Partial<DeliveryPane> = {}) {
   const panes: Record<string, DeliveryPane> = {
     p2: { id: 'p2', alive: true, agent: 'claude', status: 'your-turn', statusSince: 50_000, sessionSince: 1, agentProcSince: null, createdAt: 0, lastUserInputAt: 0, lastOutputAt: 0, ...over },
   }
+  /** painéis cujo agente não está rodando na frente do shell */
+  const agentGone = new Set<string>()
   const mb = new Mailbox([], () => {}, () => t)
-  const d = new Deliverer({ mailbox: mb, pane: (id) => panes[id] ?? null, writeRaw: (_id, data) => void written.push(data), now: () => t, sleep: async () => {} })
-  return { d, mb, panes, written, advance: (ms: number) => void (t += ms), now: () => t }
+  const d = new Deliverer({
+    mailbox: mb,
+    pane: (id) => panes[id] ?? null,
+    writeRaw: (_id, data) => void written.push(data),
+    now: () => t,
+    sleep: async () => {},
+    agentAtFront: async (id) => !agentGone.has(id),
+  })
+  return { d, mb, panes, written, agentGone, advance: (ms: number) => void (t += ms), now: () => t }
 }
 
 describe('Deliverer', () => {
@@ -47,6 +56,18 @@ describe('Deliverer', () => {
     s.panes.p2.alive = true
     await s.d.tick()
     expect(s.written).toHaveLength(2)
+  })
+
+  it('status your-turn velho com o agente fora (CLI caiu, o shell está na frente): não digita no shell', async () => {
+    const s = setup()
+    s.agentGone.add('p2')
+    s.mb.enqueue(msg)
+    await s.d.tick()
+    expect(s.written).toEqual([])
+    expect(s.mb.queued('p2')).toHaveLength(1)
+    s.agentGone.delete('p2')
+    await s.d.tick()
+    expect(s.written).toEqual(pasteAndSubmit('oi'))
   })
 
   it('espera 5 s depois da última tecla do usuário', async () => {
