@@ -81,6 +81,8 @@ export interface PaneManagerDeps {
   codexHookGraceMs: number
   /** MCP que toda sessão recebe (null = sem MCP) */
   mcp: McpServerSpec | null
+  /** o painel saiu ou foi esquecido: a fila de mensagens dele falha */
+  onExit?(id: string): void
 }
 
 // o daemon pode ter nascido dentro de uma sessão do Claude, do VS Code ou do npm: nada disso vai para os terminais
@@ -129,6 +131,7 @@ export class PaneManager {
         r.alive = false
         r.exitCode = code
         r.claude = null
+        d.onExit?.(id)
         d.onChange()
       },
     })
@@ -248,6 +251,7 @@ export class PaneManager {
     this.dropPending(id)
     const r = this.recs.get(id)
     if (!r) return
+    this.d.onExit?.(id)
     if (r.alive) this.host.kill(id)
     this.recs.delete(id)
     this.d.onChange()

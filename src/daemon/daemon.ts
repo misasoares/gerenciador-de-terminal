@@ -31,6 +31,7 @@ import { gateRefusal, machineReport } from './machine/report'
 import type { MachineDetail } from '../shared/types'
 import { Hibernator } from './hibernator'
 import { Deliverer, type DeliveryPane } from './team/delivery'
+import { leaderBriefing } from './team/briefing'
 import { Mailbox } from './team/mailbox'
 import { displayName, sameTeam, teamHeader, teamLeaderOf } from './team/team'
 import { profileOf } from './agent-profiles'
@@ -274,6 +275,7 @@ export class Daemon {
       onChange: () => this.changed(),
       codexHookGraceMs: this.o.codexHookGraceMs ?? 20_000,
       mcp: this.mcpSpec,
+      onExit: (id) => this.mailbox.failAll(id, 'sessão encerrada'),
       onGitHint: (wt) => {
         this.monitor.refresh(wt)
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
@@ -475,6 +477,16 @@ export class Daemon {
     }
   }
 
+  /** líder de CLI sem SendMessage nativo recebe, pela fila, a apresentação do papel (no Claude, o MCP já explica) */
+  private briefLeader(paneId: string): void {
+    const r = this.panes.get(paneId)
+    if (!r?.alive) return
+    const agent = this.agentOf(r)
+    if (profileOf(agent).nativeTeam) return
+    if (this.mailbox.queued(paneId).some((m) => m.kind === 'gerenciador')) return
+    this.mailbox.enqueue({ from: null, to: paneId, fromName: 'gerenciador', toName: displayName(r, this.persisted.paneMeta), fromAgent: null, kind: 'gerenciador', text: leaderBriefing(agent), interrupt: false })
+  }
+
   private agentOf(r: PaneRecord): AgentKind {
     return r.claude?.agent ?? this.persisted.accounts.find((a) => a.id === (r.launchedAccountId ?? r.accountId))?.agent ?? 'claude'
   }
@@ -588,6 +600,7 @@ export class Daemon {
       if (meta[r.id]?.createdBy !== caller.id) throw new Error('só encerra sessões criadas por esta sessão')
       const name = meta[r.id]?.name
       // demitido some da tela: sai da lista e do layout (worktree, branch e conversa ficam)
+      this.mailbox.failAll(r.id, 'demitido')
       this.panes.forget(r.id)
       delete meta[r.id]
       fs.rmSync(path.join(this.promptsDir, `${r.id}.txt`), { force: true })
@@ -887,6 +900,7 @@ export class Daemon {
       case 'pane.setLeader': {
         const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
         this.persisted.paneMeta[req.paneId] = { ...cur, leader: req.leader || undefined }
+        if (req.leader && cur.leader !== true) this.briefLeader(req.paneId)
         this.changed()
         return null
       }

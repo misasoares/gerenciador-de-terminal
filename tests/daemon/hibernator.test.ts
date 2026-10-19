@@ -23,6 +23,7 @@ describe('shouldHibernate', () => {
     expect(shouldHibernate({ ...base, status: null }, T, T)).toBe(false)
   })
   it('foco, líder, contratado, shell ocupado, já hibernada ou acordando não hiberna', () => {
+    // membros de equipe nunca hibernam: a fila de mensagens digita no terminal de quem está vivo
     for (const k of ['focused', 'leader', 'hired', 'shellBusy', 'hibernated', 'waking'] as const) {
       expect(shouldHibernate({ ...base, [k]: true }, T, T)).toBe(false)
     }

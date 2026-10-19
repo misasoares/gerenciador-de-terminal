@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import { hirePreamble } from '../../src/daemon/hire'
+import { leaderBriefing } from '../../src/daemon/team/briefing'
 import { buildPaneEnv } from '../../src/daemon/panes'
 import { DEFAULT_SETTINGS, type TerminalSettings } from '../../src/shared/settings'
 import { connectApp } from '../helpers/app-client'
@@ -870,6 +871,85 @@ describe('Daemon', () => {
     const flat = app.output(dev).replace(/\s+/g, '')
     expect(flat).toContain('Vocêédev-1')
     expect(flat).toContain('mandar_mensagem(para:"lider")')
+  })
+
+  it('líder: apresentação entregue só para quem não é Claude', async () => {
+    repo = makeRepo()
+    const { o, app, leader } = await leaderIn(repo.dir)
+    const codexHook = (id: string, ev: Record<string, unknown>) => runWithInput('/bin/sh', [o.hookScriptPath, 'codex'], JSON.stringify(ev), { PATH: '/usr/bin:/bin', GT_PANE_ID: id, GT_SOCKET: o.socketPath })
+    await codexHook(leader, { hook_event_name: 'SessionStart', session_id: 'cx-L', cwd: repo.dir, source: 'startup' })
+    await codexHook(leader, { hook_event_name: 'Stop', session_id: 'cx-L', cwd: repo.dir })
+    await app.waitState((s) => s.panes.find((p) => p.id === leader)?.claude?.agent === 'codex')
+    await app.client.request({ t: 'pane.attach', paneId: leader })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    const flat = () => app.output(leader).replace(/\s+/g, '')
+    await app.waitState(() => flat().includes('Respondasó"ok,souolíder".'))
+    expect(flat()).toContain(leaderBriefing('codex').slice(0, 60).replace(/\s+/g, ''))
+
+    // Claude: nada na fila
+    const claude = await leaderIn(repo.dir)
+    await hook(claude.o, claude.leader, { hook_event_name: 'SessionStart', session_id: 's-C', cwd: repo.dir, source: 'startup' })
+    await hook(claude.o, claude.leader, { hook_event_name: 'Stop', session_id: 's-C', cwd: repo.dir })
+    await claude.app.client.request({ t: 'pane.attach', paneId: claude.leader })
+    await claude.app.client.request({ t: 'pane.setLeader', paneId: claude.leader, leader: true })
+    await new Promise((r) => setTimeout(r, 2500))
+    expect(claude.app.output(claude.leader)).not.toContain('[gerenciador]')
+    expect(JSON.parse(fs.readFileSync(claude.o.stateFile, 'utf8')).mailbox ?? []).toEqual([])
+  })
+
+  it('demitir e sair do painel: a fila falha com o motivo', async () => {
+    repo = makeRepo()
+    const { o, app, leader, call } = await leaderIn(repo.dir)
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    await call('contratar_dev', { nome: 'dev-2', worktree: false })
+    const panes = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-2'))).panes
+    const d1 = panes.find((p) => p.name === 'dev-1')!.id
+    const d2 = panes.find((p) => p.name === 'dev-2')!.id
+    // ninguém tem sessão ainda: as mensagens ficam na fila
+    await call('mandar_mensagem', { para: 'dev-1', texto: 'a' })
+    await call('mandar_mensagem', { para: 'dev-2', texto: 'b' })
+    const mailbox = () => {
+      app.client.request({ t: 'state.get' }).catch(() => {})
+      return (JSON.parse(fs.readFileSync(o.stateFile, 'utf8')).mailbox ?? []) as { to: string; state: string; error: string | null }[]
+    }
+    await call('demitir_dev', { nome: 'dev-1' })
+    await app.client.request({ t: 'pane.kill', paneId: d2 })
+    await waitFor(async () => (mailbox().filter((m) => m.state === 'falhou').length === 2 ? true : null), 5000)
+    expect(mailbox().find((m) => m.to === d1)).toMatchObject({ state: 'falhou', error: 'demitido' })
+    expect(mailbox().find((m) => m.to === d2)).toMatchObject({ state: 'falhou', error: 'sessão encerrada' })
+    await expect(call('mandar_mensagem', { para: 'dev-1', texto: 'oi' })).rejects.toThrow('sessão não encontrada neste espaço: dev-1')
+  })
+
+  it('reinício do daemon com mensagem na fila: volta e é entregue uma única vez', async () => {
+    repo = makeRepo()
+    const first = await leaderIn(repo.dir)
+    await first.app.client.request({ t: 'pane.setLeader', paneId: first.leader, leader: true })
+    await first.app.client.request({ t: 'pane.meta', paneId: first.leader, name: 'lider' })
+    await first.call('contratar_dev', { nome: 'dev-1', worktree: false })
+    const dev = (await first.app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    for (const id of [first.leader, dev]) {
+      await hook(first.o, id, { hook_event_name: 'SessionStart', session_id: `s-${id}`, cwd: repo.dir, source: 'startup' })
+      await hook(first.o, id, { hook_event_name: 'Stop', session_id: `s-${id}`, cwd: repo.dir })
+    }
+    await hook(first.o, dev, { hook_event_name: 'UserPromptSubmit', session_id: `s-${dev}`, cwd: repo.dir })
+    await first.app.waitState((s) => s.panes.find((p) => p.id === dev)?.claude?.status === 'working')
+    await first.call('mandar_mensagem', { para: 'dev-1', texto: 'recadoUnicoQ7' })
+    first.app.client.close()
+    await first.d.stop(true)
+    daemons = daemons.filter((x) => x !== first.d)
+    const saved = JSON.parse(fs.readFileSync(first.o.stateFile, 'utf8')).mailbox as { state: string }[]
+    expect(saved.map((m) => m.state)).toEqual(['na-fila'])
+
+    const second = await boot({}, first.home)
+    for (const id of [first.leader, dev]) await second.app.client.request({ t: 'pane.create', paneId: id, cwd: repo.dir, accountId: 'mslabs', cols: 80, rows: 24 })
+    await second.app.client.request({ t: 'pane.attach', paneId: dev })
+    await hook(second.o, dev, { hook_event_name: 'SessionStart', session_id: 's2', cwd: repo.dir, source: 'startup' })
+    await hook(second.o, dev, { hook_event_name: 'Stop', session_id: 's2', cwd: repo.dir })
+    await second.app.waitState(() => second.app.output(dev).includes('recadoUnicoQ7'))
+    await new Promise((r) => setTimeout(r, 2500)) // vários ticks: nada de duplicar
+    expect(second.app.output(dev).split('recadoUnicoQ7').length - 1).toBe(1)
+    await waitFor(async () => ((JSON.parse(fs.readFileSync(second.o.stateFile, 'utf8')).mailbox as { state: string }[]).every((m) => m.state === 'entregue') ? true : null), 5000)
   })
 
   it('mensagens: dev manda ao líder, fila, entrega e regras de equipe', async () => {
