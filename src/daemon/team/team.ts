@@ -25,5 +25,5 @@ export function displayName(r: { id: string; seq: number }, meta: Meta): string 
 export function teamHeader(o: { fromName: string; fromAgent: AgentKind; toName: string; toAgent: AgentKind; text: string }): string {
   const nativo = profileOf(o.fromAgent).nativeTeam && profileOf(o.toAgent).nativeTeam
   const reply = nativo ? `SendMessage(to: "${o.fromName}")` : `mandar_mensagem(para: "${o.fromName}")`
-  return `[equipe] de ${o.fromName} (${profileOf(o.fromAgent).label}) → para ${o.toName}: ${o.text} — responda com ${reply}`
+  return `[equipe] de ${o.fromName} (${profileOf(o.fromAgent).label}) → para ${o.toName}: ${o.text} (para responder: ${reply})`
 }

@@ -1,5 +1,6 @@
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
+import { NO_ACK_RULE } from '../../src/shared/team-text'
 import { handleMessage, serveLines, TOOLS } from '../../src/mcp/protocol'
 
 const noCall = async () => {
@@ -30,7 +31,7 @@ describe('gt-mcp: protocolo', () => {
     expect(tool('interromper').required).toEqual(['para'])
     expect(Object.keys(tool('interromper').properties)).toEqual(['para', 'texto'])
     const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
-    for (const k of ['[equipe]', 'mandar_mensagem', 'interromper', 'Claude → Claude: SendMessage; para outra CLI: mandar_mensagem']) expect(r.result.instructions).toContain(k)
+    for (const k of ['[equipe]', 'mandar_mensagem', 'interromper', 'Claude → Claude: SendMessage; para outra CLI: mandar_mensagem', NO_ACK_RULE]) expect(r.result.instructions).toContain(k)
   })
   it('instruções mandam consultar uso_da_maquina e só forçar com autorização', async () => {
     const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }

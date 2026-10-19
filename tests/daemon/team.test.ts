@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PaneMetaEntry } from '../../src/daemon/persist'
+import { NO_ACK_RULE } from '../../src/shared/team-text'
+import { leaderBriefing } from '../../src/daemon/team/briefing'
 import { displayName, sameTeam, teamHeader, teamLeaderOf } from '../../src/daemon/team/team'
 
 const meta: Record<string, PaneMetaEntry> = {
@@ -34,14 +36,19 @@ describe('equipe', () => {
 
   it('teamHeader: Codex → Claude usa mandar_mensagem', () => {
     expect(teamHeader({ fromName: 'dev-1', fromAgent: 'codex', toName: 'líder', toAgent: 'claude', text: 'feito' })).toBe(
-      '[equipe] de dev-1 (Codex) → para líder: feito — responda com mandar_mensagem(para: "dev-1")',
+      '[equipe] de dev-1 (Codex) → para líder: feito (para responder: mandar_mensagem(para: "dev-1"))',
     )
   })
 
   it('teamHeader: Claude → Claude usa SendMessage; Claude → Codex usa mandar_mensagem', () => {
     expect(teamHeader({ fromName: 'lider', fromAgent: 'claude', toName: 'dev-1', toAgent: 'claude', text: 'x' })).toBe(
-      '[equipe] de lider (Claude) → para dev-1: x — responda com SendMessage(to: "lider")',
+      '[equipe] de lider (Claude) → para dev-1: x (para responder: SendMessage(to: "lider"))',
     )
-    expect(teamHeader({ fromName: 'lider', fromAgent: 'claude', toName: 'dev-1', toAgent: 'codex', text: 'x' })).toContain('mandar_mensagem(para: "lider")')
+    expect(teamHeader({ fromName: 'lider', fromAgent: 'claude', toName: 'dev-1', toAgent: 'codex', text: 'x' })).toContain('(para responder: mandar_mensagem(para: "lider"))')
+  })
+
+  it('a apresentação do líder e o cabeçalho não convidam a responder tudo', () => {
+    expect(leaderBriefing('codex')).toContain(NO_ACK_RULE)
+    expect(teamHeader({ fromName: 'a', fromAgent: 'codex', toName: 'b', toAgent: 'codex', text: 'x' })).not.toContain('responda com')
   })
 })

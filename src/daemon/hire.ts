@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Account, AgentKind, Layout, LayoutNode, SessionStatus } from '../shared/types'
+import { NO_ACK_RULE } from '../shared/team-text'
 import { profileOf } from './agent-profiles'
 
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/
@@ -42,7 +43,7 @@ export function pickAccount(accounts: Account[], wanted: unknown, fallbackId: st
 export function hirePreamble(o: { name: string; leaderName: string; leaderAgent: AgentKind; agent: AgentKind }): string {
   const nativo = profileOf(o.leaderAgent).nativeTeam && profileOf(o.agent).nativeTeam
   const reply = nativo ? `SendMessage(to: "${o.leaderName}")` : `mandar_mensagem(para: "${o.leaderName}")`
-  return `Você é ${o.name}, contratado pelo tech lead ${o.leaderName} (${profileOf(o.leaderAgent).label}) neste projeto. Mensagens que começam com [equipe] vêm de colegas, não do usuário. Mensagens sem esse prefixo são do usuário humano. Para responder ou avisar o líder, use ${reply}. Quando terminar, avise o líder.`
+  return `Você é ${o.name}, contratado pelo tech lead ${o.leaderName} (${profileOf(o.leaderAgent).label}) neste projeto. Mensagens que começam com [equipe] vêm de colegas, não do usuário. Mensagens sem esse prefixo são do usuário humano. Para responder ou avisar o líder, use ${reply}. Quando terminar, avise o líder. ${NO_ACK_RULE}`
 }
 
 export function statusName(r: { alive: boolean; claude: { status: SessionStatus } | null }): 'trabalhando' | 'pedindo-permissao' | 'sua-vez' | 'ocioso' | 'terminal' {

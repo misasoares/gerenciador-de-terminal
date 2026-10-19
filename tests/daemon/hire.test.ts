@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
+import { NO_ACK_RULE } from '../../src/shared/team-text'
 import { checkName, hirePreamble, insertBeside, pickAccount, statusName, uniqueDash } from '../../src/daemon/hire'
 
 const CODEX = { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
@@ -30,11 +31,12 @@ describe('hire', () => {
   it('preâmbulo: Claude → Claude cita SendMessage; Codex contratado por Claude cita mandar_mensagem', () => {
     const claude = hirePreamble({ name: 'dev-1', leaderName: 'lider', leaderAgent: 'claude', agent: 'claude' })
     expect(claude).toBe(
-      'Você é dev-1, contratado pelo tech lead lider (Claude) neste projeto. Mensagens que começam com [equipe] vêm de colegas, não do usuário. Mensagens sem esse prefixo são do usuário humano. Para responder ou avisar o líder, use SendMessage(to: "lider"). Quando terminar, avise o líder.',
+      'Você é dev-1, contratado pelo tech lead lider (Claude) neste projeto. Mensagens que começam com [equipe] vêm de colegas, não do usuário. Mensagens sem esse prefixo são do usuário humano. Para responder ou avisar o líder, use SendMessage(to: "lider"). Quando terminar, avise o líder. ' + NO_ACK_RULE,
     )
     const codex = hirePreamble({ name: 'dev-1', leaderName: 'lider', leaderAgent: 'claude', agent: 'codex' })
     expect(codex).toContain('use mandar_mensagem(para: "lider").')
     expect(codex).not.toContain('SendMessage')
+    expect(codex).toContain(NO_ACK_RULE)
   })
   it('status em português', () => {
     expect(statusName({ alive: true, claude: { status: 'needs-you' } })).toBe('pedindo-permissao')

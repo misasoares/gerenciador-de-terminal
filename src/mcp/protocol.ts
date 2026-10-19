@@ -1,3 +1,5 @@
+import { NO_ACK_RULE } from '../shared/team-text'
+
 /** MCP mínimo (stdio, uma mensagem JSON por linha): initialize, ping, tools/list, tools/call */
 export type CallDaemon = (tool: string, args: Record<string, unknown>) => Promise<unknown>
 
@@ -16,6 +18,7 @@ export const INSTRUCTIONS = [
   'Só a sessão marcada pelo usuário como líder (👑) pode usar contratar_dev, demitir_dev e renomear_dev; se vier "esta sessão não é líder", explique ao usuário como marcar (menu da sessão na sidebar → Pode contratar sessões).',
   'Hierarquia: o líder (tech lead) e os devs que ele contratou formam uma equipe. Mensagem que começa com [equipe] vem de um colega da equipe; mensagem sem esse prefixo vem do usuário humano.',
   'Falar com um colega: Claude → Claude: SendMessage; para outra CLI: mandar_mensagem(para, texto). Quem não é Claude sempre usa mandar_mensagem. A mensagem entra na fila e é digitada no terminal do destinatário quando ele fica parado; a resposta chega no seu terminal com o prefixo [equipe].',
+  NO_ACK_RULE,
   'Use interromper(para, texto?) só quando a tarefa atual do dev ficou inútil: ele para na hora e recebe o texto em seguida.',
 ].join('\n')
 

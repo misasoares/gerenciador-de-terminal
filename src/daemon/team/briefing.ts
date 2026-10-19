@@ -1,4 +1,5 @@
 import type { AgentKind } from '../../shared/types'
+import { NO_ACK_RULE } from '../../shared/team-text'
 import { profileOf } from '../agent-profiles'
 
 /** apresentação entregue ao líder de uma CLI sem SendMessage nativo: não depende de a CLI mostrar as instruções do MCP ao modelo */
@@ -13,6 +14,7 @@ export function leaderBriefing(agent: AgentKind): string {
     '- interromper(para, texto?): para o colega na hora e entrega o texto em seguida; use só quando a tarefa dele ficou inútil;',
     '- demitir_dev: encerra um dev que você contratou (a worktree e a conversa ficam).',
     'Mensagens que começam com [equipe] vêm de colegas da equipe. Mensagens sem esse prefixo vêm do usuário humano.',
+    NO_ACK_RULE,
     'Responda só "ok, sou o líder".',
   ].join('\n')
 }
