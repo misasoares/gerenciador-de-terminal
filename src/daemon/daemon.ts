@@ -501,6 +501,7 @@ export class Daemon {
       status: r.claude?.status ?? null,
       statusSince: r.claude?.statusSince ?? 0,
       sessionSince: r.sessionStartedAt,
+      agentProcSince: r.agentProcSince,
       createdAt: r.createdAt,
       lastUserInputAt: r.lastUserInputAt,
       lastOutputAt: r.lastOutputAt,

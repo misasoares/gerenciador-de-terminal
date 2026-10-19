@@ -952,6 +952,22 @@ describe('Daemon', () => {
     await waitFor(async () => ((JSON.parse(fs.readFileSync(second.o.stateFile, 'utf8')).mailbox as { state: string }[]).every((m) => m.state === 'entregue') ? true : null), 5000)
   })
 
+  it('contratar Codex sem nenhum hook: o poll vê o processo e o prompt inicial é entregue', async () => {
+    repo = makeRepo()
+    const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gt-d-')))
+    const env = fakeAgentEnv(home)
+    // codex falso: silencioso, como o Codex recém-aberto antes da primeira mensagem
+    fs.writeFileSync(path.join(home, 'fakebin', 'codex'), "#!/bin/sh\ntrap 'exit 143' TERM\nwhile :; do sleep 0.2; done\n", { mode: 0o755 })
+    const { app, leader, call } = await leaderIn(repo.dir, { env: { ...env, CLAUDE_CONFIG_DIR: '/x' }, pollMs: 200 })
+    const codex = { id: 'codex', label: 'Codex', command: 'codex --yolo', color: '#10a37f', agent: 'codex' as const, configDirMatch: [], isDefault: true, settingsMatch: null, pathPrefix: null }
+    await app.client.request({ t: 'accounts.save', accounts: [...DEFAULT_ACCOUNTS, codex] })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false, conta: 'codex', prompt: 'tarefaSemHook' })
+    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    await app.client.request({ t: 'pane.attach', paneId: dev })
+    await waitFor(async () => (app.output(dev).includes('tarefaSemHook') ? true : null), 20_000)
+  })
+
   it('mensagens: dev manda ao líder, fila, entrega e regras de equipe', async () => {
     repo = makeRepo()
     const { o, app, leader, call } = await leaderIn(repo.dir)

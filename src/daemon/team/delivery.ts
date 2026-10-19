@@ -5,6 +5,9 @@ import type { Mailbox } from './mailbox'
 export const USER_TYPING_GRACE_MS = 5000
 export const INTERRUPT_QUIET_MS = 1500
 export const READY_TIMEOUT_MS = 60_000
+/** sem hook nenhum (CLI recém-aberta): processo visto pelo poll há tanto tempo e terminal em silêncio por tanto */
+export const PROC_SEEN_MS = 3000
+export const NO_HOOK_QUIET_MS = 2000
 /** sem ficar working tanto tempo depois da entrega, a CLI ignorou a colagem: a fila anda */
 export const PICKUP_TIMEOUT_MS = 30_000
 /** o Esc de interromper vale para a entrega por esse tempo */
@@ -21,6 +24,8 @@ export interface DeliveryPane {
   statusSince: number
   /** primeiro SessionStart do painel (null = a CLI ainda não ficou pronta) */
   sessionSince: number | null
+  /** quando o poll viu o processo da CLI pela 1ª vez (null = não visto) */
+  agentProcSince: number | null
   createdAt: number
   lastUserInputAt: number
   lastOutputAt: number
@@ -78,7 +83,10 @@ export class Deliverer {
     if (!p.alive || now - p.lastUserInputAt < USER_TYPING_GRACE_MS) return false
     const last = this.delivered.get(p.id)
     const settled = p.status === 'idle' || p.status === 'your-turn'
-    if (settled) return !last || last.sawWorking || now - last.at >= PICKUP_TIMEOUT_MS
+    const free = !last || last.sawWorking || now - last.at >= PICKUP_TIMEOUT_MS
+    if (settled) return free
+    // sem sessão ainda: algumas CLIs (Codex) não disparam hook nenhum antes da primeira mensagem
+    if (p.status === null) return free && p.agentProcSince !== null && now - p.agentProcSince >= PROC_SEEN_MS && now - p.lastOutputAt >= NO_HOOK_QUIET_MS
     // Esc no Claude não dispara Stop: o silêncio do terminal é o sinal de que ele parou
     const at = this.interruptedAt.get(p.id)
     return interrupt && p.status === 'working' && at !== undefined && now - at <= INTERRUPT_WINDOW_MS && now - p.lastOutputAt >= INTERRUPT_QUIET_MS

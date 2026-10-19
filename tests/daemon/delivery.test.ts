@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Deliverer, INTERRUPT_QUIET_MS, PICKUP_TIMEOUT_MS, pasteAndSubmit, READY_TIMEOUT_MS, USER_TYPING_GRACE_MS, type DeliveryPane } from '../../src/daemon/team/delivery'
+import { Deliverer, INTERRUPT_QUIET_MS, NO_HOOK_QUIET_MS, PICKUP_TIMEOUT_MS, pasteAndSubmit, PROC_SEEN_MS, READY_TIMEOUT_MS, USER_TYPING_GRACE_MS, type DeliveryPane } from '../../src/daemon/team/delivery'
 import { Mailbox } from '../../src/daemon/team/mailbox'
 
 const msg = { from: 'p1', to: 'p2', fromName: 'lider', toName: 'dev-1', fromAgent: 'claude' as const, kind: 'equipe' as const, text: 'oi', interrupt: false }
@@ -8,7 +8,7 @@ function setup(over: Partial<DeliveryPane> = {}) {
   let t = 100_000
   const written: string[] = []
   const panes: Record<string, DeliveryPane> = {
-    p2: { id: 'p2', alive: true, agent: 'claude', status: 'your-turn', statusSince: 50_000, sessionSince: 1, createdAt: 0, lastUserInputAt: 0, lastOutputAt: 0, ...over },
+    p2: { id: 'p2', alive: true, agent: 'claude', status: 'your-turn', statusSince: 50_000, sessionSince: 1, agentProcSince: null, createdAt: 0, lastUserInputAt: 0, lastOutputAt: 0, ...over },
   }
   const mb = new Mailbox([], () => {}, () => t)
   const d = new Deliverer({ mailbox: mb, pane: (id) => panes[id] ?? null, writeRaw: (_id, data) => void written.push(data), now: () => t, sleep: async () => {} })
@@ -137,6 +137,53 @@ describe('Deliverer', () => {
     s.panes.p2.lastOutputAt = 0
     await s.d.tick()
     expect(s.written).toEqual(['\x1b'])
+  })
+
+  describe('CLI recém-aberta, sem nenhum hook ainda (status null)', () => {
+    const fresh = (procAgo: number | null, quietFor: number) => {
+      const s = setup({ status: null, sessionSince: null })
+      s.panes.p2.agentProcSince = procAgo === null ? null : s.now() - procAgo
+      s.panes.p2.lastOutputAt = s.now() - quietFor
+      s.mb.enqueue(msg)
+      return s
+    }
+    it('processo visto há 3 s e terminal em silêncio há 2 s: entrega', async () => {
+      const s = fresh(PROC_SEEN_MS, NO_HOOK_QUIET_MS)
+      await s.d.tick()
+      expect(s.written).toEqual(pasteAndSubmit('oi'))
+    })
+    it('processo não visto: não entrega', async () => {
+      const s = fresh(null, 60_000)
+      await s.d.tick()
+      expect(s.written).toEqual([])
+    })
+    it('processo visto há menos de 3 s: não entrega', async () => {
+      const s = fresh(PROC_SEEN_MS - 1000, 60_000)
+      await s.d.tick()
+      expect(s.written).toEqual([])
+    })
+    it('silêncio de só 1 s: não entrega', async () => {
+      const s = fresh(10_000, NO_HOOK_QUIET_MS - 1000)
+      await s.d.tick()
+      expect(s.written).toEqual([])
+    })
+    it('depois da entrega a segunda espera o agente pegar a primeira (ou 30 s)', async () => {
+      const s = fresh(10_000, 10_000)
+      s.mb.enqueue({ ...msg, text: 'dois' })
+      await s.d.tick()
+      await s.d.tick()
+      expect(s.written).toEqual(pasteAndSubmit('oi'))
+      s.advance(PICKUP_TIMEOUT_MS)
+      s.panes.p2.lastOutputAt = 0
+      await s.d.tick()
+      expect(s.written).toHaveLength(4)
+    })
+    it('com sessão ativa a regra normal manda: working não entrega mesmo com processo visto', async () => {
+      const s = fresh(10_000, 10_000)
+      s.panes.p2.status = 'working'
+      await s.d.tick()
+      expect(s.written).toEqual([])
+    })
   })
 
   it('late: na fila há mais de 60 s sem SessionStart', () => {
