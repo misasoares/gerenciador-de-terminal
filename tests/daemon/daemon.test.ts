@@ -411,8 +411,12 @@ describe('Daemon', () => {
     expect(st.resumable[0]).toMatchObject({ accountId: null, sessionId: 'abcd-1234', agent: 'codex' })
     await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: null, resumeSessionId: 'abcd-1234', resumeAgent: 'codex', cols: 80, rows: 24 })
     const { snapshot } = await second.app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
-    await second.app.waitState(() => (snapshot + second.app.output(paneId)).includes('codex --no-daemon resume abcd-1234'))
-    expect(snapshot + second.app.output(paneId)).not.toContain('claude --resume')
+    // o eco do shell quebra a linha comprida em 80 colunas: compara sem espaços nem controles
+    const flat = () => (snapshot + second.app.output(paneId)).replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\s+/g, '')
+    await second.app.waitState(() => flat().includes('resumeabcd-1234'))
+    expect(flat()).toContain(('codex --no-daemon -c \'mcp_servers.gerenciador.command=').replace(/\s+/g, ''))
+    expect(flat()).toContain(('mcp_servers.gerenciador.env={ELECTRON_RUN_AS_NODE="1",GT_PANE_ID="' + paneId).replace(/\s+/g, ''))
+    expect(flat()).not.toContain('claude--resume')
   })
 
   it('layout é salvo e volta após reinício; avisos de hooks e instalação', async () => {

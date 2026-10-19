@@ -9,6 +9,7 @@ import { analyzeConflicts } from './conflicts'
 import { normalizeSettings } from '../shared/settings'
 import { BUILD_ID } from '../shared/build'
 import { buildCommand, suggestAccount, validateAccounts } from './accounts'
+import type { McpServerSpec } from './agent-profiles'
 import { GitMonitor } from './git/monitor'
 import { checkTargets, CLAUDE_HOOK_EVENTS, CODEX_HOOK_EVENTS, hookCommand, hookTargets, installHooks, writeHookScript } from './hooks'
 import { PaneManager, buildPaneEnv, type PaneRecord } from './panes'
@@ -130,6 +131,10 @@ export class Daemon {
     return path.join(this.o.home, 'mcp.json')
   }
 
+  private get mcpSpec(): McpServerSpec {
+    return { configPath: this.mcpConfigPath, command: this.o.nodeBinary ?? process.execPath, args: [this.o.mcpScriptPath ?? path.join(__dirname, 'gt-mcp.js')] }
+  }
+
   private get promptsDir(): string {
     return path.join(this.o.home, 'prompts')
   }
@@ -179,7 +184,7 @@ export class Daemon {
     fs.writeFileSync(
       this.mcpConfigPath,
       JSON.stringify(
-        { mcpServers: { 'gerenciador-terminal': { command: this.o.nodeBinary ?? process.execPath, args: [this.o.mcpScriptPath ?? path.join(__dirname, 'gt-mcp.js')], env: { ELECTRON_RUN_AS_NODE: '1' } } } },
+        { mcpServers: { 'gerenciador-terminal': { command: this.mcpSpec.command, args: this.mcpSpec.args, env: { ELECTRON_RUN_AS_NODE: '1' } } } },
         null,
         2,
       ),
@@ -261,7 +266,7 @@ export class Daemon {
       },
       onChange: () => this.changed(),
       codexHookGraceMs: this.o.codexHookGraceMs ?? 20_000,
-      mcpConfigPath: this.mcpConfigPath,
+      mcp: this.mcpSpec,
       onGitHint: (wt) => {
         this.monitor.refresh(wt)
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
@@ -285,7 +290,7 @@ export class Daemon {
       records: () => this.panes.records(),
       shellPid: (id) => this.panes.host.pid(id),
       write: (id, data) => this.panes.write(id, data),
-      resumeCommand: (h) => this.panes.resumeCommand(h),
+      resumeCommand: (id, h) => this.panes.resumeCommand(id, h),
       settings: () => this.persisted.settings.hibernate,
       thresholdMs: this.o.hibernateThresholdMs,
       meta: (id) => ({ leader: this.persisted.paneMeta[id]?.leader === true, hired: !!this.persisted.paneMeta[id]?.createdBy }),
@@ -550,7 +555,7 @@ export class Daemon {
     if (args.onde === 'flutuante') w.floating.push(id)
     else w.layout = insertBeside(w.layout, caller.id, id)
     this.changed()
-    return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcpConfig: this.mcpConfigPath, name, promptFile }), ...(aviso ? { aviso } : {}) }
+    return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcp: this.mcpSpec, paneId: id, socketPath: this.o.socketPath, name, promptFile }), ...(aviso ? { aviso } : {}) }
   }
 
   private panePids(): { id: string; pid: number }[] {

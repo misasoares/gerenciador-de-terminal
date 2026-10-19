@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { buildCommand, DEFAULT_ACCOUNTS, detectAccount, suggestAccount } from '../../src/daemon/accounts'
+import { profileOf } from '../../src/daemon/agent-profiles'
 
 const S = '/Users/u/.claude-swap-backup/sessions'
+const mcp = { configPath: '/h/mcp.json', command: '/A pp/bin', args: ['/A pp/gt-mcp.js'] }
 
 describe('detectAccount', () => {
   it('sem CLAUDE_CONFIG_DIR é a conta padrão', () => {
@@ -39,16 +41,30 @@ describe('buildCommand', () => {
   })
   it('Claude: --mcp-config, -n e prompt por arquivo, citados', () => {
     const mslabs = DEFAULT_ACCOUNTS.find((a) => a.id === 'mslabs')!
-    expect(buildCommand(mslabs, undefined, { mcpConfig: '/Volumes/SSD MISA/h/mcp.json', name: 'dev-1', promptFile: '/p/a b.txt' })).toBe(
+    expect(buildCommand(mslabs, undefined, { mcp: { ...mcp, configPath: '/Volumes/SSD MISA/h/mcp.json' }, name: 'dev-1', promptFile: '/p/a b.txt' })).toBe(
       `claude-mslabs --mcp-config '/Volumes/SSD MISA/h/mcp.json' -n 'dev-1' "$(cat '/p/a b.txt')"`,
     )
-    expect(buildCommand(mslabs, '6f574752-bb4d-4ff2-8ed1-bb685dce78ed', { mcpConfig: '/h/mcp.json' })).toBe(
+    expect(buildCommand(mslabs, '6f574752-bb4d-4ff2-8ed1-bb685dce78ed', { mcp })).toBe(
       `claude-mslabs --resume 6f574752-bb4d-4ff2-8ed1-bb685dce78ed --mcp-config '/h/mcp.json'`,
     )
   })
-  it('Codex ignora os extras do Claude', () => {
+  it('Codex ignora -n e o prompt por arquivo do Claude', () => {
     const codex = { ...DEFAULT_ACCOUNTS[0], id: 'codex', agent: 'codex' as const, command: 'codex --yolo' }
-    expect(buildCommand(codex, undefined, { mcpConfig: '/h/mcp.json', name: 'dev-1', promptFile: '/p.txt' })).toBe('codex --yolo --no-daemon')
+    expect(buildCommand(codex, undefined, { name: 'dev-1', promptFile: '/p.txt' })).toBe('codex --yolo --no-daemon')
+    // sem paneId e socketPath o MCP do Codex não é montado
+    expect(buildCommand(codex, undefined, { mcp, name: 'dev-1', promptFile: '/p.txt' })).toBe('codex --yolo --no-daemon')
+  })
+  it('Codex: MCP e modelo antes do subcomando resume', () => {
+    const codex = { ...DEFAULT_ACCOUNTS[0], id: 'codex', agent: 'codex' as const, command: 'codex --yolo' }
+    expect(buildCommand(codex, 'abcd-1234', { mcp, paneId: 'p1', socketPath: '/s.sock', model: 'gpt-6-sol' })).toBe(
+      `codex --yolo --no-daemon ${profileOf('codex').mcpArgs(mcp, 'p1', '/s.sock')} -m 'gpt-6-sol' resume abcd-1234`,
+    )
+  })
+  it('Claude: --mcp-config, --model, -n e prompt', () => {
+    const mslabs = DEFAULT_ACCOUNTS.find((a) => a.id === 'mslabs')!
+    expect(buildCommand(mslabs, undefined, { mcp, model: 'sonnet', name: 'dev-1', promptFile: '/p.txt' })).toBe(
+      `claude-mslabs --mcp-config '/h/mcp.json' --model 'sonnet' -n 'dev-1' "$(cat '/p.txt')"`,
+    )
   })
   it('recusa session id que não parece um id', () => {
     expect(() => buildCommand(DEFAULT_ACCOUNTS[0], 'x; rm -rf ~')).toThrow('session id inválido')

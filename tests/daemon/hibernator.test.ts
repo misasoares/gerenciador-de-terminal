@@ -75,7 +75,7 @@ function world(recs: PaneRecord[], o: { now?: number; focused?: string[]; extraP
     records: () => recs,
     shellPid: (id) => 100 + recs.findIndex((r) => r.id === id),
     write: (id, data) => writes.push([id, data]),
-    resumeCommand: (h: Hibernation) => `claude --resume ${h.sessionId}`,
+    resumeCommand: (_paneId: string, h: Hibernation) => `claude --resume ${h.sessionId}`,
     settings: () => ({ enabled: true, minutes: 30 }),
     meta: () => ({ leader: false, hired: false }),
     focused: () => focused,

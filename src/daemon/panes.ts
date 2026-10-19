@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import type { Account, AgentKind, ClaudeSession, HookPayload } from '../shared/types'
 import { buildCommand, detectAccount, resumeAccount } from './accounts'
+import type { McpServerSpec } from './agent-profiles'
 import { cwdOf, findAgent, foregroundOf, snapshotProcs } from './platform/procs'
 import type { ProjectRegistry } from './projects'
 import { PtyHost } from './pty-host'
@@ -54,6 +55,8 @@ export interface CreatePane {
   agentName?: string
   /** prompt inicial (arquivo) */
   promptFile?: string
+  /** modelo da sessão (opção de modelo da CLI) */
+  model?: string
   cols: number
   rows: number
 }
@@ -70,8 +73,8 @@ export interface PaneManagerDeps {
   onChange(): void
   onGitHint(worktreePath: string): void
   codexHookGraceMs: number
-  /** --mcp-config que toda sessão Claude recebe (null = sem MCP) */
-  mcpConfigPath: string | null
+  /** MCP que toda sessão recebe (null = sem MCP) */
+  mcp: McpServerSpec | null
 }
 
 // o daemon pode ter nascido dentro de uma sessão do Claude, do VS Code ou do npm: nada disso vai para os terminais
@@ -141,7 +144,7 @@ export class PaneManager {
     let account = o.accountId ? accounts.find((a) => a.id === o.accountId) : undefined
     if (o.accountId && !account) throw new Error(`conta desconhecida: ${o.accountId}`)
     if (!account && o.resumeSessionId) account = resumeAccount(accounts, o.resumeAgent ?? 'claude')
-    const command = account ? buildCommand(account, o.resumeSessionId, { mcpConfig: this.d.mcpConfigPath, name: o.agentName, promptFile: o.promptFile }) : null
+    const command = account ? buildCommand(account, o.resumeSessionId, { mcp: this.d.mcp, paneId: id, socketPath: this.d.socketPath, model: o.model, name: o.agentName, promptFile: o.promptFile }) : null
     const cwd = fs.existsSync(o.cwd) ? o.cwd : this.d.fallbackCwd
     const env = { ...this.d.baseEnv, GT_PANE_ID: id, GT_SOCKET: this.d.socketPath }
     this.host.spawn({ id, shell: this.d.shell, args: this.d.shellArgs, cwd, cols: o.cols, rows: o.rows, env })
@@ -193,11 +196,11 @@ export class PaneManager {
     this.host.kill(id)
   }
 
-  /** comando da conta da sessão hibernada com --resume (mesmo --mcp-config das sessões novas) */
-  resumeCommand(h: Hibernation): string {
+  /** comando da conta da sessão hibernada com --resume (mesmo MCP das sessões novas) */
+  resumeCommand(paneId: string, h: Hibernation): string {
     const accounts = this.d.accounts()
     const account = (h.accountId ? accounts.find((a) => a.id === h.accountId) : undefined) ?? resumeAccount(accounts, h.agent)
-    return buildCommand(account, h.sessionId, { mcpConfig: this.d.mcpConfigPath })
+    return buildCommand(account, h.sessionId, { mcp: this.d.mcp, paneId, socketPath: this.d.socketPath })
   }
 
   private onPtyOutput(id: string): void {

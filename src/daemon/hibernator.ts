@@ -48,7 +48,7 @@ export interface HibernatorDeps {
   /** pid do shell do painel */
   shellPid(id: string): number | undefined
   write(id: string, data: string): void
-  resumeCommand(h: Hibernation): string
+  resumeCommand(paneId: string, h: Hibernation): string
   settings(): { enabled: boolean; minutes: number }
   /** sobrescreve minutes × 60 000 (testes) */
   thresholdMs?: number
@@ -172,7 +172,7 @@ export class Hibernator {
         r.launchedAccountId = h.accountId
         r.accountId = h.accountId
         // Ctrl-U antes: o que o usuário digitou entre o foco e aqui não gruda no comando
-        this.d.write(r.id, '\x15' + this.d.resumeCommand(h) + '\r')
+        this.d.write(r.id, '\x15' + this.d.resumeCommand(r.id, h) + '\r')
         r.waking = { since: this.now() }
       }
       this.d.onChange()

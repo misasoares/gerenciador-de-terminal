@@ -1,5 +1,6 @@
 import path from 'node:path'
 import type { Account, AgentKind } from '../shared/types'
+import { profileOf, type McpServerSpec } from './agent-profiles'
 import { shq } from './shell-quote'
 
 export const DEFAULT_ACCOUNTS: Account[] = [
@@ -20,8 +21,12 @@ export function detectAccount(accounts: Account[], agent: AgentKind, configDir: 
 const SESSION_ID_RE = /^[0-9a-f-]{8,64}$/i
 
 export interface CommandExtras {
-  /** --mcp-config do Gerenciador (só Claude) */
-  mcpConfig?: string | null
+  /** MCP do Gerenciador (Claude: --mcp-config; Codex: -c mcp_servers…, precisa também de paneId e socketPath) */
+  mcp?: McpServerSpec | null
+  paneId?: string
+  socketPath?: string
+  /** modelo da sessão (--model no Claude, -m no Codex) */
+  model?: string
   /** -n: nome de exibição da sessão (o SendMessage acha por ele) */
   name?: string
   /** arquivo com o prompt inicial: vai como "$(cat …)" para aspas e quebras chegarem intactas */
@@ -32,13 +37,16 @@ export function buildCommand(account: Account, resumeSessionId?: string, extra: 
   let cmd = account.command
   // o daemon compartilhado do Codex roda os hooks com o env de quem o criou (outro painel): cada sessão no seu processo
   if (account.agent === 'codex' && !/(^|\s)--no-daemon(\s|$)/.test(cmd)) cmd += ' --no-daemon'
-  if (resumeSessionId) {
-    if (!SESSION_ID_RE.test(resumeSessionId)) throw new Error(`session id inválido: ${resumeSessionId}`)
-    // Claude: --resume <id>; Codex: subcomando (codex --yolo resume <id>)
-    cmd = account.agent === 'codex' ? `${cmd} resume ${resumeSessionId}` : `${cmd} --resume ${resumeSessionId}`
-  }
+  const profile = profileOf(account.agent)
+  if (resumeSessionId && !SESSION_ID_RE.test(resumeSessionId)) throw new Error(`session id inválido: ${resumeSessionId}`)
+  // Claude: --resume <id> antes das demais opções
+  if (resumeSessionId && account.agent === 'claude') cmd += ` --resume ${resumeSessionId}`
+  const mcpUsable = extra.mcp && (account.agent === 'claude' || (extra.paneId && extra.socketPath))
+  if (mcpUsable) cmd += ` ${profile.mcpArgs(extra.mcp!, extra.paneId ?? '', extra.socketPath ?? '')}`
+  if (extra.model) cmd += ` ${profile.modelArgs(extra.model)}`
+  // Codex: subcomando no fim (codex --yolo … resume <id>)
+  if (resumeSessionId && account.agent === 'codex') cmd += ` resume ${resumeSessionId}`
   if (account.agent !== 'claude') return cmd
-  if (extra.mcpConfig) cmd += ` --mcp-config ${shq(extra.mcpConfig)}`
   if (extra.name) cmd += ` -n ${shq(extra.name)}`
   if (extra.promptFile) cmd += ` "$(cat ${shq(extra.promptFile)})"`
   return cmd
