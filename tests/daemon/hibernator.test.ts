@@ -56,6 +56,7 @@ function rec(id: string, claude: Partial<ClaudeSession> | null = {}): PaneRecord
     claude: claude && { sessionId: `s-${id}`, agent: 'claude', status: 'your-turn', statusSince: 0, title: null, transcriptPath: `/t/${id}.jsonl`, ...claude },
     missingPolls: 0, projectPath: null, worktreePath: null, inference: EMPTY_INFERENCE, inferredProjectPath: null,
     agentProcSince: null, lastHookAt: 0, agentHooksMissing: false, workspaceId: 'principal', hibernated: null, waking: null, hibernateCooldownUntil: 0,
+    createdAt: 0, lastUserInputAt: 0, lastOutputAt: 0, sessionStartedAt: null,
   }
 }
 

@@ -42,6 +42,12 @@ export interface PaneRecord {
   waking: { since: number } | null
   /** não tenta hibernar antes disso (falha anterior) */
   hibernateCooldownUntil: number
+  createdAt: number
+  /** última tecla do usuário neste painel (writeRaw não conta) */
+  lastUserInputAt: number
+  lastOutputAt: number
+  /** primeiro SessionStart do agente neste painel (null = ainda não ficou pronto) */
+  sessionStartedAt: number | null
 }
 
 export interface CreatePane {
@@ -171,6 +177,10 @@ export class PaneManager {
       hibernated: null,
       waking: null,
       hibernateCooldownUntil: 0,
+      createdAt: Date.now(),
+      lastUserInputAt: 0,
+      lastOutputAt: 0,
+      sessionStartedAt: null,
     }
     this.recs.set(id, rec)
     if (command) {
@@ -185,6 +195,13 @@ export class PaneManager {
   write(id: string, data: string): void {
     // o usuário começou a digitar antes do prompt: manda o comando da conta primeiro, para não grudar
     if (this.pendingCommands.has(id)) this.flushCommand(id)
+    const r = this.recs.get(id)
+    if (r) r.lastUserInputAt = Date.now()
+    this.host.write(id, data)
+  }
+
+  /** escrita do app (mensagens da equipe): não conta como digitação do usuário nem dispara o comando pendente */
+  writeRaw(id: string, data: string): void {
     this.host.write(id, data)
   }
 
@@ -204,6 +221,8 @@ export class PaneManager {
   }
 
   private onPtyOutput(id: string): void {
+    const r = this.recs.get(id)
+    if (r) r.lastOutputAt = Date.now()
     const p = this.pendingCommands.get(id)
     if (!p) return
     if (p.quiet) clearTimeout(p.quiet)
@@ -253,7 +272,10 @@ export class PaneManager {
     rec.claude = reduceSession(rec.claude, p, Date.now(), agent)
     // agente subiu (retomada ou digitado na mão) ou saiu: não está mais hibernada nem acordando
     if (p.hook_event_name === 'SessionStart' || p.hook_event_name === 'SessionEnd') rec.waking = null
-    if (p.hook_event_name === 'SessionStart') rec.hibernated = null
+    if (p.hook_event_name === 'SessionStart') {
+      rec.hibernated = null
+      rec.sessionStartedAt ??= Date.now()
+    }
     if (p.hook_event_name === 'SessionStart' || p.hook_event_name === 'SessionEnd') this.resetInference(rec)
     rec.missingPolls = 0
     if (!rec.claude) {
