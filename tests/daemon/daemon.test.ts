@@ -100,7 +100,7 @@ function fakeTeamEnv(): Record<string, string> {
   const env = fakeAgentEnv(home)
   const bin = path.join(home, 'fakebin')
   // lê a entrada em modo raw, como uma CLI de verdade, e ecoa: no modo canônico do tty a colagem longa se perde
-  const reader = '#!/bin/sh\nstty raw -echo 2>/dev/null\nwhile :; do cat || sleep 0.2; done\n'
+  const reader = '#!/bin/sh\nstty raw -echo 2>/dev/null\necho fake-pronto\nwhile :; do cat || sleep 0.2; done\n'
   const team = path.join(home, 'teambin')
   fs.mkdirSync(team)
   fs.writeFileSync(path.join(team, 'claude'), reader, { mode: 0o755 })
@@ -935,6 +935,39 @@ describe('Daemon', () => {
     await expect(call('mandar_mensagem', { para: 'dev-1', texto: 'oi' })).rejects.toThrow('sessão não encontrada neste espaço: dev-1')
   })
 
+  it('reinício do daemon: fila de quem não ficou retomável falha no início, e descartar a retomada falha a fila', async () => {
+    repo = makeRepo()
+    const first = await leaderIn(repo.dir)
+    await first.app.client.request({ t: 'pane.setLeader', paneId: first.leader, leader: true })
+    await first.call('contratar_dev', { nome: 'dev-1', worktree: false })
+    await first.call('contratar_dev', { nome: 'dev-2', worktree: false })
+    const panes = (await first.app.waitState((s) => s.panes.some((p) => p.name === 'dev-2'))).panes
+    const d1 = panes.find((p) => p.name === 'dev-1')!.id
+    const d2 = panes.find((p) => p.name === 'dev-2')!.id
+    // ninguém tem sessão: as duas ficam na fila
+    await first.call('mandar_mensagem', { para: 'dev-1', texto: 'a' })
+    await first.call('mandar_mensagem', { para: 'dev-2', texto: 'b' })
+    first.app.client.close()
+    await first.d.stop(true)
+    daemons = daemons.filter((x) => x !== first.d)
+    // dev-1 some do estado salvo (não vira retomável): a fila dele não tem mais para onde ir
+    const saved = JSON.parse(fs.readFileSync(first.o.stateFile, 'utf8'))
+    saved.panes = saved.panes.filter((p: { id: string }) => p.id !== d1)
+    fs.writeFileSync(first.o.stateFile, JSON.stringify(saved))
+
+    const second = await boot({}, first.home)
+    const mailbox = () => {
+      second.app.client.request({ t: 'state.get' }).catch(() => {})
+      return (JSON.parse(fs.readFileSync(second.o.stateFile, 'utf8')).mailbox ?? []) as { to: string; state: string; error: string | null }[]
+    }
+    await waitFor(async () => (mailbox().find((m) => m.to === d1)?.state === 'falhou' ? true : null), 5000)
+    expect(mailbox().find((m) => m.to === d1)).toMatchObject({ state: 'falhou', error: 'sessão encerrada' })
+    expect(mailbox().find((m) => m.to === d2)?.state).toBe('na-fila')
+    await second.app.client.request({ t: 'resume.dismiss', paneId: d2 })
+    await waitFor(async () => (mailbox().find((m) => m.to === d2)?.state === 'falhou' ? true : null), 5000)
+    expect(mailbox().find((m) => m.to === d2)).toMatchObject({ state: 'falhou', error: 'sessão encerrada' })
+  })
+
   it('reinício do daemon com mensagem na fila: volta e é entregue uma única vez', async () => {
     repo = makeRepo()
     const env = fakeTeamEnv()
@@ -959,6 +992,8 @@ describe('Daemon', () => {
     const second = await boot({ env }, first.home)
     for (const id of [first.leader, dev]) await second.app.client.request({ t: 'pane.create', paneId: id, cwd: repo.dir, accountId: 'mslabs', cols: 80, rows: 24 })
     await second.app.client.request({ t: 'pane.attach', paneId: dev })
+    // antes do stty do agente falso o tty ainda ecoa: a colagem apareceria duas vezes
+    await second.app.waitState(() => second.app.output(dev).includes('fake-pronto'))
     await hook(second.o, dev, { hook_event_name: 'SessionStart', session_id: 's2', cwd: repo.dir, source: 'startup' })
     await hook(second.o, dev, { hook_event_name: 'Stop', session_id: 's2', cwd: repo.dir })
     await second.app.waitState(() => second.app.output(dev).includes('recadoUnicoQ7'))

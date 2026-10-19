@@ -282,6 +282,11 @@ export class Daemon {
       },
     })
     this.mailbox = new Mailbox(p.mailbox, () => this.changed())
+    // fila de quem não voltou como retomável: ninguém mais vai receber
+    const resumable = new Set(p.workspaces.flatMap((w) => w.resumable.map((r) => r.paneId)))
+    for (const to of new Set(this.mailbox.all().filter((m) => m.state === 'na-fila').map((m) => m.to))) {
+      if (!resumable.has(to) && !this.panes.get(to)?.alive) this.mailbox.failAll(to, 'sessão encerrada')
+    }
     this.deliverer = new Deliverer({
       mailbox: this.mailbox,
       pane: (id) => this.deliveryPane(id),
@@ -1028,6 +1033,7 @@ export class Daemon {
         const w = this.ws(conn.workspaceId)
         w.resumable = w.resumable.filter((r) => r.paneId !== req.paneId)
         delete this.persisted.paneMeta[req.paneId]
+        this.mailbox.failAll(req.paneId, 'sessão encerrada')
         this.changed()
         return null
       }
