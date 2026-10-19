@@ -530,7 +530,8 @@ export class Daemon {
     const texto = typeof args.texto === 'string' ? args.texto.trim() : ''
     if (!texto && !(interrupt && args.texto === undefined)) throw new Error('texto vazio')
     const toName = displayName(target, meta)
-    if (interrupt) this.deliverer!.interrupt(target.id)
+    // destinatário parado: não há o que interromper, o texto vira mensagem comum
+    const interrupted = interrupt && this.deliverer!.interrupt(target.id)
     if (texto) {
       const fromAgent = this.agentOf(caller)
       const fromName = displayName(caller, meta)
@@ -542,7 +543,7 @@ export class Daemon {
         fromAgent,
         kind: 'equipe',
         text: teamHeader({ fromName, fromAgent, toName, toAgent: this.agentOf(target), text: texto }),
-        interrupt,
+        interrupt: interrupted,
       })
     }
     this.tickDelivery()

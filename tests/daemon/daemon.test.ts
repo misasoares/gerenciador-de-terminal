@@ -1034,6 +1034,33 @@ describe('Daemon', () => {
     expect((JSON.parse(fs.readFileSync(o.stateFile, 'utf8')).mailbox as { state: string }[]).map((m) => m.state)).toEqual(['na-fila'])
   })
 
+  it('interromper dev parado: sem Esc nem Ctrl-U; com texto vira mensagem comum, sem texto não faz nada', async () => {
+    repo = makeRepo()
+    const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    await app.client.request({ t: 'pane.attach', paneId: dev })
+    await app.waitState(() => app.output(dev).includes('fake-pronto'))
+    await hook(o, dev, { hook_event_name: 'SessionStart', session_id: 's-d', cwd: repo.dir, source: 'startup' })
+    await hook(o, dev, { hook_event_name: 'Stop', session_id: 's-d', cwd: repo.dir })
+    await app.waitState((s) => s.panes.find((p) => p.id === dev)?.claude?.status === 'your-turn')
+    const before = app.output(dev).length
+    await call('interromper', { para: 'dev-1' })
+    await call('interromper', { para: 'dev-1' })
+    await new Promise((r) => setTimeout(r, 500))
+    expect(app.output(dev).slice(before)).toBe('')
+    await call('interromper', { para: 'dev-1', texto: 'paradoK4' })
+    await app.waitState(() => app.output(dev).includes('paradoK4'))
+    const typed = app.output(dev).slice(before)
+    expect(typed.startsWith('\x1b[200~')).toBe(true)
+    expect(typed).not.toContain('\x15')
+    await waitFor(async () => {
+      const m = (JSON.parse(fs.readFileSync(o.stateFile, 'utf8')).mailbox as { state: string; interrupt: boolean }[])[0]
+      return m?.state === 'entregue' ? m : null
+    }, 5000).then((m) => expect(m.interrupt).toBe(false))
+  })
+
   it('mensagens: dev manda ao líder, fila, entrega e regras de equipe', async () => {
     repo = makeRepo()
     const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })

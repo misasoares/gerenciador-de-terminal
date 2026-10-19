@@ -165,13 +165,46 @@ describe('Deliverer', () => {
     expect(t.written).toEqual(pasteAndSubmit('oi'))
   })
 
-  it('mensagem comum não aproveita a janela de interrupção', async () => {
+  it('destinatário parado: interromper não manda Esc (dois seguidos abririam o menu de voltar no histórico)', () => {
+    for (const status of ['idle', 'your-turn', null] as const) {
+      const s = setup({ status })
+      expect(s.d.interrupt('p2')).toBe(false)
+      expect(s.d.interrupt('p2')).toBe(false)
+      expect(s.written).toEqual([])
+    }
+  })
+
+  it('pedindo permissão: interromper manda Esc', () => {
+    const s = setup({ status: 'needs-you' })
+    expect(s.d.interrupt('p2')).toBe(true)
+    expect(s.written).toEqual(['\x1b'])
+  })
+
+  it('dois interromper seguidos num working: um Esc só, o segundo aproveita a janela', () => {
+    const s = setup({ status: 'working' })
+    expect(s.d.interrupt('p2')).toBe(true)
+    expect(s.d.interrupt('p2')).toBe(true)
+    expect(s.written).toEqual(['\x1b'])
+  })
+
+  it('Esc sem texto num working: depois do silêncio a próxima mensagem comum sai (limpando a linha)', async () => {
     const s = setup({ status: 'working' })
     s.d.interrupt('p2')
     s.mb.enqueue(msg)
-    s.panes.p2.lastOutputAt = 0
+    s.panes.p2.lastOutputAt = s.now() - (INTERRUPT_QUIET_MS - 500)
     await s.d.tick()
     expect(s.written).toEqual(['\x1b'])
+    s.panes.p2.lastOutputAt = s.now() - INTERRUPT_QUIET_MS
+    await s.d.tick()
+    expect(s.written).toEqual(['\x1b', '\x15', ...pasteAndSubmit('oi')])
+  })
+
+  it('working sem Esc nosso: mensagem comum espera, mesmo com o terminal em silêncio', async () => {
+    const s = setup({ status: 'working' })
+    s.mb.enqueue(msg)
+    s.panes.p2.lastOutputAt = 0
+    await s.d.tick()
+    expect(s.written).toEqual([])
   })
 
   it('CLI aberta, em silêncio há muito tempo e sem nenhum hook (status null): não entrega', async () => {

@@ -59,12 +59,24 @@ export class Deliverer {
     await Promise.all([...targets].map((to) => this.deliverTo(to)))
   }
 
-  /** manda a tecla de interromper agora e registra o instante */
-  interrupt(to: string): void {
+  /**
+   * manda a tecla de interromper só se o destinatário está trabalhando ou pedindo permissão: parado, Esc Esc abre o menu de voltar no histórico.
+   * true = há um Esc nosso valendo (agora ou há pouco) e a próxima entrega aproveita a janela; false = nada foi interrompido
+   */
+  interrupt(to: string): boolean {
     const p = this.d.pane(to)
-    if (!p?.alive) return
+    if (!p?.alive) return false
+    // um segundo Esc logo depois do primeiro também viraria Esc Esc
+    if (this.inInterruptWindow(to)) return true
+    if (p.status !== 'working' && p.status !== 'needs-you') return false
     this.d.writeRaw(to, profileOf(p.agent ?? 'claude').interruptKey)
     this.interruptedAt.set(to, this.d.now())
+    return true
+  }
+
+  private inInterruptWindow(to: string): boolean {
+    const at = this.interruptedAt.get(to)
+    return at !== undefined && this.d.now() - at <= INTERRUPT_WINDOW_MS
   }
 
   /** recados atrasados: na fila há mais de 60 s sem SessionStart */
@@ -75,7 +87,7 @@ export class Deliverer {
     return this.d.mailbox.queued(to).some((m) => now - m.createdAt > READY_TIMEOUT_MS)
   }
 
-  private ready(p: DeliveryPane, interrupt: boolean): boolean {
+  private ready(p: DeliveryPane): boolean {
     const now = this.d.now()
     if (!p.alive || now - p.lastUserInputAt < USER_TYPING_GRACE_MS) return false
     const last = this.delivered.get(p.id)
@@ -83,26 +95,26 @@ export class Deliverer {
     const free = !last || last.sawWorking || now - last.at >= PICKUP_TIMEOUT_MS
     if (settled) return free
     // sem sessão (nenhum hook ainda) não entrega: a tela pode ser um aviso de atualização, de confiança na pasta ou de login, e o Enter escolheria a opção padrão
-    // Esc no Claude não dispara Stop: o silêncio do terminal é o sinal de que ele parou
-    const at = this.interruptedAt.get(p.id)
-    return interrupt && p.status === 'working' && at !== undefined && now - at <= INTERRUPT_WINDOW_MS && now - p.lastOutputAt >= INTERRUPT_QUIET_MS
+    // Esc no Claude não dispara Stop: depois de um Esc nosso (com ou sem texto), o silêncio do terminal é o sinal de que ele parou
+    const stuck = p.status === 'working' || p.status === 'needs-you'
+    return stuck && this.inInterruptWindow(p.id) && now - p.lastOutputAt >= INTERRUPT_QUIET_MS
   }
 
   private async deliverTo(to: string): Promise<void> {
     if (this.busy.has(to)) return
     const p = this.d.pane(to)
     const m = this.d.mailbox.next(to)
-    if (!p || !m || !this.ready(p, m.interrupt)) return
+    if (!p || !m || !this.ready(p)) return
     this.busy.add(to)
     try {
       // sem a CLI na frente, a colagem e o Enter iriam para o shell e virariam comando
       if (!(await this.d.agentAtFront(to))) return
       // o estado pode ter mudado enquanto o ps rodava
       const cur = this.d.pane(to)
-      if (!cur || this.d.mailbox.next(to)?.id !== m.id || !this.ready(cur, m.interrupt)) return
+      if (!cur || this.d.mailbox.next(to)?.id !== m.id || !this.ready(cur)) return
       const [paste, enter] = pasteAndSubmit(m.text)
       // depois do Esc a CLI devolve o texto cancelado à caixa de entrada: Ctrl-U antes, senão as duas viram um pedido só
-      if (m.interrupt) this.d.writeRaw(to, '\x15')
+      if (this.inInterruptWindow(to)) this.d.writeRaw(to, '\x15')
       this.d.writeRaw(to, paste)
       await this.d.sleep(PASTE_SETTLE_MS)
       this.d.writeRaw(to, enter)
