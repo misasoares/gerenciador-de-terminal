@@ -30,7 +30,12 @@ describe('buildCommand', () => {
   })
   it('Codex retoma com o subcomando resume', () => {
     const codex = { ...DEFAULT_ACCOUNTS[0], id: 'codex', agent: 'codex' as const, command: 'codex --yolo' }
-    expect(buildCommand(codex, 'abcd-1234')).toBe('codex --yolo resume abcd-1234')
+    expect(buildCommand(codex, 'abcd-1234')).toBe('codex --yolo --no-daemon resume abcd-1234')
+  })
+  it('Codex roda sem o daemon compartilhado (os hooks herdam o GT_PANE_ID do painel)', () => {
+    const codex = { ...DEFAULT_ACCOUNTS[0], id: 'codex', agent: 'codex' as const, command: 'codex --yolo' }
+    expect(buildCommand(codex)).toBe('codex --yolo --no-daemon')
+    expect(buildCommand({ ...codex, command: 'codex --no-daemon --yolo' })).toBe('codex --no-daemon --yolo')
   })
   it('Claude: --mcp-config, -n e prompt por arquivo, citados', () => {
     const mslabs = DEFAULT_ACCOUNTS.find((a) => a.id === 'mslabs')!
@@ -43,7 +48,7 @@ describe('buildCommand', () => {
   })
   it('Codex ignora os extras do Claude', () => {
     const codex = { ...DEFAULT_ACCOUNTS[0], id: 'codex', agent: 'codex' as const, command: 'codex --yolo' }
-    expect(buildCommand(codex, undefined, { mcpConfig: '/h/mcp.json', name: 'dev-1', promptFile: '/p.txt' })).toBe('codex --yolo')
+    expect(buildCommand(codex, undefined, { mcpConfig: '/h/mcp.json', name: 'dev-1', promptFile: '/p.txt' })).toBe('codex --yolo --no-daemon')
   })
   it('recusa session id que não parece um id', () => {
     expect(() => buildCommand(DEFAULT_ACCOUNTS[0], 'x; rm -rf ~')).toThrow('session id inválido')

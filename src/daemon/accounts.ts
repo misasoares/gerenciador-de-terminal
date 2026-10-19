@@ -30,6 +30,8 @@ export interface CommandExtras {
 
 export function buildCommand(account: Account, resumeSessionId?: string, extra: CommandExtras = {}): string {
   let cmd = account.command
+  // o daemon compartilhado do Codex roda os hooks com o env de quem o criou (outro painel): cada sessão no seu processo
+  if (account.agent === 'codex' && !/(^|\s)--no-daemon(\s|$)/.test(cmd)) cmd += ' --no-daemon'
   if (resumeSessionId) {
     if (!SESSION_ID_RE.test(resumeSessionId)) throw new Error(`session id inválido: ${resumeSessionId}`)
     // Claude: --resume <id>; Codex: subcomando (codex --yolo resume <id>)

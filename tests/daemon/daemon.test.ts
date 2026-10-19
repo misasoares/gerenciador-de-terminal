@@ -411,7 +411,7 @@ describe('Daemon', () => {
     expect(st.resumable[0]).toMatchObject({ accountId: null, sessionId: 'abcd-1234', agent: 'codex' })
     await second.app.client.request({ t: 'pane.create', paneId, cwd: repo.dir, accountId: null, resumeSessionId: 'abcd-1234', resumeAgent: 'codex', cols: 80, rows: 24 })
     const { snapshot } = await second.app.client.request<{ snapshot: string }>({ t: 'pane.attach', paneId })
-    await second.app.waitState(() => (snapshot + second.app.output(paneId)).includes('codex resume abcd-1234'))
+    await second.app.waitState(() => (snapshot + second.app.output(paneId)).includes('codex --no-daemon resume abcd-1234'))
     expect(snapshot + second.app.output(paneId)).not.toContain('claude --resume')
   })
 
