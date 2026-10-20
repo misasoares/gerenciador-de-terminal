@@ -11,6 +11,7 @@ import { startFocusSync } from './focus-sync'
 import { syncKeybindings } from './shortcuts'
 import { terminals } from './terminals'
 import { emitFileChanged } from './file-events'
+import { emitTeamChanged } from './team-events'
 import { mergeIncomingLayout } from './workspaces-model'
 import { ReopenWorkspaces } from './components/ReopenWorkspaces'
 import { FloatView } from './components/FloatView'
@@ -115,6 +116,9 @@ function bootWorkspace(): void {
       case 'file.changed':
         emitFileChanged(e.path, e.mtimeMs)
         break
+      case 'team.changed':
+        emitTeamChanged()
+        break
       case 'machine':
         setUi(e.detail ? { machine: e.machine, machineDetail: e.detail } : { machine: e.machine })
         break
@@ -174,6 +178,9 @@ function bootFloat(paneId: string): void {
         break
       case 'file.changed':
         emitFileChanged(e.path, e.mtimeMs)
+        break
+      case 'team.changed':
+        emitTeamChanged()
         break
     }
   })
