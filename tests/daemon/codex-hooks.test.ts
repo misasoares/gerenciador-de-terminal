@@ -52,7 +52,8 @@ describe('stdout do hook no Codex é sempre {}', () => {
     })
     expect(r).toMatchObject({ code: 0, stdout: '{}' })
     await waitFor(() => got.length === 1)
-    expect(got[0]).toEqual({ t: 'hook', paneId: 'p1', configDir: '/u/.codex-trabalho', agent: 'codex', pid: process.pid, payload: { hook_event_name: 'Stop', session_id: 's', cwd: '/w' } })
+    // pid: o macOS (bash) faz exec no sh -c e manda o do teste; o dash (Linux) não, e manda o do sh intermediário, filho da CLI: os dois sobem até o painel
+    expect(got[0]).toEqual({ t: 'hook', paneId: 'p1', configDir: '/u/.codex-trabalho', agent: 'codex', pid: expect.any(Number), payload: { hook_event_name: 'Stop', session_id: 's', cwd: '/w' } })
   })
 })
 
