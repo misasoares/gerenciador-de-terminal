@@ -46,6 +46,8 @@ export type ClientRequest =
   | { t: 'pane.setLeader'; paneId: string; leader: boolean }
   /** grupo da equipe de um líder → TeamFeedView */
   | { t: 'team.feed'; leaderId: string }
+  /** você escreve no grupo; to null = líder → { nome, fila } */
+  | { t: 'team.say'; leaderId: string; to: string | null; text: string; interrupt: boolean }
   | { t: 'mcp.call'; callerPaneId: string; /** processo da CLI que abriu o MCP (o GT_PANE_ID pode ser herdado de outro painel) */ callerPid?: number; tool: string; args: Record<string, unknown> }
   | { t: 'workspace.create'; name: string }
   | { t: 'workspace.rename'; id: string; name: string }
@@ -69,6 +71,8 @@ export type ServerMessage =
   | { t: 'usage.alert'; text: string }
   | { t: 'machine'; machine: MachineView; detail?: MachineDetail }
   | { t: 'file.changed'; path: string; mtimeMs: number | null }
+  /** mensagens, eventos ou membros de alguma equipe mudaram: os grupos abertos recarregam */
+  | { t: 'team.changed' }
 
 /** eventos que o processo principal do Electron entrega ao renderer */
 export type BridgeEvent =

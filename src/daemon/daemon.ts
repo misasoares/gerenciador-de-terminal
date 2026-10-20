@@ -106,6 +106,7 @@ export class Daemon {
   /** pid → painel; guarda a promessa para hooks seguidos do mesmo pid não trocarem de ordem */
   private paneOfPidCache = new Map<number, { at: number; pane: Promise<string | null> }>()
   private broadcastTimer: NodeJS.Timeout | null = null
+  private teamChangedTimer: NodeJS.Timeout | null = null
   private saveTimer: NodeJS.Timeout | null = null
   private pollTimer: NodeJS.Timeout | null = null
   private hibernator!: Hibernator
@@ -299,8 +300,14 @@ export class Daemon {
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
       },
     })
-    this.mailbox = new Mailbox(p.mailbox, () => this.changed())
-    this.teamLog = new TeamLog(p.teamLog, () => this.changed())
+    this.mailbox = new Mailbox(p.mailbox, () => {
+      this.changed()
+      this.teamChanged()
+    })
+    this.teamLog = new TeamLog(p.teamLog, () => {
+      this.changed()
+      this.teamChanged()
+    })
     // fila de quem não voltou como retomável: ninguém mais vai receber
     const resumable = new Set(p.workspaces.flatMap((w) => w.resumable.map((r) => r.paneId)))
     for (const to of new Set(this.mailbox.all().filter((m) => m.state === 'na-fila').map((m) => m.to))) {
@@ -377,6 +384,7 @@ export class Daemon {
     if (this.deliveryTimer) clearInterval(this.deliveryTimer)
     if (this.worktreeTimer) clearInterval(this.worktreeTimer)
     if (this.broadcastTimer) clearTimeout(this.broadcastTimer)
+    if (this.teamChangedTimer) clearTimeout(this.teamChangedTimer)
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.monitor.stop()
     this.usage.stop()
@@ -386,6 +394,15 @@ export class Daemon {
     for (const t of this.conflictTimers.values()) clearTimeout(t)
     if (killPtys) this.panes.host.killAll()
     await this.server?.close()
+  }
+
+  /** os grupos abertos recarregam o feed; no máximo um aviso a cada 100 ms */
+  private teamChanged(): void {
+    if (this.stopping || this.teamChangedTimer) return
+    this.teamChangedTimer = setTimeout(() => {
+      this.teamChangedTimer = null
+      for (const c of this.server?.conns ?? []) if (c.role === 'app') c.send({ t: 'team.changed' })
+    }, 100)
   }
 
   private changed(persist = true): void {
@@ -749,6 +766,25 @@ export class Daemon {
     }
   }
 
+  /** você escreve no grupo: mesma fila e mesmo entregador das mensagens da equipe, sem cabeçalho [equipe] */
+  private teamSay(leaderId: string, to: string | null, text: string, interrupt: boolean): { nome: string; fila: number } {
+    const meta = this.persisted.paneMeta
+    const leader = this.panes.get(leaderId)
+    if (!leader?.alive || meta[leaderId]?.leader !== true) throw new Error('esta equipe não está ativa')
+    const target = to === null ? leader : this.panes.records().find((r) => r.alive && teamLeaderOf(r.id, meta) === leaderId && displayName(r, meta) === to)
+    if (!target) throw new Error(`sessão não encontrada na equipe: ${to}`)
+    const body = sanitizeBody(text.trim())
+    if (!body && !interrupt) throw new Error('texto vazio')
+    const toName = displayName(target, meta)
+    const interrupted = interrupt && this.deliverer!.interrupt(target.id)
+    if (interrupted && !body) this.teamLog.event({ team: leaderId, paneId: target.id, name: toName, event: 'interrompeu', detail: 'você' })
+    if (body) {
+      this.mailbox.enqueue({ from: null, to: target.id, fromName: 'você', toName, fromAgent: null, kind: 'usuario', team: leaderId, body, text: `(pelo grupo) ${body}`, interrupt: interrupted })
+    }
+    this.tickDelivery()
+    return { nome: toName, fila: this.mailbox.queued(target.id).length }
+  }
+
   /** grupo da equipe de um líder: membros vivos e o histórico */
   private teamFeed(leaderId: string): TeamFeedView {
     const meta = this.persisted.paneMeta
@@ -922,6 +958,7 @@ export class Daemon {
         const prev = this.panes.get(req.paneId)?.claude?.status ?? null
         await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
         this.teamHook(req.paneId, prev, req.payload)
+        this.teamChanged() // estado dos membros e destaque de permissão
         if (req.configDir) {
           const list = (req.agent ?? 'claude') === 'codex' ? this.persisted.codexHomes : this.persisted.claudeProfiles
           if (!list.includes(req.configDir)) {
@@ -979,6 +1016,7 @@ export class Daemon {
         }
         this.persisted.paneMeta[req.paneId] = next
         this.changed()
+        this.teamChanged()
         return null
       }
       case 'mcp.call':
@@ -1010,11 +1048,14 @@ export class Daemon {
       }
       case 'team.feed':
         return this.teamFeed(req.leaderId)
+      case 'team.say':
+        return this.teamSay(req.leaderId, req.to, req.text, req.interrupt)
       case 'pane.setLeader': {
         const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
         this.persisted.paneMeta[req.paneId] = { ...cur, leader: req.leader || undefined }
         if (req.leader && cur.leader !== true) this.briefLeader(req.paneId)
         this.changed()
+        this.teamChanged()
         return null
       }
       case 'accounts.save': {
