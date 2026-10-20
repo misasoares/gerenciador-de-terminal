@@ -1291,6 +1291,30 @@ describe('Daemon', () => {
     await expect(say('dev-1', 'oi')).rejects.toThrow('esta equipe não está ativa')
   })
 
+  it('grupo: resposta entre sessões por endereço de socket (uds:…/<pid>.sock) mostra o nome do membro', async () => {
+    repo = makeRepo()
+    let tree: Proc[] = []
+    const { o, d, app, leader, call } = await leaderIn(repo.dir, { snapshotProcs: async () => tree })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await app.client.request({ t: 'pane.meta', paneId: leader, name: 'lider' })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    const host = (d as unknown as { panes: { host: { pid(id: string): number | undefined } } }).panes.host
+    tree = [
+      { pid: host.pid(leader)!, ppid: 1, stat: 'Ss', args: '-zsh' },
+      { pid: host.pid(dev)!, ppid: 1, stat: 'Ss', args: '-zsh' },
+      { pid: 910001, ppid: host.pid(leader)!, stat: 'S+', args: 'claude' },
+      { pid: 910002, ppid: host.pid(dev)!, stat: 'S+', args: 'claude' },
+    ]
+    const c = await RpcClient.connect(o.socketPath)
+    await c
+      .request({ t: 'hook', paneId: dev, configDir: '', agent: 'claude', pid: 910002, payload: { hook_event_name: 'PreToolUse', session_id: 's-d', cwd: repo.dir, tool_name: 'SendMessage', tool_input: { to: 'uds:/tmp/cc-socks/910001.sock', message: 'Arquivos: README.md' } } })
+      .catch(() => null)
+    c.close()
+    const item = await waitFor(async () => (await app.client.request<TeamFeedView>({ t: 'team.feed', leaderId: leader })).items.find((i) => i.kind === 'msg' && i.via === 'nativo') ?? null, 5000)
+    expect(item).toMatchObject({ fromName: 'dev-1', toName: 'lider', toId: leader, body: 'Arquivos: README.md' })
+  })
+
   it('contratar: líder em HEAD solto pedindo worktree → erro e nada criado', async () => {
     repo = makeRepo()
     const { app, leader, call } = await leaderIn(repo.dir)

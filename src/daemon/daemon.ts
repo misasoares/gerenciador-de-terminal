@@ -760,10 +760,15 @@ export class Daemon {
       this.teamLog.event({ team, paneId, name, event: ev, since: needs ? (next?.statusSince ?? null) : null, detail: ev === 'travou' ? reason : null })
     }
     const nat = nativeMessage(p)
-    if (nat) {
-      const to = this.panes.records().find((x) => x.alive && teamLeaderOf(x.id, meta) === team && displayName(x, meta) === nat.to)
-      this.teamLog.native({ team, fromName: name, toId: to?.id ?? null, toName: nat.to, body: nat.body })
-    }
+    if (!nat) return
+    const member = (id: string | null) => this.panes.records().find((x) => x.alive && teamLeaderOf(x.id, meta) === team && (id ? x.id === id : displayName(x, meta) === nat.to))
+    const log = (to: PaneRecord | undefined) => this.teamLog.native({ team, fromName: name, toId: to?.id ?? null, toName: to ? displayName(to, meta) : nat.to, body: nat.body })
+    const byName = member(null)
+    // resposta entre sessões vai para o socket de quem mandou (uds:/tmp/cc-socks/<pid do claude>.sock): o pid diz o painel
+    const sockPid = /^uds:.*\/(\d+)\.sock$/.exec(nat.to)
+    const lookup = !byName && sockPid ? this.paneOfCaller(Number(sockPid[1])) : undefined
+    if (!lookup) return log(byName)
+    void lookup.then((id) => log(id ? member(id) : undefined))
   }
 
   /** você escreve no grupo: mesma fila e mesmo entregador das mensagens da equipe, sem cabeçalho [equipe] */

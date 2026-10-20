@@ -36,6 +36,13 @@ describe('nativeMessage', () => {
     expect(nativeMessage(ev('PreToolUse', { tool_name: 'SendMessage', tool_input: { to: 'dev-1', message: { type: 'shutdown_request' } } }))).toEqual({ to: 'dev-1', body: '{"type":"shutdown_request"}' })
     expect(nativeMessage(ev('PreToolUse', { tool_name: 'SendMessage', tool_input: { to: 'dev-1', message: { t: 'x'.repeat(5000) } } }))!.body).toHaveLength(2000)
   })
+  it('só inscrição de aviso (sem message): não é mensagem', () => {
+    expect(nativeMessage(ev('PreToolUse', { tool_name: 'SendMessage', tool_input: { to: 'dev-1', notify_when_idle: true } }))).toBeNull()
+    expect(nativeMessage(ev('PreToolUse', { tool_name: 'SendMessage', tool_input: { to: 'dev-1', message: '', notify_when_idle: true } }))).toBeNull()
+  })
+  it('destino com [ref] vira só o nome', () => {
+    expect(nativeMessage(ev('PreToolUse', { tool_name: 'SendMessage', tool_input: { to: 'dev-1 [3fa9c1]', message: 'oi' } }))).toEqual({ to: 'dev-1', body: 'oi' })
+  })
   it('sem destino, outra ferramenta ou outro evento: null', () => {
     expect(nativeMessage(ev('PreToolUse', { tool_name: 'SendMessage', tool_input: { message: 'oi' } }))).toBeNull()
     expect(nativeMessage(ev('PreToolUse', { tool_name: 'Bash', tool_input: { to: 'dev-1', message: 'oi' } }))).toBeNull()
