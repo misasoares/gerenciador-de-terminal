@@ -14,7 +14,7 @@ import { RpcClient } from '../../src/shared/rpc-client'
 import { makeRepo, type TestRepo } from '../helpers/repo'
 import { runWithInput } from '../helpers/run'
 import { projectDirName } from '../../src/daemon/conversations/files'
-import type { ConversationInfo } from '../../src/shared/types'
+import type { ConversationInfo, TeamFeedView } from '../../src/shared/types'
 import { waitFor } from '../helpers/wait'
 
 let daemons: Daemon[] = []
@@ -1135,6 +1135,24 @@ describe('Daemon', () => {
     expect(app.state()!.panes.find((p) => p.id === a)?.claude?.status ?? null).not.toBe('needs-you')
     await rawHook(900002)
     await app.waitState((s) => s.panes.find((p) => p.id === a)?.claude?.status === 'needs-you')
+  })
+
+  it('grupo: feed da equipe', async () => {
+    repo = makeRepo()
+    const { app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await app.client.request({ t: 'pane.meta', paneId: leader, name: 'lider' })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    await app.client.request({ t: 'mcp.call', callerPaneId: dev, tool: 'mandar_mensagem', args: { para: 'lider', texto: 'terminei a parte 1' } })
+    const feed = await app.client.request<TeamFeedView>({ t: 'team.feed', leaderId: leader })
+    expect(feed).toMatchObject({ leaderId: leader, leaderName: 'lider', active: true })
+    expect(feed.members.map((m) => [m.id, m.name, m.leader, m.cli])).toEqual([[leader, 'lider', true, 'Claude'], [dev, 'dev-1', false, 'Claude']])
+    const m = feed.items.find((i) => i.kind === 'msg')
+    expect(m).toMatchObject({ kind: 'msg', via: 'app', fromName: 'dev-1', toId: leader, toName: 'lider', body: 'terminei a parte 1', byUser: false })
+    // a apresentação do líder (mensagem do app) não entra
+    expect(feed.items.filter((i) => i.kind === 'msg')).toHaveLength(1)
+    expect(await app.client.request<TeamFeedView>({ t: 'team.feed', leaderId: 'nao-existe' })).toEqual({ leaderId: 'nao-existe', leaderName: 'equipe encerrada', active: false, members: [], items: [] })
   })
 
   it('contratar: líder em HEAD solto pedindo worktree → erro e nada criado', async () => {

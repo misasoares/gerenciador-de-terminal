@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Deliverer, INTERRUPT_QUIET_MS, PICKUP_TIMEOUT_MS, pasteAndSubmit, READY_TIMEOUT_MS, USER_TYPING_GRACE_MS, type DeliveryPane } from '../../src/daemon/team/delivery'
 import { Mailbox } from '../../src/daemon/team/mailbox'
 
-const msg = { from: 'p1', to: 'p2', fromName: 'lider', toName: 'dev-1', fromAgent: 'claude' as const, kind: 'equipe' as const, text: 'oi', interrupt: false }
+const msg = { from: 'p1', to: 'p2', fromName: 'lider', toName: 'dev-1', fromAgent: 'claude' as const, kind: 'equipe' as const, team: 'p1', body: 'oi', text: 'oi', interrupt: false }
 
 function setup(over: Partial<DeliveryPane> = {}) {
   let t = 100_000

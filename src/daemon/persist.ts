@@ -3,6 +3,7 @@ import path from 'node:path'
 import type { Account, AgentKind, Layout, ProjectConfig, ResumeEntry, FilePaneMeta, FloatPrefs, Workspace } from '../shared/types'
 import { migrateAccounts } from './accounts'
 import type { TeamMessage } from './team/mailbox'
+import type { TeamLogEntry } from './team/log'
 import { DEFAULT_SETTINGS, normalizeSettings, type TerminalSettings } from '../shared/settings'
 
 export interface PersistedPane {
@@ -52,6 +53,8 @@ export interface Persisted {
   askOnCloseWindow: boolean
   /** fila de mensagens da equipe (entregues e falhas recentes também) */
   mailbox: TeamMessage[]
+  /** eventos e SendMessage do grupo da equipe */
+  teamLog: TeamLogEntry[]
 }
 
 export function defaultPersisted(): Persisted {
@@ -73,6 +76,7 @@ export function defaultPersisted(): Persisted {
     workspaces: [{ id: 'principal', name: 'Principal', open: true, projectPaths: [], layout: { tabs: [], activeTabId: null }, resumable: [], floating: [] }],
     askOnCloseWindow: true,
     mailbox: [],
+    teamLog: [],
   }
 }
 
@@ -109,7 +113,10 @@ export function loadPersisted(file: string): Persisted {
       filePanes: parsed.filePanes && typeof parsed.filePanes === 'object' ? parsed.filePanes : {},
       workspaces: (Array.isArray(parsed.workspaces) ? parsed.workspaces : []).map((w) => ({ ...w, floating: Array.isArray(w.floating) ? w.floating.filter((x) => typeof x === 'string') : [] })),
       askOnCloseWindow: parsed.askOnCloseWindow !== false,
-      mailbox: Array.isArray(parsed.mailbox) ? parsed.mailbox.filter((m) => !!m && typeof m.id === 'string' && typeof m.to === 'string') : [],
+      mailbox: Array.isArray(parsed.mailbox)
+        ? parsed.mailbox.filter((m) => !!m && typeof m.id === 'string' && typeof m.to === 'string').map((m) => ({ ...m, team: m.team ?? null, body: m.body ?? m.text }))
+        : [],
+      teamLog: Array.isArray(parsed.teamLog) ? parsed.teamLog.filter((e) => !!e && typeof e.id === 'string' && typeof e.team === 'string') : [],
     })
   } catch {
     fs.renameSync(file, `${file}.corrupt-${Date.now()}`)

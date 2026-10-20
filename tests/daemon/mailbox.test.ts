@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Mailbox, MAILBOX_KEEP, type TeamMessage } from '../../src/daemon/team/mailbox'
 
-const base = { from: 'p1', to: 'p2', fromName: 'lider', toName: 'dev-1', fromAgent: 'claude' as const, kind: 'equipe' as const, text: 'oi', interrupt: false }
+const base = { from: 'p1', to: 'p2', fromName: 'lider', toName: 'dev-1', fromAgent: 'claude' as const, kind: 'equipe' as const, team: 'p1', body: 'oi', text: 'oi', interrupt: false }
 
 function box(items: TeamMessage[] = []) {
   let t = 1000
@@ -18,6 +18,11 @@ describe('Mailbox', () => {
     expect(m.id).toBeTruthy()
     expect(mb.queued('p2')).toEqual([m])
     expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('enqueue guarda a equipe e o corpo como vieram', () => {
+    const { mb } = box()
+    expect(mb.enqueue({ ...base, team: 'L1', body: 'só o corpo' })).toMatchObject({ team: 'L1', body: 'só o corpo' })
   })
 
   it('next devolve a interrupção antes de uma mensagem comum mais antiga', () => {

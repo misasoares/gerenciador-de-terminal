@@ -28,12 +28,14 @@ import type { Login, ReadResult } from './usage/types'
 import { MachineMonitor, type MemSample } from './machine/monitor'
 import { groupProcs, type PsRow } from './machine/groups'
 import { gateRefusal, machineReport } from './machine/report'
-import type { MachineDetail } from '../shared/types'
+import type { MachineDetail, TeamFeedView } from '../shared/types'
 import { Hibernator } from './hibernator'
 import { Deliverer, type DeliveryPane } from './team/delivery'
 import { leaderBriefing } from './team/briefing'
 import { Mailbox } from './team/mailbox'
-import { displayName, sameTeam, teamHeader, teamLeaderOf } from './team/team'
+import { TeamLog } from './team/log'
+import { buildFeed } from './team/feed'
+import { displayName, sameTeam, sanitizeBody, teamHeader, teamLeaderOf } from './team/team'
 import { profileOf } from './agent-profiles'
 import { findAgent, foregroundOf, paneOfPid, snapshotProcs, type Proc } from './platform/procs'
 
@@ -108,6 +110,7 @@ export class Daemon {
   private hibernator!: Hibernator
   private hibernateTimer: NodeJS.Timeout | null = null
   private mailbox!: Mailbox
+  private teamLog!: TeamLog
   private deliverer: Deliverer | null = null
   private deliveryTimer: NodeJS.Timeout | null = null
   private worktreeTimer: NodeJS.Timeout | null = null
@@ -290,6 +293,7 @@ export class Daemon {
       },
     })
     this.mailbox = new Mailbox(p.mailbox, () => this.changed())
+    this.teamLog = new TeamLog(p.teamLog, () => this.changed())
     // fila de quem não voltou como retomável: ninguém mais vai receber
     const resumable = new Set(p.workspaces.flatMap((w) => w.resumable.map((r) => r.paneId)))
     for (const to of new Set(this.mailbox.all().filter((m) => m.state === 'na-fila').map((m) => m.to))) {
@@ -411,6 +415,7 @@ export class Daemon {
     savePersisted(this.o.stateFile, {
       ...this.persisted,
       mailbox: this.mailbox.all(),
+      teamLog: this.teamLog.all(),
       // raiz = espaço principal, para quem voltar a uma versão sem espaços
       layout: main.layout,
       resumable: main.resumable,
@@ -504,7 +509,7 @@ export class Daemon {
     const agent = this.agentOf(r)
     if (profileOf(agent).nativeTeam) return
     if (this.mailbox.queued(paneId).some((m) => m.kind === 'gerenciador')) return
-    this.mailbox.enqueue({ from: null, to: paneId, fromName: 'gerenciador', toName: displayName(r, this.persisted.paneMeta), fromAgent: null, kind: 'gerenciador', text: leaderBriefing(agent), interrupt: false })
+    this.mailbox.enqueue({ from: null, to: paneId, fromName: 'gerenciador', toName: displayName(r, this.persisted.paneMeta), fromAgent: null, kind: 'gerenciador', team: paneId, body: '', text: leaderBriefing(agent), interrupt: false })
   }
 
   private agentOf(r: PaneRecord): AgentKind {
@@ -550,6 +555,8 @@ export class Daemon {
         toName,
         fromAgent,
         kind: 'equipe',
+        team: teamLeaderOf(caller.id, meta),
+        body: sanitizeBody(texto),
         text: teamHeader({ fromName, fromAgent, toName, toAgent: this.agentOf(target), text: texto }),
         interrupt: interrupted,
       })
@@ -709,6 +716,34 @@ export class Daemon {
     const found = await lookup
     if (!found) throw new Error(BACKGROUND_ERROR)
     return found
+  }
+
+  /** grupo da equipe de um líder: membros vivos e o histórico */
+  private teamFeed(leaderId: string): TeamFeedView {
+    const meta = this.persisted.paneMeta
+    const leader = this.panes.get(leaderId)
+    const log = this.teamLog.of(leaderId)
+    const messages = this.mailbox.all()
+    if (!meta[leaderId] && !leader && log.length === 0 && !messages.some((m) => m.team === leaderId)) {
+      return { leaderId, leaderName: 'equipe encerrada', active: false, members: [], items: [] }
+    }
+    const members = this.panes
+      .records()
+      .filter((r) => r.alive && teamLeaderOf(r.id, meta) === leaderId)
+      .sort((a, b) => (a.id === leaderId ? -1 : b.id === leaderId ? 1 : a.seq - b.seq))
+      .map((r) => ({ id: r.id, name: displayName(r, meta), cli: profileOf(this.agentOf(r)).label, status: r.claude?.status ?? null, leader: r.id === leaderId }))
+    return buildFeed({
+      leaderId,
+      leaderName: leader ? displayName(leader, meta) : (meta[leaderId]?.name ?? 'equipe encerrada'),
+      active: !!leader?.alive && meta[leaderId]?.leader === true,
+      members,
+      messages,
+      log,
+      statusOf: (id) => {
+        const c = this.panes.get(id)?.claude
+        return c ? { status: c.status, since: c.statusSince } : null
+      },
+    })
   }
 
   private panePids(): { id: string; pid: number }[] {
@@ -940,6 +975,8 @@ export class Daemon {
         this.changed()
         return null
       }
+      case 'team.feed':
+        return this.teamFeed(req.leaderId)
       case 'pane.setLeader': {
         const cur = this.persisted.paneMeta[req.paneId] ?? { name: null, color: null }
         this.persisted.paneMeta[req.paneId] = { ...cur, leader: req.leader || undefined }

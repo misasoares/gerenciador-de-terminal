@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { AgentKind } from '../../shared/types'
 
-export type MessageKind = 'equipe' | 'gerenciador'
+/** usuario: escrita por você no grupo da equipe */
+export type MessageKind = 'equipe' | 'gerenciador' | 'usuario'
 
 export interface TeamMessage {
   id: string
@@ -13,6 +14,10 @@ export interface TeamMessage {
   toName: string
   fromAgent: AgentKind | null
   kind: MessageKind
+  /** paneId do líder da equipe; null = mensagem antiga, de antes do grupo */
+  team: string | null
+  /** texto do remetente, sem cabeçalho (é o que o grupo mostra) */
+  body: string
   /** texto já com cabeçalho, pronto para digitar */
   text: string
   interrupt: boolean

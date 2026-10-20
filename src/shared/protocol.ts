@@ -44,6 +44,8 @@ export type ClientRequest =
   | { t: 'float.set'; paneId: string; mode: 'float' | 'dock' | 'hide' }
   | { t: 'float.prefs'; paneId: string; bounds?: Bounds | null; onTop?: boolean; allDesks?: boolean; opacity?: number }
   | { t: 'pane.setLeader'; paneId: string; leader: boolean }
+  /** grupo da equipe de um líder → TeamFeedView */
+  | { t: 'team.feed'; leaderId: string }
   | { t: 'mcp.call'; callerPaneId: string; /** processo da CLI que abriu o MCP (o GT_PANE_ID pode ser herdado de outro painel) */ callerPid?: number; tool: string; args: Record<string, unknown> }
   | { t: 'workspace.create'; name: string }
   | { t: 'workspace.rename'; id: string; name: string }

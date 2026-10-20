@@ -16,6 +16,55 @@ export interface ClaudeSession {
 
 export type AgentKind = 'claude' | 'codex'
 
+/** o que entra no grupo da equipe além das mensagens */
+export type TeamEventKind = 'contratou' | 'demitiu' | 'terminou' | 'permissao' | 'pergunta' | 'travou' | 'saiu' | 'interrompeu'
+
+export type TeamFeedItem =
+  | {
+      kind: 'msg'
+      id: string
+      at: number
+      fromName: string
+      toId: string
+      toName: string
+      body: string
+      interrupt: boolean
+      byUser: boolean
+      via: 'app' | 'nativo'
+      /** null em via 'nativo' (o Claude entrega sozinho) */
+      state: 'na-fila' | 'entregue' | 'falhou' | null
+      error: string | null
+    }
+  | {
+      kind: 'event'
+      id: string
+      at: number
+      paneId: string | null
+      name: string
+      event: TeamEventKind
+      /** contratou: CLI do contratado; interrompeu: quem interrompeu; travou: motivo, se houver */
+      detail: string | null
+      /** permissao/pergunta: o membro ainda está nesse mesmo needs-you */
+      open: boolean
+    }
+
+export interface TeamMember {
+  id: string
+  name: string
+  cli: string
+  status: SessionStatus | null
+  leader: boolean
+}
+
+export interface TeamFeedView {
+  leaderId: string
+  leaderName: string
+  /** líder vivo e ainda marcado como líder: dá para escrever */
+  active: boolean
+  members: TeamMember[]
+  items: TeamFeedItem[]
+}
+
 export interface Account {
   id: string
   label: string

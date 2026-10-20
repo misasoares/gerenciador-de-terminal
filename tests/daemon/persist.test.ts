@@ -44,11 +44,26 @@ describe('persistência', () => {
   it('estado sem mailbox carrega lista vazia; entradas sem id ou destino são descartadas', () => {
     expect(defaultPersisted().mailbox).toEqual([])
     const f = path.join(tmp(), 'state.json')
-    const ok = { id: 'm1', from: null, to: 'p2', fromName: 'app', toName: 'dev', fromAgent: null, kind: 'gerenciador', text: 'x', interrupt: false, createdAt: 1, state: 'na-fila', deliveredAt: null, error: null }
+    const ok = { id: 'm1', from: null, to: 'p2', fromName: 'app', toName: 'dev', fromAgent: null, kind: 'gerenciador', team: 'L1', body: '', text: 'x', interrupt: false, createdAt: 1, state: 'na-fila', deliveredAt: null, error: null }
     fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [], panes: [] }))
     expect(loadPersisted(f).mailbox).toEqual([])
     fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [], panes: [], mailbox: [ok, { to: 'p2' }, { id: 'm2' }, null] }))
     expect(loadPersisted(f).mailbox).toEqual([ok])
+  })
+  it('mensagem antiga sem equipe carrega com team null e o corpo igual ao texto', () => {
+    const f = path.join(tmp(), 'state.json')
+    const old = { id: 'm1', from: 'a', to: 'p2', fromName: 'a', toName: 'dev', fromAgent: 'claude', kind: 'equipe', text: '[equipe] x', interrupt: false, createdAt: 1, state: 'entregue', deliveredAt: 2, error: null }
+    fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [], panes: [], mailbox: [old] }))
+    expect(loadPersisted(f).mailbox).toEqual([{ ...old, team: null, body: '[equipe] x' }])
+  })
+  it('teamLog: padrão vazio; entrada sem id ou equipe é descartada', () => {
+    expect(defaultPersisted().teamLog).toEqual([])
+    const f = path.join(tmp(), 'state.json')
+    fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [], panes: [] }))
+    expect(loadPersisted(f).teamLog).toEqual([])
+    const ok = { type: 'event', id: 'e1', team: 'L1', at: 1, paneId: 'p', name: 'dev-1', event: 'saiu', detail: null, since: null }
+    fs.writeFileSync(f, JSON.stringify({ version: 1, projects: [], panes: [], teamLog: [ok, { id: 'e2' }, { team: 'L1' }, null] }))
+    expect(loadPersisted(f).teamLog).toEqual([ok])
   })
   it('filePanes tem padrão vazio', () => {
     expect(defaultPersisted()).toMatchObject({ filePanes: {} })
