@@ -315,3 +315,26 @@ Versão menor, porque traz funcionalidade nova (o grupo) além da correção. Se
 - [ ] **Step 3:** `npm run release -- 0.6.0` em segundo plano; ler o fim do log (~10–15 min).
 - [ ] **Step 4:** `gh release view v0.6.0`: os 4 arquivos e o `SHA256SUMS`, com os nomes exatos. Conferir nas notas a linha do `fix(equipe)` da Task 0 e a do `feat(equipe)` da Task 5.
 - [ ] **Step 5:** Atualizar o app do usuário pelo botão "Atualizar" (nunca trocando o bundle à mão com o app aberto).
+
+## Resultado do teste de ponta a ponta (20/10)
+
+App de teste com `GT_HOME` em `/tmp` (o caminho no scratchpad passa do limite de 104 caracteres do socket), líder Claude (Opus, conta misa), `dev-1` Claude e `dev-2` Codex (v0.163), sem worktree.
+
+Passou:
+- Mensagem escrita no grupo para o líder: entregue no Claude real, ✓✓.
+- O líder contratou os dois: `🤝 lider contratou dev-1 (Claude)` e `(Codex)`.
+- `SendMessage` do líder para o `dev-1` aparece marcado `SendMessage`. O formato real do `tool_input` é `{ to, message, summary?, notify_when_idle? }`, conferido no esquema da ferramenta.
+- `@dev-2 …` com o Codex ocupado: ficou 🕓 e só foi digitado depois, como `(pelo grupo) …` e sem `[equipe]`.
+- `⚡ @dev-2 …` com o Codex preso em "Working" havia 3 min: o Codex parou, recebeu o texto e respondeu; a mensagem que estava na fila veio em seguida. As duas ficaram ✓✓, e `✅ dev-2 terminou` apareceu no grupo.
+- Paleta, flutuar, encaixar, fechar, reabrir, tema Claro, faixa de equipe inativa e erro de `@dev-9` (o texto continua na caixa).
+
+Achados e correções:
+- Dois hooks que chegavam juntos trocavam o evento: aparecia "🔵 esperando você" junto do "✋". O `applyHook` passou a devolver o estado lido junto com a mudança (commit `a87dd32`).
+- A resposta entre sessões do Claude vai para `uds:/tmp/cc-socks/<pid>.sock`, e o grupo mostrava esse endereço. Agora o pid é resolvido pela árvore de processos para o nome do membro.
+- `SendMessage` sem `message` (só `notify_when_idle`) não entra no grupo. O sufixo ` [ref]` do destino é ignorado.
+- Os chips de membros eram cortados com o painel estreito. Agora rolam na horizontal.
+
+Não testado na tela:
+- Pedido de permissão com "Ir para o terminal": o modo automático aprovou tudo. Fica coberto pelo teste do daemon (`open` liga e desliga).
+- Item "Abrir grupo da equipe" do menu da sessão: o menu é nativo e o Playwright não alcança. Ele chama o mesmo `revealPane` da paleta.
+- Fechar o app com o grupo flutuando e abrir de novo.
