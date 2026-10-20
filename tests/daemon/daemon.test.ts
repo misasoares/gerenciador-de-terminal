@@ -986,6 +986,9 @@ describe('Daemon', () => {
     await hook(first.o, dev, { hook_event_name: 'UserPromptSubmit', session_id: `s-${dev}`, cwd: repo.dir })
     await first.app.waitState((s) => s.panes.find((p) => p.id === dev)?.claude?.status === 'working')
     await first.call('mandar_mensagem', { para: 'dev-1', texto: 'recadoUnicoQ7' })
+    const before = await first.app.client.request<TeamFeedView>({ t: 'team.feed', leaderId: first.leader })
+    const eventsBefore = before.items.filter((i) => i.kind === 'event').map((i) => (i.kind === 'event' ? [i.event, i.name] : null))
+    expect(eventsBefore).toEqual([['contratou', 'dev-1']])
     first.app.client.close()
     await first.d.stop(true)
     daemons = daemons.filter((x) => x !== first.d)
@@ -1003,6 +1006,12 @@ describe('Daemon', () => {
     await new Promise((r) => setTimeout(r, 2500)) // vários ticks: nada de duplicar
     expect(second.app.output(dev).split('recadoUnicoQ7').length - 1).toBe(1)
     await waitFor(async () => ((JSON.parse(fs.readFileSync(second.o.stateFile, 'utf8')).mailbox as { state: string }[]).every((m) => m.state === 'entregue') ? true : null), 5000)
+    // grupo: o histórico volta igual e a mensagem aparece uma vez, entregue
+    const feed = await second.app.client.request<TeamFeedView>({ t: 'team.feed', leaderId: first.leader })
+    expect(feed.items.filter((i) => i.kind === 'event').map((i) => (i.kind === 'event' ? [i.event, i.name] : null))).toEqual(eventsBefore)
+    const msgs = feed.items.filter((i) => i.kind === 'msg')
+    expect(msgs).toHaveLength(1)
+    expect(msgs[0]).toMatchObject({ body: 'recadoUnicoQ7', state: 'entregue' })
   })
 
   it('Codex aberto e em silêncio, sem nenhum hook: mensagem espera na fila (a tela pode ser um aviso de atualização ou de confiança)', async () => {
@@ -1153,6 +1162,56 @@ describe('Daemon', () => {
     // a apresentação do líder (mensagem do app) não entra
     expect(feed.items.filter((i) => i.kind === 'msg')).toHaveLength(1)
     expect(await app.client.request<TeamFeedView>({ t: 'team.feed', leaderId: 'nao-existe' })).toEqual({ leaderId: 'nao-existe', leaderName: 'equipe encerrada', active: false, members: [], items: [] })
+  })
+
+  it('grupo: eventos da equipe e SendMessage nativo', async () => {
+    repo = makeRepo()
+    const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await app.client.request({ t: 'pane.meta', paneId: leader, name: 'lider' })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    await call('contratar_dev', { nome: 'dev-2', worktree: false })
+    const panes = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-2'))).panes
+    const dev = panes.find((p) => p.name === 'dev-1')!.id
+    const dev2 = panes.find((p) => p.name === 'dev-2')!.id
+    await app.client.request({ t: 'pane.attach', paneId: dev })
+    await app.waitState(() => app.output(dev).includes('fake-pronto'))
+    for (const id of [leader, dev]) {
+      await hook(o, id, { hook_event_name: 'SessionStart', session_id: `s-${id}`, cwd: repo.dir, source: 'startup' })
+      await hook(o, id, { hook_event_name: 'Stop', session_id: `s-${id}`, cwd: repo.dir })
+    }
+    const feed = () => app.client.request<TeamFeedView>({ t: 'team.feed', leaderId: leader })
+    const events = async () => (await feed()).items.flatMap((i) => (i.kind === 'event' ? [i] : []))
+    const waitEvent = (pred: (e: Awaited<ReturnType<typeof events>>[number]) => boolean) => waitFor(async () => (await events()).find(pred) ?? null, 5000)
+    expect(await waitEvent((e) => e.event === 'contratou' && e.name === 'dev-1')).toMatchObject({ detail: 'Claude', paneId: dev })
+    // terminou: de working para your-turn (o Stop do início, vindo de idle, não conta)
+    expect((await events()).filter((e) => e.event === 'terminou')).toEqual([])
+    await hook(o, dev, { hook_event_name: 'UserPromptSubmit', session_id: `s-${dev}`, cwd: repo.dir })
+    await hook(o, dev, { hook_event_name: 'Stop', session_id: `s-${dev}`, cwd: repo.dir })
+    await waitEvent((e) => e.event === 'terminou' && e.name === 'dev-1')
+    // permissão: aberta enquanto o dev está no mesmo needs-you
+    await hook(o, dev, { hook_event_name: 'PermissionRequest', session_id: `s-${dev}`, cwd: repo.dir })
+    expect(await waitEvent((e) => e.event === 'permissao')).toMatchObject({ name: 'dev-1', open: true })
+    await hook(o, dev, { hook_event_name: 'PostToolUse', session_id: `s-${dev}`, cwd: repo.dir })
+    await waitEvent((e) => e.event === 'permissao' && !e.open)
+    // SendMessage entre Claudes: só registrado, o app não digita nada
+    await hook(o, leader, { hook_event_name: 'PreToolUse', session_id: `s-${leader}`, cwd: repo.dir, tool_name: 'SendMessage', tool_input: { to: 'dev-1', message: 'faz nativoX9' } })
+    const nat = await waitFor(async () => (await feed()).items.find((i) => i.kind === 'msg' && i.via === 'nativo') ?? null, 5000)
+    expect(nat).toMatchObject({ fromName: 'lider', toName: 'dev-1', toId: dev, body: 'faz nativoX9', state: null })
+    await new Promise((r) => setTimeout(r, 300))
+    expect(app.output(dev)).not.toContain('nativoX9')
+    // interromper sem texto num dev trabalhando
+    await hook(o, dev, { hook_event_name: 'UserPromptSubmit', session_id: `s-${dev}`, cwd: repo.dir })
+    await app.waitState((s) => s.panes.find((p) => p.id === dev)?.claude?.status === 'working')
+    await call('interromper', { para: 'dev-1' })
+    expect(await waitEvent((e) => e.event === 'interrompeu')).toMatchObject({ name: 'dev-1', detail: 'lider' })
+    // demitido e saiu
+    await call('demitir_dev', { nome: 'dev-1' })
+    expect(await waitEvent((e) => e.event === 'demitiu')).toMatchObject({ name: 'dev-1' })
+    await app.client.request({ t: 'pane.kill', paneId: dev2 })
+    expect(await waitEvent((e) => e.event === 'saiu')).toMatchObject({ name: 'dev-2', paneId: dev2 })
+    // demitido não vira "saiu"
+    expect((await events()).filter((e) => e.event === 'saiu')).toHaveLength(1)
   })
 
   it('contratar: líder em HEAD solto pedindo worktree → erro e nada criado', async () => {

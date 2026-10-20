@@ -28,13 +28,14 @@ import type { Login, ReadResult } from './usage/types'
 import { MachineMonitor, type MemSample } from './machine/monitor'
 import { groupProcs, type PsRow } from './machine/groups'
 import { gateRefusal, machineReport } from './machine/report'
-import type { MachineDetail, TeamFeedView } from '../shared/types'
+import type { HookPayload, MachineDetail, SessionStatus, TeamFeedView } from '../shared/types'
 import { Hibernator } from './hibernator'
 import { Deliverer, type DeliveryPane } from './team/delivery'
 import { leaderBriefing } from './team/briefing'
 import { Mailbox } from './team/mailbox'
 import { TeamLog } from './team/log'
 import { buildFeed } from './team/feed'
+import { nativeMessage, statusEvent } from './team/events'
 import { displayName, sameTeam, sanitizeBody, teamHeader, teamLeaderOf } from './team/team'
 import { profileOf } from './agent-profiles'
 import { findAgent, foregroundOf, paneOfPid, snapshotProcs, type Proc } from './platform/procs'
@@ -286,7 +287,13 @@ export class Daemon {
       onChange: () => this.changed(),
       codexHookGraceMs: this.o.codexHookGraceMs ?? 20_000,
       mcp: this.mcpSpec,
-      onExit: (id) => this.mailbox.failAll(id, 'sessão encerrada'),
+      onExit: (id) => {
+        this.mailbox.failAll(id, 'sessão encerrada')
+        // demitido já saiu da equipe (sem meta) e o daemon parando não é saída de ninguém
+        const r = this.panes.get(id)
+        const team = teamLeaderOf(id, this.persisted.paneMeta)
+        if (team && r && !this.stopping) this.teamLog.event({ team, paneId: id, name: displayName(r, this.persisted.paneMeta), event: 'saiu' })
+      },
       onGitHint: (wt) => {
         this.monitor.refresh(wt)
         this.onWorktreeChanged(wt) // pega edição que não muda a contagem de alterados
@@ -545,6 +552,7 @@ export class Daemon {
     const toName = displayName(target, meta)
     // destinatário parado: não há o que interromper, o texto vira mensagem comum
     const interrupted = interrupt && this.deliverer!.interrupt(target.id)
+    if (interrupted && !texto) this.teamLog.event({ team: teamLeaderOf(caller.id, meta)!, paneId: target.id, name: toName, event: 'interrompeu', detail: displayName(caller, meta) })
     if (texto) {
       const fromAgent = this.agentOf(caller)
       const fromName = displayName(caller, meta)
@@ -627,10 +635,12 @@ export class Daemon {
       const r = byName(args.nome)
       if (meta[r.id]?.createdBy !== caller.id) throw new Error('só encerra sessões criadas por esta sessão')
       const name = meta[r.id]?.name
+      this.teamLog.event({ team: teamLeaderOf(r.id, meta) ?? caller.id, paneId: r.id, name: displayName(r, meta), event: 'demitiu' })
       // demitido some da tela: sai da lista e do layout (worktree, branch e conversa ficam)
       this.mailbox.failAll(r.id, 'demitido')
-      this.panes.forget(r.id)
+      // sem meta antes do forget: o onExit (chamado por ele) não registra "saiu" de quem foi demitido
       delete meta[r.id]
+      this.panes.forget(r.id)
       fs.rmSync(path.join(this.promptsDir, `${r.id}.txt`), { force: true })
       w.layout = { ...w.layout, tabs: w.layout.tabs.map((t) => ({ ...t, root: t.root ? removeLeafFrom(t.root, r.id) : null })) }
       this.changed()
@@ -691,6 +701,7 @@ export class Daemon {
     this.panes.create({ paneId: id, cwd, accountId: account.id, cols: 120, rows: 30, workspaceId: w.id, agentName: name, promptFile, model: modelo })
     if (args.onde === 'flutuante') w.floating.push(id)
     else w.layout = insertBeside(w.layout, caller.id, id)
+    this.teamLog.event({ team: teamLeaderOf(caller.id, meta) ?? caller.id, paneId: id, name, event: 'contratou', detail: profileOf(account.agent).label })
     this.changed()
     return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcp: this.mcpSpec, paneId: id, socketPath: this.o.socketPath, model: modelo, name, promptFile }), ...(modelo ? { modelo } : {}), ...(aviso ? { aviso } : {}) }
   }
@@ -716,6 +727,26 @@ export class Daemon {
     const found = await lookup
     if (!found) throw new Error(BACKGROUND_ERROR)
     return found
+  }
+
+  /** o que um hook vale para o grupo: evento de estado e SendMessage entre Claudes; fora de equipe, nada */
+  private teamHook(paneId: string, prev: SessionStatus | null, p: HookPayload): void {
+    const meta = this.persisted.paneMeta
+    const team = teamLeaderOf(paneId, meta)
+    const r = this.panes.get(paneId)
+    if (!team || !r) return
+    const name = displayName(r, meta)
+    const ev = statusEvent(prev, r.claude, p)
+    if (ev) {
+      const needs = ev === 'permissao' || ev === 'pergunta'
+      const reason = typeof p.error === 'string' ? p.error : typeof p.reason === 'string' ? p.reason : null
+      this.teamLog.event({ team, paneId, name, event: ev, since: needs ? (r.claude?.statusSince ?? null) : null, detail: ev === 'travou' ? reason : null })
+    }
+    const nat = nativeMessage(p)
+    if (nat) {
+      const to = this.panes.records().find((x) => x.alive && teamLeaderOf(x.id, meta) === team && displayName(x, meta) === nat.to)
+      this.teamLog.native({ team, fromName: name, toId: to?.id ?? null, toName: nat.to, body: nat.body })
+    }
   }
 
   /** grupo da equipe de um líder: membros vivos e o histórico */
@@ -888,7 +919,9 @@ export class Daemon {
           const lookup = this.paneOfCaller(req.pid)
           if (lookup && (await lookup) !== req.paneId) return null
         }
+        const prev = this.panes.get(req.paneId)?.claude?.status ?? null
         await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
+        this.teamHook(req.paneId, prev, req.payload)
         if (req.configDir) {
           const list = (req.agent ?? 'claude') === 'codex' ? this.persisted.codexHomes : this.persisted.claudeProfiles
           if (!list.includes(req.configDir)) {
