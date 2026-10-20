@@ -46,6 +46,21 @@ export function foregroundOf(procs: Proc[], rootPid: number): Proc | null {
   return deepest.sort((a, b) => b.pid - a.pid)[0] ?? self
 }
 
+/** painel cujo shell é ancestral do pid; null = o processo não está em nenhum terminal do app */
+export function paneOfPid(procs: Proc[], pid: number, shells: { id: string; pid: number }[]): string | null {
+  const parent = new Map(procs.map((p) => [p.pid, p.ppid]))
+  const byShell = new Map(shells.map((s) => [s.pid, s.id]))
+  const seen = new Set<number>()
+  let cur: number | undefined = pid
+  while (cur !== undefined && cur > 1 && !seen.has(cur)) {
+    const id = byShell.get(cur)
+    if (id) return id
+    seen.add(cur)
+    cur = parent.get(cur)
+  }
+  return null
+}
+
 const CLAUDE_RE = /(^|\/)claude(\s|$)|claude-code\/cli\.js|\/claude\/versions\//
 
 /** codex como programa: 1º token, script rodado por node/sh/bash/zsh, ou o binário nativo do pacote @openai/codex */

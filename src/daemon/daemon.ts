@@ -35,7 +35,11 @@ import { leaderBriefing } from './team/briefing'
 import { Mailbox } from './team/mailbox'
 import { displayName, sameTeam, teamHeader, teamLeaderOf } from './team/team'
 import { profileOf } from './agent-profiles'
-import { findAgent, foregroundOf, snapshotProcs } from './platform/procs'
+import { findAgent, foregroundOf, paneOfPid, snapshotProcs, type Proc } from './platform/procs'
+
+/** a conversa foi mandada para segundo plano: roda no daemon do Claude Code, com o GT_PANE_ID herdado de outro painel */
+export const BACKGROUND_ERROR = 'esta conversa está rodando em segundo plano do Claude Code, fora dos terminais do app, e o Gerenciador não sabe de qual sessão ela é. Peça ao usuário para continuar a conversa num terminal do app (claude --resume no painel) para usar a equipe.'
+const PANE_OF_PID_TTL_MS = 10_000
 
 export interface DaemonOptions {
   home: string
@@ -72,6 +76,8 @@ export interface DaemonOptions {
   mcpScriptPath?: string
   /** binário que roda o gt-mcp (padrão: o do app, com ELECTRON_RUN_AS_NODE) */
   nodeBinary?: string
+  /** árvore de processos para saber de qual painel vem um MCP ou hook; null = não confere (testes que disparam hooks de fora) */
+  snapshotProcs?: (() => Promise<Proc[]>) | null
 }
 
 /** como retomar um painel vivo: a sessão em curso ou, se hibernada, a da hibernação */
@@ -94,6 +100,8 @@ export class Daemon {
   private panes!: PaneManager
   private server: RpcServer | null = null
   private hookWarnings: string[] = []
+  /** pid → painel; guarda a promessa para hooks seguidos do mesmo pid não trocarem de ordem */
+  private paneOfPidCache = new Map<number, { at: number; pane: Promise<string | null> }>()
   private broadcastTimer: NodeJS.Timeout | null = null
   private saveTimer: NodeJS.Timeout | null = null
   private pollTimer: NodeJS.Timeout | null = null
@@ -680,6 +688,29 @@ export class Daemon {
     return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcp: this.mcpSpec, paneId: id, socketPath: this.o.socketPath, model: modelo, name, promptFile }), ...(modelo ? { modelo } : {}), ...(aviso ? { aviso } : {}) }
   }
 
+  /** painel do processo pela árvore; undefined = sem conferência (opção desligada) */
+  private paneOfCaller(pid: number): Promise<string | null> | undefined {
+    const snap = this.o.snapshotProcs === undefined ? snapshotProcs : this.o.snapshotProcs
+    if (!snap) return undefined
+    const now = Date.now()
+    const hit = this.paneOfPidCache.get(pid)
+    if (hit && now - hit.at < PANE_OF_PID_TTL_MS) return hit.pane
+    for (const [k, v] of this.paneOfPidCache) if (now - v.at >= PANE_OF_PID_TTL_MS) this.paneOfPidCache.delete(k)
+    const pane = snap().then((procs) => paneOfPid(procs, pid, this.panePids())).catch(() => null)
+    this.paneOfPidCache.set(pid, { at: now, pane })
+    return pane
+  }
+
+  /** quem chama o MCP: a árvore de processos vale mais que o GT_PANE_ID (herdável); MCP antigo sem pid → o id */
+  private async callerOf(paneId: string, pid: number | undefined): Promise<string> {
+    if (pid === undefined) return paneId
+    const lookup = this.paneOfCaller(pid)
+    if (lookup === undefined) return paneId
+    const found = await lookup
+    if (!found) throw new Error(BACKGROUND_ERROR)
+    return found
+  }
+
   private panePids(): { id: string; pid: number }[] {
     const out: { id: string; pid: number }[] = []
     for (const r of this.panes.records()) {
@@ -817,6 +848,11 @@ export class Daemon {
       case 'hook':
         conn.role = 'hook'
         conn.end() // libera o Claude antes de processar (ler título pode demorar)
+        // CLI fora do painel (segundo plano do Claude Code, com GT_PANE_ID herdado): não mexe no estado de outro
+        if (req.pid !== undefined) {
+          const lookup = this.paneOfCaller(req.pid)
+          if (lookup && (await lookup) !== req.paneId) return null
+        }
         await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
         if (req.configDir) {
           const list = (req.agent ?? 'claude') === 'codex' ? this.persisted.codexHomes : this.persisted.claudeProfiles
@@ -878,7 +914,7 @@ export class Daemon {
         return null
       }
       case 'mcp.call':
-        return this.mcpCall(req.callerPaneId, req.tool, req.args ?? {})
+        return this.mcpCall(await this.callerOf(req.callerPaneId, req.callerPid), req.tool, req.args ?? {})
       case 'float.set': {
         const w = this.floatOwner(req.paneId, conn.workspaceId)
         for (const x of this.persisted.workspaces) x.floating = x.floating.filter((id) => id !== req.paneId)

@@ -14,7 +14,7 @@ export function makeDaemonCall(env: Record<string, string | undefined>): CallDae
       throw new Error('Gerenciador de Terminal não está rodando')
     }
     try {
-      return await client.request({ t: 'mcp.call', callerPaneId, tool, args })
+      return await client.request({ t: 'mcp.call', callerPaneId, callerPid: process.ppid, tool, args })
     } finally {
       client.close()
     }

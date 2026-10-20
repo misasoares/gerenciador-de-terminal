@@ -22,7 +22,7 @@ describe('gt-mcp: ligação com o daemon', () => {
     })
     const call = makeDaemonCall({ GT_SOCKET: p, GT_PANE_ID: 'pane-1' })
     await expect(call('listar_sessoes', { a: 1 })).resolves.toEqual({ ok: true })
-    expect(got).toEqual([{ t: 'mcp.call', callerPaneId: 'pane-1', tool: 'listar_sessoes', args: { a: 1 } }])
+    expect(got).toEqual([{ t: 'mcp.call', callerPaneId: 'pane-1', callerPid: process.ppid, tool: 'listar_sessoes', args: { a: 1 } }])
   })
   it('fora do app e sem daemon: erros claros', async () => {
     await expect(makeDaemonCall({})('listar_sessoes', {})).rejects.toThrow('fora do Gerenciador de Terminal')

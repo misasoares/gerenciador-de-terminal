@@ -25,6 +25,7 @@ export const HOOK_MARKER = 'gt-hook'
 export const GT_HOOK_SCRIPT = `#!/bin/sh
 # gerenciador-terminal: repassa o evento do agente (Claude Code ou Codex) ao daemon do app.
 # Uso: gt-hook [claude|codex]. Fora do app (sem GT_PANE_ID) ou sem daemon, não faz nada.
+# $PPID é a CLI (o hookCommand faz exec): o daemon confere se ela está mesmo no painel do GT_PANE_ID.
 # O Codex exige JSON no stdout do Stop: para ele, sempre responde {}.
 agent="\${1:-claude}"
 done_() { [ "$agent" = codex ] && printf '{}'; exit 0; }
@@ -35,7 +36,7 @@ fi
 if [ "$agent" = codex ]; then dir="\${CODEX_HOME:-}"; else dir="\${CLAUDE_CONFIG_DIR:-}"; fi
 cfg=$(printf '%s' "$dir" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
 {
-  printf '{"id":0,"req":{"t":"hook","paneId":"%s","configDir":"%s","agent":"%s","payload":' "$GT_PANE_ID" "$cfg" "$agent"
+  printf '{"id":0,"req":{"t":"hook","paneId":"%s","configDir":"%s","agent":"%s","pid":%s,"payload":' "$GT_PANE_ID" "$cfg" "$agent" "$PPID"
   tr -d '\\n\\r'
   printf '}}\\n'
 } | nc -U -w 1 "$GT_SOCKET" >/dev/null 2>&1

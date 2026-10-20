@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Daemon, type DaemonOptions } from '../../src/daemon/daemon'
+import { BACKGROUND_ERROR, Daemon, type DaemonOptions } from '../../src/daemon/daemon'
+import type { Proc } from '../../src/daemon/platform/procs'
 import { DEFAULT_ACCOUNTS } from '../../src/daemon/accounts'
 import { hirePreamble } from '../../src/daemon/hire'
 import { leaderBriefing } from '../../src/daemon/team/briefing'
@@ -42,6 +43,8 @@ function opts(home: string, extra: Partial<DaemonOptions> = {}): DaemonOptions {
     gitPollMs: 500,
     fetchIntervalMs: 3_600_000,
     conflictsDebounceMs: 5000,
+    // o hook() dos testes roda o gt-hook fora de qualquer painel
+    snapshotProcs: null,
     ...extra,
   }
 }
@@ -1092,6 +1095,46 @@ describe('Daemon', () => {
     const equipe = (await callDev('listar_equipe', {})) as unknown as Record<string, unknown>[]
     expect(equipe.map((m) => m.nome).sort()).toEqual(['dev-1', 'lider'])
     for (const m of equipe) expect(m).toEqual(expect.objectContaining({ nome: expect.any(String), cli: 'Claude', status: expect.any(String), desde_s: expect.any(Number), fila: expect.any(Number), atrasada: false }))
+  })
+
+  it('identidade pela árvore de processos: callerPid e pid do hook', async () => {
+    repo = makeRepo()
+    let tree: Proc[] = []
+    const { o, d, app, leader } = await leaderIn(repo.dir, { snapshotProcs: async () => tree })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    const { paneId: a } = await app.client.request<{ paneId: string }>({ t: 'pane.create', cwd: repo.dir, accountId: null, cols: 80, rows: 24 })
+    const host = (d as unknown as { panes: { host: { pid(id: string): number | undefined } } }).panes.host
+    const shellA = host.pid(a)!
+    const shellL = host.pid(leader)!
+    tree = [
+      { pid: shellA, ppid: 1, stat: 'Ss', args: '-zsh' },
+      { pid: shellL, ppid: 1, stat: 'Ss', args: '-zsh' },
+      { pid: 900001, ppid: shellL, stat: 'S+', args: 'claude' },
+      { pid: 900002, ppid: shellA, stat: 'S+', args: 'claude' },
+      { pid: 900003, ppid: 1, stat: 'Ss', args: 'claude daemon run' },
+      { pid: 900004, ppid: 900003, stat: 'S', args: 'claude bg-spare' },
+    ]
+    const callAs = (callerPaneId: string, callerPid: number | undefined) =>
+      app.client.request<Record<string, unknown>[]>({ t: 'mcp.call', callerPaneId, ...(callerPid ? { callerPid } : {}), tool: 'listar_equipe', args: {} })
+    // (a) conversa em segundo plano do Claude Code, com o GT_PANE_ID herdado do líder
+    await expect(callAs(leader, 900004)).rejects.toThrow(BACKGROUND_ERROR)
+    // (b) ambiente diz A, a árvore diz líder: vale a árvore
+    const eu = (await callAs(a, 900001)).find((m) => m.eu)
+    expect(eu?.criadaPorMim).toBe(false)
+    expect((await callAs(a, 900001)).length).toBe(1)
+    // (c) MCP antigo, sem callerPid: como antes
+    await expect(callAs(a, undefined)).rejects.toThrow('esta sessão não está numa equipe')
+    // (d) hook vindo de fora dos painéis não muda o estado; de dentro, muda
+    const rawHook = async (pid: number) => {
+      const c = await RpcClient.connect(o.socketPath)
+      await c.request({ t: 'hook', paneId: a, configDir: '', agent: 'claude', pid, payload: { hook_event_name: 'PermissionRequest', session_id: 's-a', cwd: repo!.dir } }).catch(() => null)
+      c.close()
+    }
+    await rawHook(900004)
+    await new Promise((r) => setTimeout(r, 400))
+    expect(app.state()!.panes.find((p) => p.id === a)?.claude?.status ?? null).not.toBe('needs-you')
+    await rawHook(900002)
+    await app.waitState((s) => s.panes.find((p) => p.id === a)?.claude?.status === 'needs-you')
   })
 
   it('contratar: líder em HEAD solto pedindo worktree → erro e nada criado', async () => {

@@ -8,7 +8,7 @@ export type ClientRequest =
   | { t: 'state.get' }
   | { t: 'machine.watch' }
   | { t: 'machine.unwatch' }
-  | { t: 'hook'; paneId: string; configDir: string; agent?: AgentKind; payload: HookPayload }
+  | { t: 'hook'; paneId: string; configDir: string; agent?: AgentKind; payload: HookPayload; /** processo da CLI que disparou o hook */ pid?: number }
   | { t: 'pane.create'; paneId?: string; cwd: string; accountId: string | null; resumeSessionId?: string; resumeAgent?: AgentKind; transcriptPath?: string | null; cols: number; rows: number }
   | { t: 'pane.attach'; paneId: string; cols?: number; rows?: number; seq?: number }
   | { t: 'pane.detach'; paneId: string }
@@ -44,7 +44,7 @@ export type ClientRequest =
   | { t: 'float.set'; paneId: string; mode: 'float' | 'dock' | 'hide' }
   | { t: 'float.prefs'; paneId: string; bounds?: Bounds | null; onTop?: boolean; allDesks?: boolean; opacity?: number }
   | { t: 'pane.setLeader'; paneId: string; leader: boolean }
-  | { t: 'mcp.call'; callerPaneId: string; tool: string; args: Record<string, unknown> }
+  | { t: 'mcp.call'; callerPaneId: string; /** processo da CLI que abriu o MCP (o GT_PANE_ID pode ser herdado de outro painel) */ callerPid?: number; tool: string; args: Record<string, unknown> }
   | { t: 'workspace.create'; name: string }
   | { t: 'workspace.rename'; id: string; name: string }
   | { t: 'workspace.setOpen'; id: string; open: boolean }

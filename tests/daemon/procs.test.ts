@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cwdOf, descendants, findClaude, foregroundOf, parseLsofCwd, parsePs, snapshotProcs } from '../../src/daemon/platform/procs'
+import { cwdOf, descendants, findClaude, foregroundOf, paneOfPid, parseLsofCwd, parsePs, snapshotProcs } from '../../src/daemon/platform/procs'
 
 const PS = [
   '  100     1 Ss   /Applications/Gerenciador.app/Contents/MacOS/Gerenciador',
@@ -27,6 +27,31 @@ describe('parsePs e árvore', () => {
   it('acha o claude embaixo do shell do painel e ignora os de fora', () => {
     expect(findClaude(procs, 200)?.pid).toBe(301)
     expect(findClaude(procs, 400)).toBeNull()
+  })
+})
+
+describe('paneOfPid', () => {
+  const tree = [
+    { pid: 1, ppid: 0, stat: 'Ss', args: 'launchd' },
+    { pid: 100, ppid: 1, stat: 'Ss', args: '-zsh' },
+    { pid: 200, ppid: 100, stat: 'S+', args: 'claude' },
+    { pid: 300, ppid: 200, stat: 'S', args: 'gt-mcp' },
+    { pid: 500, ppid: 1, stat: 'Ss', args: 'claude daemon run' },
+    { pid: 600, ppid: 500, stat: 'S', args: 'claude bg-spare' },
+  ]
+  const shells = [{ id: 'p1', pid: 100 }]
+  it('acha o painel cujo shell é ancestral', () => {
+    expect(paneOfPid(tree, 200, shells)).toBe('p1')
+    expect(paneOfPid(tree, 300, shells)).toBe('p1')
+    expect(paneOfPid(tree, 100, shells)).toBe('p1')
+  })
+  it('processo fora dos terminais do app (daemon do Claude Code) ou que não existe: null', () => {
+    expect(paneOfPid(tree, 600, shells)).toBeNull()
+    expect(paneOfPid(tree, 9999, shells)).toBeNull()
+  })
+  it('ciclo de ppid não trava', () => {
+    const loop = [{ pid: 7, ppid: 8, stat: 'S', args: 'a' }, { pid: 8, ppid: 7, stat: 'S', args: 'b' }]
+    expect(paneOfPid(loop, 7, shells)).toBeNull()
   })
 })
 
