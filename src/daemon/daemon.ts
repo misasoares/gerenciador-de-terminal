@@ -28,7 +28,7 @@ import type { Login, ReadResult } from './usage/types'
 import { MachineMonitor, type MemSample } from './machine/monitor'
 import { groupProcs, type PsRow } from './machine/groups'
 import { gateRefusal, machineReport } from './machine/report'
-import type { HookPayload, MachineDetail, SessionStatus, TeamFeedView } from '../shared/types'
+import type { ClaudeSession, HookPayload, MachineDetail, SessionStatus, TeamFeedView } from '../shared/types'
 import { Hibernator } from './hibernator'
 import { Deliverer, type DeliveryPane } from './team/delivery'
 import { leaderBriefing } from './team/briefing'
@@ -747,17 +747,17 @@ export class Daemon {
   }
 
   /** o que um hook vale para o grupo: evento de estado e SendMessage entre Claudes; fora de equipe, nada */
-  private teamHook(paneId: string, prev: SessionStatus | null, p: HookPayload): void {
+  private teamHook(paneId: string, prev: SessionStatus | null, next: ClaudeSession | null, p: HookPayload): void {
     const meta = this.persisted.paneMeta
     const team = teamLeaderOf(paneId, meta)
     const r = this.panes.get(paneId)
     if (!team || !r) return
     const name = displayName(r, meta)
-    const ev = statusEvent(prev, r.claude, p)
+    const ev = statusEvent(prev, next, p)
     if (ev) {
       const needs = ev === 'permissao' || ev === 'pergunta'
       const reason = typeof p.error === 'string' ? p.error : typeof p.reason === 'string' ? p.reason : null
-      this.teamLog.event({ team, paneId, name, event: ev, since: needs ? (r.claude?.statusSince ?? null) : null, detail: ev === 'travou' ? reason : null })
+      this.teamLog.event({ team, paneId, name, event: ev, since: needs ? (next?.statusSince ?? null) : null, detail: ev === 'travou' ? reason : null })
     }
     const nat = nativeMessage(p)
     if (nat) {
@@ -955,9 +955,8 @@ export class Daemon {
           const lookup = this.paneOfCaller(req.pid)
           if (lookup && (await lookup) !== req.paneId) return null
         }
-        const prev = this.panes.get(req.paneId)?.claude?.status ?? null
-        await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
-        this.teamHook(req.paneId, prev, req.payload)
+        const change = await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
+        if (change) this.teamHook(req.paneId, change.prev, change.next, req.payload)
         this.teamChanged() // estado dos membros e destaque de permissão
         if (req.configDir) {
           const list = (req.agent ?? 'claude') === 'codex' ? this.persisted.codexHomes : this.persisted.claudeProfiles

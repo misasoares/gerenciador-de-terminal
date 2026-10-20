@@ -1214,6 +1214,25 @@ describe('Daemon', () => {
     expect((await events()).filter((e) => e.event === 'saiu')).toHaveLength(1)
   })
 
+  it('grupo: hooks seguidos não trocam o evento (o estado é lido junto com a mudança)', async () => {
+    repo = makeRepo()
+    const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    await call('contratar_dev', { nome: 'dev-1', worktree: false })
+    const dev = (await app.waitState((s) => s.panes.some((p) => p.name === 'dev-1'))).panes.find((p) => p.name === 'dev-1')!.id
+    const transcript = fakeClaudeConv(o, repo.dir, 'sx')
+    await hook(o, dev, { hook_event_name: 'SessionStart', session_id: 'sx', cwd: repo.dir, source: 'startup', transcript_path: transcript })
+    // o primeiro espera (cwd novo → relocate, título); o segundo chega no meio
+    const sub = path.join(repo.dir, 'sub')
+    fs.mkdirSync(sub)
+    const a = hook(o, dev, { hook_event_name: 'UserPromptSubmit', session_id: 'sx', cwd: sub, transcript_path: transcript })
+    const b = hook(o, dev, { hook_event_name: 'PermissionRequest', session_id: 'sx', cwd: repo.dir, transcript_path: transcript })
+    await Promise.all([a, b])
+    await new Promise((r) => setTimeout(r, 500))
+    const events = (await app.client.request<TeamFeedView>({ t: 'team.feed', leaderId: leader })).items.flatMap((i) => (i.kind === 'event' && i.event !== 'contratou' ? [i.event] : []))
+    expect(events.filter((e) => e === 'pergunta')).toEqual([])
+  })
+
   it('grupo: ler e escrever', async () => {
     repo = makeRepo()
     const { o, app, leader, call } = await leaderIn(repo.dir, { env: fakeTeamEnv() })

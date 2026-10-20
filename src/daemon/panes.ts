@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
-import type { Account, AgentKind, ClaudeSession, HookPayload } from '../shared/types'
+import type { Account, AgentKind, ClaudeSession, HookPayload, SessionStatus } from '../shared/types'
 import { buildCommand, detectAccount, resumeAccount } from './accounts'
 import type { McpServerSpec } from './agent-profiles'
 import { cwdOf, findAgent, foregroundOf, snapshotProcs } from './platform/procs'
@@ -266,14 +266,17 @@ export class PaneManager {
     this.d.onChange()
   }
 
-  async applyHook(paneId: string, configDir: string | null, p: HookPayload, agent: AgentKind = 'claude'): Promise<void> {
+  /** devolve o estado antes e depois deste hook, lidos juntos: depois dos awaits abaixo outro hook já pode ter mudado o painel */
+  async applyHook(paneId: string, configDir: string | null, p: HookPayload, agent: AgentKind = 'claude'): Promise<{ prev: SessionStatus | null; next: ClaudeSession | null } | null> {
     const rec = this.recs.get(paneId)
-    if (!rec || !rec.alive) return
+    if (!rec || !rec.alive) return null
     if (agent === 'codex') rec.lastHookAt = Date.now()
     if (rec.agentHooksMissing) rec.agentHooksMissing = false
     const hadSession = rec.claude !== null
     rec.configDir = configDir
+    const prev = rec.claude?.status ?? null
     rec.claude = reduceSession(rec.claude, p, Date.now(), agent)
+    const change = { prev, next: rec.claude }
     // agente subiu (retomada ou digitado na mão) ou saiu: não está mais hibernada nem acordando
     if (p.hook_event_name === 'SessionStart' || p.hook_event_name === 'SessionEnd') rec.waking = null
     if (p.hook_event_name === 'SessionStart') {
@@ -308,6 +311,7 @@ export class PaneManager {
         this.d.onChange()
       }
     }
+    return change
   }
 
   async poll(): Promise<void> {
