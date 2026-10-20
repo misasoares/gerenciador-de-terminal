@@ -38,7 +38,7 @@ import { buildFeed } from './team/feed'
 import { nativeMessage, statusEvent } from './team/events'
 import { displayName, sameTeam, sanitizeBody, teamHeader, teamLeaderOf } from './team/team'
 import { profileOf } from './agent-profiles'
-import { findAgent, foregroundOf, paneOfPid, snapshotProcs, type Proc } from './platform/procs'
+import { findAgent, foregroundOf, paneOfPid, snapshotProcs, underClaudeDaemon, type Proc } from './platform/procs'
 
 /** a conversa foi mandada para segundo plano: roda no daemon do Claude Code, com o GT_PANE_ID herdado de outro painel */
 export const BACKGROUND_ERROR = 'esta conversa está rodando em segundo plano do Claude Code, fora dos terminais do app, e o Gerenciador não sabe de qual sessão ela é. Peça ao usuário para continuar a conversa num terminal do app (claude --resume no painel) para usar a equipe.'
@@ -104,7 +104,7 @@ export class Daemon {
   private server: RpcServer | null = null
   private hookWarnings: string[] = []
   /** pid → painel; guarda a promessa para hooks seguidos do mesmo pid não trocarem de ordem */
-  private paneOfPidCache = new Map<number, { at: number; pane: Promise<string | null> }>()
+  private paneOfPidCache = new Map<number, { at: number; pane: Promise<string | null | undefined> }>()
   private broadcastTimer: NodeJS.Timeout | null = null
   private teamChangedTimer: NodeJS.Timeout | null = null
   private saveTimer: NodeJS.Timeout | null = null
@@ -723,15 +723,30 @@ export class Daemon {
     return { nome: name, pasta: cwd, branch, conta: account.id, comando: buildCommand(account, undefined, { mcp: this.mcpSpec, paneId: id, socketPath: this.o.socketPath, model: modelo, name, promptFile }), ...(modelo ? { modelo } : {}), ...(aviso ? { aviso } : {}) }
   }
 
-  /** painel do processo pela árvore; undefined = sem conferência (opção desligada) */
-  private paneOfCaller(pid: number): Promise<string | null> | undefined {
+  /**
+   * painel do processo pela árvore. null = roda no daemon do Claude Code (segundo plano, GT_PANE_ID herdado);
+   * undefined = não dá para saber (conferência desligada, ps falhou, tmux/screen fora da árvore do painel): vale o GT_PANE_ID, como antes
+   */
+  private paneOfCaller(pid: number): Promise<string | null | undefined> | undefined {
     const snap = this.o.snapshotProcs === undefined ? snapshotProcs : this.o.snapshotProcs
     if (!snap) return undefined
     const now = Date.now()
     const hit = this.paneOfPidCache.get(pid)
     if (hit && now - hit.at < PANE_OF_PID_TTL_MS) return hit.pane
     for (const [k, v] of this.paneOfPidCache) if (now - v.at >= PANE_OF_PID_TTL_MS) this.paneOfPidCache.delete(k)
-    const pane = snap().then((procs) => paneOfPid(procs, pid, this.panePids())).catch(() => null)
+    const pane = snap()
+      .then((procs) => {
+        if (!procs.some((p) => p.pid === pid)) {
+          // ps falhou ou o processo já saiu: não guarda, a próxima consulta tenta de novo
+          this.paneOfPidCache.delete(pid)
+          return undefined
+        }
+        return paneOfPid(procs, pid, this.panePids()) ?? (underClaudeDaemon(procs, pid) ? null : undefined)
+      })
+      .catch(() => {
+        this.paneOfPidCache.delete(pid)
+        return undefined
+      })
     this.paneOfPidCache.set(pid, { at: now, pane })
     return pane
   }
@@ -742,8 +757,8 @@ export class Daemon {
     const lookup = this.paneOfCaller(pid)
     if (lookup === undefined) return paneId
     const found = await lookup
-    if (!found) throw new Error(BACKGROUND_ERROR)
-    return found
+    if (found === null) throw new Error(BACKGROUND_ERROR)
+    return found ?? paneId
   }
 
   /** o que um hook vale para o grupo: evento de estado e SendMessage entre Claudes; fora de equipe, nada */
@@ -958,7 +973,11 @@ export class Daemon {
         // CLI fora do painel (segundo plano do Claude Code, com GT_PANE_ID herdado): não mexe no estado de outro
         if (req.pid !== undefined) {
           const lookup = this.paneOfCaller(req.pid)
-          if (lookup && (await lookup) !== req.paneId) return null
+          const found = lookup ? await lookup : undefined
+          if (found !== undefined && found !== req.paneId) {
+            console.error(`hook ignorado: ${req.payload.hook_event_name} do pid ${req.pid} veio de ${found ?? 'fora dos painéis (daemon do Claude Code)'}, não do painel ${req.paneId}`)
+            return null
+          }
         }
         const change = await this.panes.applyHook(req.paneId, req.configDir || null, req.payload, req.agent ?? 'claude')
         if (change) this.teamHook(req.paneId, change.prev, change.next, req.payload)

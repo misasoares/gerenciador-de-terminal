@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cwdOf, descendants, findClaude, foregroundOf, paneOfPid, parseLsofCwd, parsePs, snapshotProcs } from '../../src/daemon/platform/procs'
+import { cwdOf, descendants, findClaude, foregroundOf, paneOfPid, parseLsofCwd, parsePs, snapshotProcs, underClaudeDaemon } from '../../src/daemon/platform/procs'
 
 const PS = [
   '  100     1 Ss   /Applications/Gerenciador.app/Contents/MacOS/Gerenciador',
@@ -48,6 +48,11 @@ describe('paneOfPid', () => {
   it('processo fora dos terminais do app (daemon do Claude Code) ou que não existe: null', () => {
     expect(paneOfPid(tree, 600, shells)).toBeNull()
     expect(paneOfPid(tree, 9999, shells)).toBeNull()
+  })
+  it('debaixo do daemon do Claude Code: só a conversa em segundo plano', () => {
+    expect(underClaudeDaemon(tree, 600)).toBe(true)
+    expect(underClaudeDaemon([...tree, { pid: 700, ppid: 1, stat: 'Ss', args: 'tmux' }, { pid: 701, ppid: 700, stat: 'S+', args: 'claude' }], 701)).toBe(false)
+    expect(underClaudeDaemon(tree, 200)).toBe(false)
   })
   it('ciclo de ppid não trava', () => {
     const loop = [{ pid: 7, ppid: 8, stat: 'S', args: 'a' }, { pid: 8, ppid: 7, stat: 'S', args: 'b' }]

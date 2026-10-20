@@ -61,6 +61,19 @@ export function paneOfPid(procs: Proc[], pid: number, shells: { id: string; pid:
   return null
 }
 
+const CLAUDE_DAEMON_RE = /(^|\/)claude\s+(daemon\s+run|bg-spare|bg-pty-host)\b/
+
+/** o processo roda debaixo do daemon do Claude Code (conversa mandada para segundo plano) */
+export function underClaudeDaemon(procs: Proc[], pid: number): boolean {
+  const byPid = new Map(procs.map((p) => [p.pid, p]))
+  const seen = new Set<number>()
+  for (let p = byPid.get(pid); p && !seen.has(p.pid); p = byPid.get(p.ppid)) {
+    if (CLAUDE_DAEMON_RE.test(p.args)) return true
+    seen.add(p.pid)
+  }
+  return false
+}
+
 const CLAUDE_RE = /(^|\/)claude(\s|$)|claude-code\/cli\.js|\/claude\/versions\//
 
 /** codex como programa: 1º token, script rodado por node/sh/bash/zsh, ou o binário nativo do pacote @openai/codex */

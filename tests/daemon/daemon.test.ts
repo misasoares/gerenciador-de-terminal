@@ -1291,6 +1291,34 @@ describe('Daemon', () => {
     await expect(say('dev-1', 'oi')).rejects.toThrow('esta equipe não está ativa')
   })
 
+  it('identidade: sem leitura do ps ou fora de qualquer painel sem o daemon do Claude Code (tmux), segue como antes', async () => {
+    repo = makeRepo()
+    let tree: Proc[] = []
+    const { o, d, app, leader } = await leaderIn(repo.dir, { snapshotProcs: async () => tree })
+    await app.client.request({ t: 'pane.setLeader', paneId: leader, leader: true })
+    const callAs = (callerPid: number) => app.client.request<Record<string, unknown>[]>({ t: 'mcp.call', callerPaneId: leader, callerPid, tool: 'listar_equipe', args: {} })
+    const rawHook = async (pid: number, ev: string) => {
+      const c = await RpcClient.connect(o.socketPath)
+      await c.request({ t: 'hook', paneId: leader, configDir: '', agent: 'claude', pid, payload: { hook_event_name: ev, session_id: 's-l', cwd: repo!.dir } }).catch(() => null)
+      c.close()
+    }
+    // ps falhou (lista vazia): não trava a equipe nem os hooks
+    expect((await callAs(930001)).length).toBe(1)
+    await rawHook(930001, 'PermissionRequest')
+    await app.waitState((s) => s.panes.find((p) => p.id === leader)?.claude?.status === 'needs-you')
+    // claude dentro do tmux: o servidor do tmux é filho do launchd, não do shell do painel
+    const host = (d as unknown as { panes: { host: { pid(id: string): number | undefined } } }).panes.host
+    tree = [
+      { pid: host.pid(leader)!, ppid: 1, stat: 'Ss', args: '-zsh' },
+      { pid: 930010, ppid: 1, stat: 'Ss', args: 'tmux new -s x' },
+      { pid: 930011, ppid: 930010, stat: 'Ss', args: '-zsh' },
+      { pid: 930012, ppid: 930011, stat: 'S+', args: 'claude' },
+    ]
+    expect((await callAs(930012)).length).toBe(1)
+    await rawHook(930012, 'Stop')
+    await app.waitState((s) => s.panes.find((p) => p.id === leader)?.claude?.status === 'your-turn')
+  })
+
   it('grupo: resposta entre sessões por endereço de socket (uds:…/<pid>.sock) mostra o nome do membro', async () => {
     repo = makeRepo()
     let tree: Proc[] = []

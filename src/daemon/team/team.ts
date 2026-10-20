@@ -23,7 +23,8 @@ export function displayName(r: { id: string; seq: number }, meta: Meta): string 
 
 /** corpo do remetente: sem marcadores do app ([equipe], [gerenciador]) nem caracteres de controle C0/C1 além de \n e \t */
 export function sanitizeBody(text: string): string {
-  return text.replace(/\[(equipe|gerenciador)\]/gi, '($1)').replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '')
+  // controles saem antes: "[equ\x01ipe]" viraria "[equipe]" depois da troca
+  return text.replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '').replace(/\[(equipe|gerenciador)\]/gi, '($1)')
 }
 
 /** cabeçalho montado pelo app: o remetente nunca escreve o próprio */

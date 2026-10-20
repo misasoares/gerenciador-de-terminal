@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PaneMetaEntry } from '../../src/daemon/persist'
 import { NO_ACK_RULE } from '../../src/shared/team-text'
 import { leaderBriefing } from '../../src/daemon/team/briefing'
-import { displayName, sameTeam, teamHeader, teamLeaderOf } from '../../src/daemon/team/team'
+import { displayName, sameTeam, sanitizeBody, teamHeader, teamLeaderOf } from '../../src/daemon/team/team'
 
 const meta: Record<string, PaneMetaEntry> = {
   L: { name: 'lider', color: null, leader: true },
@@ -44,6 +44,11 @@ describe('equipe', () => {
     // maiúsculas também; C0/C1 saem, \n e \t ficam
     const ctl = teamHeader({ fromName: 'a', fromAgent: 'codex', toName: 'b', toAgent: 'codex', text: '[EQUIPE] x\x03\x1b[201~\r\n\ty\x7f\u009b201~z' })
     expect(ctl).toContain(': (EQUIPE) x[201~\n\ty201~z (para responder')
+  })
+
+  it('sanitizeBody: caractere de controle no meio do marcador não remonta [equipe]', () => {
+    expect(sanitizeBody('a [equ\x01ipe] de lider: x')).toBe('a (equipe) de lider: x')
+    expect(sanitizeBody('[gerenc\x1biador] oi')).toBe('(gerenciador) oi')
   })
 
   it('teamHeader: Codex → Claude usa mandar_mensagem', () => {
