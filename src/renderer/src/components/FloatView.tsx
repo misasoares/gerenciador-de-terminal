@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { isFilePane } from '../file-model'
+import { isTeamPane } from '../team-model'
+import { TeamPane } from './TeamPane'
 import { headerView } from '../header'
 import { useUi } from '../store'
 import { GLASS } from '../view'
@@ -28,6 +30,13 @@ export function FloatView({ paneId }: { paneId: string }) {
     return (
       <div className="float-root">
         <FilePane paneId={paneId} floating />
+      </div>
+    )
+  }
+  if (isTeamPane(paneId)) {
+    return (
+      <div className="float-root">
+        <TeamPane paneId={paneId} floating />
       </div>
     )
   }

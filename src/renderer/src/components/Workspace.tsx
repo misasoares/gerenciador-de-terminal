@@ -24,6 +24,8 @@ import { useMotionPreset } from '../use-motion'
 import { shouldAnimateEnter } from '../pane-motion'
 import { FilePane } from './FilePane'
 import { isFilePane } from '../file-model'
+import { isTeamPane } from '../team-model'
+import { TeamPane } from './TeamPane'
 
 
 /** painel novo entra crescendo de 96%; anima o painel (filho), não o slot: opacidade num ancestral cortaria o vidro (backdrop-filter) */
@@ -49,7 +51,13 @@ function SplitNode({ node, tabId, path }: { node: LayoutNode; tabId: string; pat
   if (node.type === 'leaf')
     return (
       <PaneSlot tabId={tabId} paneId={node.paneId}>
-        {isFilePane(node.paneId) ? <FilePane paneId={node.paneId} /> : <PaneFrame paneId={node.paneId} onAddProject={addProject} />}
+        {isFilePane(node.paneId) ? (
+          <FilePane paneId={node.paneId} />
+        ) : isTeamPane(node.paneId) ? (
+          <TeamPane paneId={node.paneId} />
+        ) : (
+          <PaneFrame paneId={node.paneId} onAddProject={addProject} />
+        )}
       </PaneSlot>
     )
   return (

@@ -5,6 +5,7 @@ import { SESSION_COLORS } from '../../shared/settings'
 import { closeDeadPane, closeTab, setTabColor, moveToTab, openNewPane, openNewSessionDialog, requestKill, revealPane, togglePane, openFilePicker, hidePane, floatPane, dockFloat } from './actions'
 import type { ProjectItem, SessionItem, WorktreeItem } from './sidebar-model'
 import { getUi, setUi, showError } from './store'
+import { teamPaneId } from './team-model'
 
 export async function addProjectFlow(dir?: string): Promise<void> {
   try {
@@ -128,6 +129,7 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
           ...SESSION_COLORS.map((c) => ({ id: `color:${c.hex}`, label: `Cor: ${c.label}` })),
           { id: '-', label: '' },
           { id: 'leader', label: `${pane?.leader ? '✓ ' : ''}Pode contratar sessões (líder)` },
+          ...(pane?.leader ? [{ id: 'team', label: 'Abrir grupo da equipe' }] : []),
           { id: '-', label: '' },
           { id: 'kill', label: 'Encerrar sessão…' },
         ]
@@ -145,7 +147,8 @@ export async function sessionMenu(s: SessionItem): Promise<void> {
   else if (choice === 'float') {
     if (s.floating) dockFloat(s.paneId)
     else floatPane(s.paneId)
-  } else if (choice === 'leader') window.gt.request({ t: 'pane.setLeader', paneId: s.paneId, leader: !pane?.leader }).catch(showError)
+  } else if (choice === 'team') revealPane(teamPaneId(s.paneId))
+  else if (choice === 'leader') window.gt.request({ t: 'pane.setLeader', paneId: s.paneId, leader: !pane?.leader }).catch(showError)
   else if (choice?.startsWith('ws:')) {
     // sai do layout daqui antes: o próximo layout.save desta janela já vem sem o painel
     hidePane(s.paneId)

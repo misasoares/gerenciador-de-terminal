@@ -5,11 +5,11 @@ import { getUi, setUi, useUi } from '../store'
 import { CascadeItem, useCascade } from './Cascade'
 import { ModalFrame } from './ModalFrame'
 
-const KIND = { session: 'sessão', worktree: 'worktree', project: 'projeto' } as const
+const KIND = { session: 'sessão', team: 'grupo', worktree: 'worktree', project: 'projeto' } as const
 
 function run(item: PaletteItem): void {
   setUi({ modal: null })
-  if (item.kind === 'session') return revealPane(item.id)
+  if (item.kind === 'session' || item.kind === 'team') return revealPane(item.id)
   if (item.kind === 'worktree') return openNewSessionDialog(item.projectPath ?? undefined, item.worktreePath ?? undefined)
   const first = getUi().app?.panes.find((p) => p.alive && p.projectPath === item.projectPath)
   if (first) revealPane(first.id)

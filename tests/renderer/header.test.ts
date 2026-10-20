@@ -104,6 +104,10 @@ describe('sharesContext', () => {
     const l: Layout = { tabs: [{ id: 't', name: 't', root: { type: 'split', dir: 'row', sizes: [], children: [leaf('a'), leaf('b'), leaf('file:1')] } }], activeTabId: 't' }
     expect(sharesContext('a', l, [pane({ id: 'a' }), pane({ id: 'b' })])).toBe(true)
   })
+  it('grupo da equipe na aba também não desfaz o "discreto"', () => {
+    const l: Layout = { tabs: [{ id: 't', name: 't', root: { type: 'split', dir: 'row', sizes: [], children: [leaf('a'), leaf('b'), leaf('team:L1')] } }], activeTabId: 't' }
+    expect(sharesContext('a', l, [pane({ id: 'a' }), pane({ id: 'b' })])).toBe(true)
+  })
 })
 
 describe('líder', () => {

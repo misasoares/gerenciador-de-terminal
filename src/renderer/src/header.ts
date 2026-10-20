@@ -1,5 +1,6 @@
 import type { AppState, Layout, PaneView, SessionStatus } from '../../shared/types'
 import { leaves } from './layout'
+import { isVirtualPane } from './team-model'
 
 /** status mostrado: o da sessão, ou 💤 (agente encerrado por ociosidade) / acordando */
 export type DisplayStatus = SessionStatus | 'shell' | 'hibernated' | 'waking'
@@ -107,7 +108,7 @@ export function textOn(bg: string): string {
 /** a aba do painel tem 2+ painéis, todos no mesmo projeto e worktree: o cabeçalho pode esconder o que se repete */
 export function sharesContext(paneId: string, layout: Layout, panes: PaneView[]): boolean {
   const tab = layout.tabs.find((t) => leaves(t.root).includes(paneId))
-  const ids = (tab ? leaves(tab.root) : []).filter((id) => !id.startsWith('file:'))
+  const ids = (tab ? leaves(tab.root) : []).filter((id) => !isVirtualPane(id))
   if (ids.length < 2) return false
   const inTab = ids.map((id) => panes.find((p) => p.id === id)).filter((p): p is PaneView => !!p)
   if (inTab.length !== ids.length) return false

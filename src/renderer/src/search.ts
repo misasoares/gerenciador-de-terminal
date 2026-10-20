@@ -1,9 +1,10 @@
 import type { AppState } from '../../shared/types'
 import { worktreeLabel } from './header'
 import { sessionLabel } from './sidebar-model'
+import { teamPaneId } from './team-model'
 
 export interface PaletteItem {
-  kind: 'session' | 'worktree' | 'project'
+  kind: 'session' | 'team' | 'worktree' | 'project'
   id: string
   label: string
   detail: string
@@ -45,6 +46,9 @@ export function buildPaletteItems(app: AppState): PaletteItem[] {
     const account = app.accounts.find((a) => a.id === p.accountId)
     const detail = [project ? project.name.toUpperCase() : 'fora de projeto', wt ? `⎇ ${worktreeLabel(wt)}` : null, account?.label].filter(Boolean).join(' · ')
     items.push({ kind: 'session', id: p.id, label: sessionLabel(p), detail, projectPath: p.projectPath, worktreePath: p.worktreePath })
+  }
+  for (const p of app.panes.filter((x) => x.alive && x.leader)) {
+    items.push({ kind: 'team', id: teamPaneId(p.id), label: `Equipe de ${p.name ?? `sessão ${p.seq}`}`, detail: 'grupo da equipe', projectPath: p.projectPath, worktreePath: p.worktreePath })
   }
   for (const project of app.projects) {
     for (const w of project.worktrees.filter((x) => !x.prunable)) {

@@ -38,6 +38,13 @@ describe('busca do ⌘K', () => {
     expect(items[0].detail).toBe('TCHEERP · ⎇ custo-hora · weboption')
   })
 
+  it('grupo da equipe: um item por líder vivo', () => {
+    const lider = { ...app.panes[0], id: 'L1', name: 'lider', leader: true }
+    const items = buildPaletteItems({ ...app, panes: [lider, { ...app.panes[1], leader: true }] })
+    expect(items.filter((i) => i.kind === 'team')).toEqual([{ kind: 'team', id: 'team:L1', label: 'Equipe de lider', detail: 'grupo da equipe', projectPath: lider.projectPath, worktreePath: lider.worktreePath }])
+    expect(buildPaletteItems(app).some((i) => i.kind === 'team')).toBe(false)
+  })
+
   it('ordena por relevância, rótulo antes do detalhe', () => {
     const items = buildPaletteItems(app)
     expect(searchPalette(items, 'custo').map((i) => i.label)).toEqual(['custo-hora', 'Revisão da ação de custo'])
