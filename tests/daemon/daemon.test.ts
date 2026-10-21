@@ -1319,6 +1319,18 @@ describe('Daemon', () => {
     await app.waitState((s) => s.panes.find((p) => p.id === leader)?.claude?.status === 'your-turn')
   })
 
+  it('identidade com a árvore de processos de verdade: hook disparado de dentro do painel vale', async () => {
+    repo = makeRepo()
+    // sem snapshotProcs: usa o ps real, como no app
+    const { o, app, leader } = await leaderIn(repo.dir, { snapshotProcs: undefined })
+    await app.client.request({ t: 'pane.attach', paneId: leader })
+    const payload = JSON.stringify({ hook_event_name: 'Stop', session_id: 's-real', cwd: repo.dir })
+    // o mesmo caminho do Claude: sh -c que faz exec do gt-hook, com o GT_PANE_ID/GT_SOCKET do próprio painel
+    const cmd = `echo '${payload}' | sh -c '[ -x "$0" ] && exec "$0"; cat >/dev/null' "${o.hookScriptPath}"\r`
+    await app.client.request({ t: 'pane.input', paneId: leader, data: cmd })
+    await app.waitState((s) => s.panes.find((p) => p.id === leader)?.claude?.status === 'your-turn', 8000)
+  })
+
   it('grupo: resposta entre sessões por endereço de socket (uds:…/<pid>.sock) mostra o nome do membro', async () => {
     repo = makeRepo()
     let tree: Proc[] = []
