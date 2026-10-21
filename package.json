@@ -1,6 +1,6 @@
 {
   "name": "gerenciador-de-terminal",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "homepage": "https://github.com/misasoares/gerenciador-de-terminal",
   "private": true,
   "description": "Gerenciador de terminais para sessões do Claude Code",
