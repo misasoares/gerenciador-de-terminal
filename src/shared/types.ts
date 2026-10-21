@@ -342,6 +342,16 @@ export interface ConversationInfo {
 export interface FilePaneMeta {
   path: string
   mode: 'view' | 'edit'
+  /** aberto pelo agente (abrir_midia): grupos de mídias lado a lado; createdBy = sessão que abriu */
+  gallery?: MediaGallery & { createdBy: string }
+}
+
+/** comparação de mídias: cada grupo é mostrado lado a lado, um grupo por vez */
+export interface MediaGallery {
+  groups: string[][]
+  /** nome de cada coluna (ex.: iOS, Android), igual para todos os grupos */
+  labels: string[] | null
+  titles: string[] | null
 }
 
 export type MachineLevel = 'ok' | 'warn' | 'bad'
