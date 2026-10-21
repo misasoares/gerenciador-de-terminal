@@ -400,6 +400,7 @@ kbd { font-family: inherit; background: var(--bg-control); border-radius: var(--
 .gallery-nav { display: flex; align-items: center; gap: 4px; }
 .gallery-grid { flex: 1; min-height: 0; display: grid; grid-auto-rows: minmax(0, 1fr); gap: 6px; padding: 6px; }
 .gallery-cell { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.gallery-cell .media-image.fit { align-items: flex-start; }
 .gallery-label { flex-shrink: 0; padding: 2px 4px 4px; color: var(--fg-dim); font-size: var(--text-sm); font-weight: 600; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-md { flex: 1; min-height: 0; overflow: auto; padding: 12px 18px; line-height: 1.55; }
 .file-md table { border-collapse: collapse; }
