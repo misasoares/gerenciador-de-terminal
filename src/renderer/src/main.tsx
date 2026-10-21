@@ -12,7 +12,7 @@ import { syncKeybindings } from './shortcuts'
 import { terminals } from './terminals'
 import { emitFileChanged } from './file-events'
 import { emitTeamChanged } from './team-events'
-import { mergeIncomingLayout } from './workspaces-model'
+import { arrivedFromOutside, mergeIncomingLayout } from './workspaces-model'
 import { ReopenWorkspaces } from './components/ReopenWorkspaces'
 import { FloatView } from './components/FloatView'
 import { FLOAT_PANE, UPDATED_TO } from './view'
@@ -88,8 +88,8 @@ function bootWorkspace(): void {
                   e.state.layout,
                   new Set(s.app.panes.map((p) => p.id)),
                   new Set(e.state.panes.map((p) => p.id)),
-                  // painel encaixado vindo de uma flutuante: o daemon pôs a folha na aba ativa
-                  new Set(s.app.floating.filter((id) => !e.state.floating.includes(id))),
+                  // encaixe de flutuante ou painel de arquivo aberto pelo daemon (abrir_midia): a folha veio do daemon
+                  arrivedFromOutside(s.app, e.state),
                 ),
               }
             : e.state,

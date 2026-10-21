@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergeIncomingLayout, otherWorkspaces, reopenRows } from '../../src/renderer/src/workspaces-model'
+import { arrivedFromOutside, mergeIncomingLayout, otherWorkspaces, reopenRows } from '../../src/renderer/src/workspaces-model'
 
 const leaf = (paneId: string) => ({ type: 'leaf' as const, paneId })
 
@@ -48,6 +48,19 @@ describe('workspaces-model (renderer)', () => {
   it('daemon reiniciou (sessões viram retomáveis, layout dele ainda as tem): o layout local fica', () => {
     const local = { tabs: [{ id: 't', name: 'A', root: { type: 'split' as const, dir: 'row' as const, sizes: [], children: [leaf('a'), leaf('b')] } }], activeTabId: 't' }
     expect(mergeIncomingLayout(local, local, new Set(['a', 'b']), new Set())).toBe(local)
+  })
+  it('abrir_midia: painel de arquivo aberto pelo daemon entra na hora; o que já existia não volta', () => {
+    const local = { tabs: [{ id: 't', name: 'A', root: leaf('a') }], activeTabId: 't' }
+    const withGallery = { tabs: [{ id: 't', name: 'A', root: { type: 'split' as const, dir: 'row' as const, sizes: [], children: [leaf('a'), leaf('file:g')] } }], activeTabId: 't' }
+    const meta = { path: '/x.png', mode: 'edit' as const }
+    const opened = arrivedFromOutside({ floating: [], filePanes: {} }, { floating: [], filePanes: { 'file:g': meta } })
+    expect([...opened]).toEqual(['file:g'])
+    expect(mergeIncomingLayout(local, withGallery, new Set(['a']), new Set(['a']), opened)).toBe(withGallery)
+    // já estava nos painéis de arquivo (usuário acabou de fechar, broadcast atrasado): não volta
+    const stale = arrivedFromOutside({ floating: [], filePanes: { 'file:g': meta } }, { floating: [], filePanes: { 'file:g': meta } })
+    expect(mergeIncomingLayout(local, withGallery, new Set(['a']), new Set(['a']), stale)).toBe(local)
+    // encaixe de flutuante continua contando
+    expect([...arrivedFromOutside({ floating: ['f'], filePanes: {} }, { floating: [], filePanes: {} })]).toEqual(['f'])
   })
   it('encaixe: folha do daemon para painel que saiu das flutuantes entra', () => {
     const local = { tabs: [{ id: 't', name: 'A', root: leaf('a') }], activeTabId: 't' }
