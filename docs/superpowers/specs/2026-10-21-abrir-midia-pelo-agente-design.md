@@ -59,7 +59,7 @@ Retorno: `{ aberto: <id do painel>, grupos: N }`.
 gallery?: { groups: string[][]; labels: string[] | null; titles: string[] | null; createdBy: string }
 ```
 
-`path` continua apontando para a primeira imagem do primeiro grupo, para não quebrar quem lê `path`: título do painel, `findFilePane`, seletor de arquivo. Mídia avulsa com um caminho só não usa `gallery`: é um painel de arquivo comum.
+`path` continua apontando para a primeira imagem do primeiro grupo, para não quebrar quem lê `path`: título do painel, `findFilePane`, seletor de arquivo. Mídia avulsa com um caminho só também grava `gallery` (com um grupo de uma mídia), para valer o reaproveitamento. Mas aparece como o painel de arquivo comum, igual ao ⌘+clique.
 
 O `filepane.set` do renderer (troca de modo ver/editar, `FilePane.tsx:184`) hoje substitui o registro inteiro. Ele precisa preservar `gallery` quando o id já tem uma galeria, senão a galeria vira painel comum. Todas as sessões já recebem o MCP (`panes.ts`), então a ferramenta chega a Claude e Codex sem mudança no comando.
 
