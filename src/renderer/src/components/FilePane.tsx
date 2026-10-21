@@ -13,6 +13,8 @@ import DOMPurify from 'dompurify'
 import { dirtyFiles, dropOnPane, floatPane, focusPane, openFile, PANE_MIME, pendingLine, requestCloseFile } from '../actions'
 import { FloatControls } from './FloatControls'
 import { MediaView } from './MediaView'
+import { GalleryPane } from './GalleryPane'
+import { isGalleryView } from '../gallery-model'
 import { mediaKind } from '../../../shared/media'
 import { dropZone, type DropZone } from '../layout'
 import type React from 'react'
@@ -45,7 +47,13 @@ type Problem = null | 'missing' | 'cannot-open' | string
 
 const KIND_ICON = { text: '📄', image: '🖼', video: '🎬', audio: '🎵', pdf: '📕' } as const
 
+/** painel de arquivo; a comparação do abrir_midia (mais de uma mídia) tem painel próprio */
 export function FilePane({ paneId, floating }: { paneId: string; floating?: boolean }) {
+  const gallery = useUi((s) => isGalleryView(s.app?.filePanes[paneId]?.gallery))
+  return gallery ? <GalleryPane paneId={paneId} floating={floating} /> : <FileView paneId={paneId} floating={floating} />
+}
+
+function FileView({ paneId, floating }: { paneId: string; floating?: boolean }) {
   const meta = useUi((s) => s.app?.filePanes[paneId])
   const focused = useUi((s) => s.focusedPaneId === paneId)
   const root = useUi((s) => (s.app ? pickerRoot(s.app, paneId) : null))
