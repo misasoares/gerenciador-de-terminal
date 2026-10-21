@@ -1499,6 +1499,39 @@ describe('monitor da máquina', () => {
     expect(await call('uso_da_maquina', {})).toMatchObject({ nivel: 'bad', pressao: 'pressão crítica', ram: '10,0/24,0 GB' })
   })
 
+  it('abrir_midia: qualquer sessão abre ao lado dela; reaproveita a galeria; fechada, abre outra; filepane.set não apaga a galeria', async () => {
+    repo = makeRepo()
+    fs.writeFileSync(path.join(repo.dir, 'a.png'), 'x')
+    fs.writeFileSync(path.join(repo.dir, 'b.png'), 'x')
+    const { app, leader, call } = await leaderIn(repo.dir) // não é líder
+    const a = path.join(repo.dir, 'a.png')
+    const b = path.join(repo.dir, 'b.png')
+    const r1 = await call('abrir_midia', { grupos: [['a.png', 'b.png']], rotulos: ['iOS', 'Android'] })
+    expect(r1).toMatchObject({ grupos: 1 })
+    const id = r1.aberto as string
+    let s = await app.waitState((x) => !!x.filePanes[id])
+    expect(s.filePanes[id]).toMatchObject({ path: a, gallery: { groups: [[a, b]], labels: ['iOS', 'Android'], titles: null, createdBy: leader } })
+    expect(s.layout.tabs).toHaveLength(1)
+    expect(s.layout.activeTabId).toBe('t')
+    expect(JSON.stringify(s.layout.tabs[0].root)).toContain(id)
+
+    const r2 = await call('abrir_midia', { caminhos: ['b.png'] })
+    expect(r2.aberto).toBe(id)
+    s = await app.waitState((x) => x.filePanes[id]?.path === b)
+    expect(JSON.stringify(s.layout).split(id)).toHaveLength(2) // uma folha só
+
+    await app.client.request({ t: 'filepane.set', id, path: b, mode: 'view' })
+    s = await app.waitState((x) => x.filePanes[id]?.mode === 'view')
+    expect(s.filePanes[id].gallery).toMatchObject({ groups: [[b]] })
+
+    // usuário fecha a galeria: sai do layout → a próxima chamada abre outra
+    await app.client.request({ t: 'layout.save', layout: { tabs: [{ id: 't', name: 'Lider', root: { type: 'leaf', paneId: leader } }], activeTabId: 't' } })
+    const r3 = await call('abrir_midia', { caminhos: ['a.png'] })
+    expect(r3.aberto).not.toBe(id)
+
+    await expect(call('abrir_midia', { caminhos: ['zz.png'] })).rejects.toThrow('não abri nada')
+  })
+
   it('watch é um aluguel: sem renovar (janela recarregou), o ps para; renovando, continua', async () => {
     let psCalls = 0
     const machinePs = async () => {

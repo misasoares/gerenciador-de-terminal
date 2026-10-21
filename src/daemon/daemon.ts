@@ -38,6 +38,7 @@ import { buildFeed } from './team/feed'
 import { nativeMessage, statusEvent } from './team/events'
 import { displayName, sameTeam, sanitizeBody, teamHeader, teamLeaderOf } from './team/team'
 import { profileOf } from './agent-profiles'
+import { parseOpenMedia } from './media-open'
 import { findAgent, foregroundOf, paneOfPid, snapshotProcs, underClaudeDaemon, type Proc } from './platform/procs'
 
 /** a conversa foi mandada para segundo plano: roda no daemon do Claude Code, com o GT_PANE_ID herdado de outro painel */
@@ -610,6 +611,8 @@ export class Daemon {
       const claude = this.panes.records().filter((r) => r.alive && r.claude).flatMap((r) => (d.perPane[r.id] ? [d.perPane[r.id]] : []))
       return machineReport(v, d, claude)
     }
+    // mídia: qualquer sessão abre no painel ao lado dela
+    if (tool === 'abrir_midia') return this.openMedia(caller, w, args)
     // equipe: qualquer membro (líder ou contratado) conversa e vê a equipe
     if (tool === 'mandar_mensagem' || tool === 'interromper' || tool === 'listar_equipe') {
       const leaderId = teamLeaderOf(caller.id, meta)
@@ -665,6 +668,21 @@ export class Daemon {
     }
     if (tool === 'contratar_dev') return this.hire(caller, w, args)
     throw new Error(`ferramenta desconhecida: ${tool}`)
+  }
+
+  /** abrir_midia: reaproveita a galeria desta sessão se ainda estiver na tela; senão abre outra ao lado dela (sem mudar a aba ativa) */
+  private openMedia(caller: PaneRecord, w: Workspace, args: Record<string, unknown>) {
+    const g = parseOpenMedia(args, { cwd: caller.cwd, home: os.homedir(), isFile: (p) => fs.statSync(p, { throwIfNoEntry: false })?.isFile() ?? false })
+    const shown = new Set([...w.layout.tabs.flatMap((t) => leafIds(t.root)), ...w.floating])
+    const files = this.persisted.filePanes
+    let id = Object.keys(files).find((k) => files[k].gallery?.createdBy === caller.id && shown.has(k))
+    if (!id) {
+      id = `file:${randomUUID()}`
+      w.layout = insertBeside(w.layout, caller.id, id)
+    }
+    files[id] = { path: g.groups[0][0], mode: 'edit', gallery: { ...g, createdBy: caller.id } }
+    this.changed()
+    return { aberto: id, grupos: g.groups.length }
   }
 
   /** null = segue sem aviso; string = segue com aviso; lança = recusa (antes de qualquer efeito) */
@@ -1127,7 +1145,11 @@ export class Daemon {
         return null
       case 'filepane.set':
         if (!req.id.startsWith('file:')) throw new Error(`id inválido: ${req.id}`)
-        this.persisted.filePanes[req.id] = { path: req.path, mode: req.mode }
+        {
+          // a troca ver/editar não desfaz a galeria do abrir_midia
+          const gallery = this.persisted.filePanes[req.id]?.gallery
+          this.persisted.filePanes[req.id] = { path: req.path, mode: req.mode, ...(gallery ? { gallery } : {}) }
+        }
         this.changed()
         return null
       case 'conversations.list':
