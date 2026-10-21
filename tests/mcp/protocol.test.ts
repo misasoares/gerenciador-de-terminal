@@ -20,9 +20,9 @@ describe('gt-mcp: protocolo', () => {
     expect(await handleMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, noCall)).toBeNull()
     expect(await handleMessage({ jsonrpc: '2.0', id: 2, method: 'x/y' }, noCall)).toMatchObject({ id: 2, error: { code: -32601 } })
   })
-  it('tools/list traz as 7 ferramentas; contratar aceita forcar', async () => {
+  it('tools/list traz as 8 ferramentas; contratar aceita forcar', async () => {
     const r = (await handleMessage({ jsonrpc: '2.0', id: 3, method: 'tools/list' }, noCall)) as { result: { tools: { name: string }[] } }
-    expect(r.result.tools.map((t) => t.name)).toEqual(['contratar_dev', 'listar_equipe', 'mandar_mensagem', 'interromper', 'renomear_dev', 'demitir_dev', 'uso_da_maquina'])
+    expect(r.result.tools.map((t) => t.name)).toEqual(['contratar_dev', 'listar_equipe', 'mandar_mensagem', 'interromper', 'renomear_dev', 'demitir_dev', 'uso_da_maquina', 'abrir_midia'])
     expect(TOOLS[0].inputSchema).toMatchObject({ type: 'object', required: ['nome'], properties: { forcar: { type: 'boolean' } } })
   })
   it('mandar_mensagem e interromper: parâmetros e instruções da equipe', async () => {
@@ -36,6 +36,13 @@ describe('gt-mcp: protocolo', () => {
   it('instruções mandam consultar uso_da_maquina e só forçar com autorização', async () => {
     const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
     for (const k of ['uso_da_maquina', 'forcar: true', 'autorizar']) expect(r.result.instructions).toContain(k)
+  })
+  it('abrir_midia: schema e instrução de abrir em vez de mandar caminho', async () => {
+    const t = TOOLS.find((x) => x.name === 'abrir_midia')!.inputSchema as { properties: Record<string, unknown>; required?: string[] }
+    expect(Object.keys(t.properties)).toEqual(['caminhos', 'grupos', 'rotulos', 'titulos'])
+    expect(t.required ?? []).toEqual([])
+    const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
+    for (const k of ['abrir_midia', 'em vez de mandar caminhos', 'Não monte imagens lado a lado']) expect(r.result.instructions).toContain(k)
   })
   it('tools/call repassa e devolve texto; erro vira isError', async () => {
     const seen: unknown[] = []
@@ -58,7 +65,7 @@ describe('gt-mcp: protocolo', () => {
     serveLines(input, output, noCall)
     input.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) + '\n')
     await new Promise((r) => setTimeout(r, 50))
-    expect(JSON.parse(lines[0]).result.tools).toHaveLength(7)
+    expect(JSON.parse(lines[0]).result.tools).toHaveLength(8)
   })
   it('stdio: quando a entrada fecha (o Claude saiu), avisa para o processo encerrar', async () => {
     const input = new PassThrough()

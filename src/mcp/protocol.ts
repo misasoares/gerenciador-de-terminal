@@ -20,6 +20,7 @@ export const INSTRUCTIONS = [
   'Falar com um colega: Claude → Claude: SendMessage; para outra CLI: mandar_mensagem(para, texto). Quem não é Claude sempre usa mandar_mensagem. A mensagem entra na fila e é digitada no terminal do destinatário quando ele fica parado; a resposta chega no seu terminal com o prefixo [equipe].',
   NO_ACK_RULE,
   'Use interromper(para, texto?) só quando a tarefa atual do dev ficou inútil: ele para na hora e recebe o texto em seguida.',
+  'Quando o usuário pedir para ver, abrir, mostrar ou comparar imagens, vídeos, áudios ou PDFs, use abrir_midia em vez de mandar caminhos no texto. Para comparar, passe grupos (um por tela) e rótulos (ex.: iOS, Android). Não monte imagens lado a lado: o painel já compara. Só edite uma imagem (recortar, marcar) quando precisar apontar um detalhe, e abra o resultado com abrir_midia.',
 ].join('\n')
 
 export const TOOLS = [
@@ -75,6 +76,20 @@ export const TOOLS = [
     description:
       'Uso atual de CPU, RAM, swap e pressão de memória da máquina, os maiores consumidores (sessões do app, Colima/Docker, emulador, navegadores, top 5 processos), a RAM média por sessão do Claude e quantas sessões ainda cabem. Consulte antes de contratar devs.',
     inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'abrir_midia',
+    description:
+      'Abre imagens, vídeos, áudios ou PDFs num painel do Gerenciador de Terminal, ao lado desta sessão (qualquer sessão pode usar). Use caminhos para mídia avulsa ou grupos para comparar: cada grupo aparece lado a lado e o usuário passa de um grupo a outro com ← →. Ex.: grupos: [["ios/home.png","android/home.png"],["ios/eq.png","android/eq.png"]], rotulos: ["iOS","Android"]. Chamar de novo troca o conteúdo do mesmo painel. Caminho relativo vale a partir da pasta desta sessão; se algum não existir ou não for mídia, nada abre.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        caminhos: { type: 'array', items: { type: 'string' }, description: 'mídias avulsas (uma por vez); use isto ou grupos' },
+        grupos: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'comparações: cada grupo é uma lista de caminhos mostrados lado a lado' },
+        rotulos: { type: 'array', items: { type: 'string' }, description: 'nome de cada coluna, igual para todos os grupos (ex.: ["iOS","Android"])' },
+        titulos: { type: 'array', items: { type: 'string' }, description: 'título de cada grupo; padrão: nome do primeiro arquivo' },
+      },
+    },
   },
 ]
 
