@@ -273,7 +273,7 @@ function FileView({ paneId, floating }: { paneId: string; floating?: boolean }) 
         <div className="file-banner error">{problem}</div>
       ) : null}
       {kind && !problem ? (
-        <MediaView kind={kind} path={path} version={version} fit={fit} onToggleFit={() => setFit((v) => !v)} playerRef={player} onError={() => setProblem('cannot-open')} />
+        <MediaView kind={kind} path={path} version={version} fit={fit} onFitChange={setFit} playerRef={player} onError={() => setProblem('cannot-open')} />
       ) : !kind && problem !== 'cannot-open' && (problem !== 'missing' || mode === 'edit') && (
         mode === 'view' ? (
           <div

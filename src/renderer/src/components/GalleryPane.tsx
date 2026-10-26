@@ -10,7 +10,7 @@ import { baseName } from '../file-model'
 import { gridColumns, groupTitle, stepGroup } from '../gallery-model'
 import { useUi } from '../store'
 
-/** uma mídia da comparação: rótulo em cima, ajustar ↔ tamanho real no clique, recarrega quando muda no disco */
+/** uma mídia da comparação: rótulo em cima, ajustar ↔ zoom com arraste, recarrega quando muda no disco */
 function Cell({ path, label }: { path: string; label: string | null }) {
   const kind = mediaKind(path)
   const [version, setVersion] = useState(0)
@@ -39,7 +39,7 @@ function Cell({ path, label }: { path: string; label: string | null }) {
           <div className="pane-dead-title">{problem === 'missing' ? 'Arquivo não encontrado' : 'Não dá para mostrar aqui'}</div>
         </div>
       ) : (
-        <MediaView kind={kind} path={path} version={version} fit={fit} onToggleFit={() => setFit((v) => !v)} playerRef={player} onError={() => setProblem('cannot-open')} />
+        <MediaView kind={kind} path={path} version={version} fit={fit} onFitChange={setFit} alignTop playerRef={player} onError={() => setProblem('cannot-open')} />
       )}
     </div>
   )
