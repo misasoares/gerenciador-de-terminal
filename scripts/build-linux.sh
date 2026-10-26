@@ -8,7 +8,7 @@ mkdir -p "$HOME/.cache"
 WORK=$(mktemp -d "$HOME/.cache/gt-linux.XXXX")
 trap 'rm -rf "$WORK"' EXIT
 # sem .git: numa worktree ele é um arquivo que aponta para fora (o container não vê) e quebra até o git config --global
-rsync -a --exclude node_modules --exclude out --exclude dist --exclude .superpowers --exclude .vitest --exclude .git "$ROOT/" "$WORK/"
+rsync -a --exclude node_modules --exclude out --exclude dist --exclude .superpowers --exclude .vitest --exclude .git --exclude promo-videos "$ROOT/" "$WORK/"
 
 echo "== 1/3 testes no Linux (arm64 nativo)"
 docker run --rm --platform linux/arm64 -v "$WORK":/work -w /work node:22-bookworm sh scripts/linux-container.sh test
