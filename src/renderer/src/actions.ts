@@ -249,8 +249,12 @@ export function revealNextAttention(): void {
 
 /** tira da grade e abre numa janela flutuante (terminal, sessão ou arquivo) */
 export function floatPane(paneId: string): void {
-  hidePane(paneId)
-  window.gt.request({ t: 'float.set', paneId, mode: 'float' }).catch(showError)
+  // o daemon marca como flutuante antes de a grade salvar o layout sem a folha: senão a poda do layout.save
+  // apaga os dados do painel de arquivo (caminho, galeria) e a mídia aparece vazia aqui e ao encaixar
+  window.gt
+    .request({ t: 'float.set', paneId, mode: 'float' })
+    .then(() => hidePane(paneId))
+    .catch(showError)
 }
 
 /** volta da flutuante para a grade (aba ativa do espaço) */
