@@ -12,3 +12,7 @@ promo-videos/assets/clips/
 promo-videos/referencias/*.mp4
 promo-videos/assets/seq/
 .claude/worktrees/
+
+# capturas brutas do post do LinkedIn (a imagem final vai para docs/imagens)
+promo-videos/assets/screens/linkedin/*/
+promo-videos/assets/screens/linkedin/linkedin-painel.png

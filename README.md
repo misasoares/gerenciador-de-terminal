@@ -3,6 +3,8 @@
 App para macOS e Linux que hospeda várias sessões do Claude Code e do Codex em splits livres e mostra, por painel,
 projeto, worktree, branch, alterações, commits para push/pull, estado da sessão e conta.
 
+![Sete sessões do Claude Code: o tech-lead esperando resposta, três devs trabalhando cada um na sua worktree e duas janelas desencaixadas, uma delas pedindo resposta](docs/imagens/painel.jpg)
+
 ## Como funciona
 - Um daemon (`~/.gerenciador-terminal/daemon.sock`) é dono dos terminais: fechar ou atualizar o app não mata sessões.
 - Hooks do Claude Code (instalados em `~/.claude/settings.json`, com backup) avisam o app de mudança de pasta/worktree e do estado da sessão.
@@ -20,6 +22,10 @@ projeto, worktree, branch, alterações, commits para push/pull, estado da sess�
 ## Estados e avisos
 🟢 trabalhando · 🟡 precisa de você (permissão/opções) · 🔵 sua vez (terminou e espera resposta) · ⚪ ocioso.
 Abas não ativas ganham uma bolinha quando algo nelas espera você; o Dock mostra o total; o macOS notifica quando você não está vendo.
+
+Qualquer sessão pode sair da grade e flutuar por cima das outras janelas (⇧⌘F):
+
+<img src="docs/imagens/flutuante.jpg" width="560" alt="Janela flutuante de uma sessão pedindo resposta">
 
 ## Conflitos entre worktrees
 Botão ⇄ no projeto: compara cada worktree com a main e com cada outra (inclui alterações não commitadas), sem mexer em nada.
