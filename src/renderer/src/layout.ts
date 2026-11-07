@@ -166,3 +166,12 @@ export function withPaneInNewTab(l: Layout, paneId: string, tab: Tab): Layout {
 export function nodeKey(n: LayoutNode): string {
   return n.type === 'leaf' ? n.paneId : `split:${n.dir}:${leaves(n).join(',')}`
 }
+
+/** menor tamanho (px) que a árvore cabe sem espremer nenhum painel abaixo de minW × minH */
+export function minExtent(n: LayoutNode, minW: number, minH: number): { w: number; h: number } {
+  if (n.type === 'leaf') return { w: minW, h: minH }
+  const kids = n.children.map((c) => minExtent(c, minW, minH))
+  const sum = (k: 'w' | 'h') => kids.reduce((a, c) => a + c[k], 0)
+  const max = (k: 'w' | 'h') => Math.max(...kids.map((c) => c[k]))
+  return n.dir === 'row' ? { w: sum('w'), h: max('h') } : { w: max('w'), h: sum('h') }
+}

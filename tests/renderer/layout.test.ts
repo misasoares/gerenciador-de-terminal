@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, dockAtRoot, dockPane, withPaneInNewTab, nodeKey, setSizes, splitLeaf, withTabColor } from '../../src/renderer/src/layout'
+import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, dockAtRoot, dockPane, withPaneInNewTab, nodeKey, setSizes, splitLeaf, withTabColor, minExtent } from '../../src/renderer/src/layout'
 import type { Layout, LayoutNode } from '../../src/shared/types'
 
 const leaf = (paneId: string): LayoutNode => ({ type: 'leaf', paneId })
 
 describe('layout', () => {
+  it('minExtent: lado a lado soma na largura, empilhado soma na altura', () => {
+    expect(minExtent(leaf('a'), 400, 200)).toEqual({ w: 400, h: 200 })
+    const t: LayoutNode = { type: 'split', dir: 'row', sizes: [], children: [leaf('a'), { type: 'split', dir: 'column', sizes: [], children: [leaf('b'), leaf('c'), leaf('d')] }] }
+    expect(minExtent(t, 400, 200)).toEqual({ w: 800, h: 600 })
+  })
+
   it('split de folha cria nó; mesma direção insere ao lado', () => {
     const a = splitLeaf(leaf('a'), 'a', 'b', 'row')
     expect(a).toEqual({ type: 'split', dir: 'row', children: [leaf('a'), leaf('b')], sizes: [] })

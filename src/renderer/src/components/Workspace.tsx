@@ -6,7 +6,11 @@ import { animate, motion } from 'motion/react'
 import { tabAttention } from '../attention'
 import type { Layout, LayoutNode } from '../../../shared/types'
 import { activateTab, addTab, closeTab, dockPaneAt, movePaneToNewTab, moveToTab, PANE_MIME, renameTab, saveSizes } from '../actions'
-import { findTab, leaves, moveTab, nodeKey, tabInsertIndex, type Side } from '../layout'
+import { findTab, leaves, minExtent, moveTab, nodeKey, tabInsertIndex, type Side } from '../layout'
+
+/** menor tamanho de um painel (com o respiro): abaixo disso a aba ganha rolagem em vez de espremer */
+const MIN_PANE_W = 420
+const MIN_PANE_H = 220
 
 const TAB_MIME = 'application/x-gt-tab'
 
@@ -67,7 +71,7 @@ function SplitNode({ node, tabId, path }: { node: LayoutNode; tabId: string; pat
       onChange={(sizes) => saveSizes(tabId, path, sizes)}
     >
       {node.children.map((c, i) => (
-        <Allotment.Pane key={nodeKey(c)} minSize={160}>
+        <Allotment.Pane key={nodeKey(c)} minSize={node.dir === 'row' ? minExtent(c, MIN_PANE_W, MIN_PANE_H).w : minExtent(c, MIN_PANE_W, MIN_PANE_H).h}>
           <SplitNode node={c} tabId={tabId} path={[...path, i]} />
         </Allotment.Pane>
       ))}
@@ -274,8 +278,14 @@ export function Workspace({ empty, onAddProject }: { empty?: React.ReactNode; on
       for (const el of body.current.querySelectorAll<HTMLElement>('.pane-slot > *')) void animate(el, { opacity: [0.6, 1] }, pr.enter)
     shown.current = activeId
   }, [activeId, pr.enter])
+  // painel focado (clique, ⌘+setas) que esteja fora da área visível entra na tela
+  const focusedId = useUi((s) => s.focusedPaneId)
+  useEffect(() => {
+    if (focusedId) body.current?.querySelector(`.pane-slot[data-pane-id="${CSS.escape(focusedId)}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [focusedId, activeId])
   if (!layout) return null
   const tab = layout.tabs.find((t) => t.id === layout.activeTabId)
+  const ext = tab?.root ? minExtent(tab.root, MIN_PANE_W, MIN_PANE_H) : null
   return (
     <div className="workspace">
       <TabBar layout={layout} />
@@ -299,8 +309,13 @@ export function Workspace({ empty, onAddProject }: { empty?: React.ReactNode; on
           dockPaneAt(pane, tab.id, 'right')
         }}
       >
-        {tab?.root ? (
-          <SplitNode key={`${tab.id}:${tab.root.type === 'split' ? tab.root.dir : 'leaf'}`} node={tab.root} tabId={tab.id} path={[]} />
+        {tab?.root && ext ? (
+          // muitos painéis: a tela interna para no tamanho mínimo e a aba rola nos dois eixos
+          <div className="tab-scroll">
+            <div className="tab-canvas" style={{ minWidth: `calc(${ext.w}px + var(--pane-gap))`, minHeight: `calc(${ext.h}px + var(--pane-gap))` }}>
+              <SplitNode key={`${tab.id}:${tab.root.type === 'split' ? tab.root.dir : 'leaf'}`} node={tab.root} tabId={tab.id} path={[]} />
+            </div>
+          </div>
         ) : (
           (empty ?? <div className="empty">Nenhum painel aqui. ⌘T abre uma nova sessão; ⌘D abre um terminal.</div>)
         )}

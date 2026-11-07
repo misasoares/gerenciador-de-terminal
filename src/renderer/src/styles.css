@@ -117,6 +117,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tab input { width: 120px; background: var(--bg-input); color: var(--fg); border: 1px solid var(--accent); }
 .tab-close, .tab-add { background: none; padding: 0 4px; color: var(--fg-dim); }
 .tab-body { flex: 1; min-height: 0; position: relative; }
+.tab-scroll { position: absolute; inset: 0; overflow: auto; scrollbar-width: thin; }
+.tab-canvas { box-sizing: border-box; width: 100%; height: 100%; padding: calc(var(--pane-gap) / 2); }
 
 .pane { position: relative; display: flex; flex-direction: column; height: 100%; outline: 1px solid transparent; outline-offset: -1px; }
 .pane.focused { outline-color: var(--accent); }
@@ -486,7 +488,6 @@ html.glass .cm-editor, html.glass .cm-gutters { background-color: transparent !i
 
 /* temas premium: vidro sobre o fundo, painéis com respiro e cantos (no Padrão/Claro tudo vale 0) */
 .sidebar, .tabbar, .statusbar, .tabbar > .tab-add, .modal, .palette { backdrop-filter: blur(var(--surface-blur)) saturate(1.4); }
-.tab-body { padding: calc(var(--pane-gap) / 2); }
 .pane-slot { height: 100%; padding: calc(var(--pane-gap) / 2); }
 .pane-slot > .pane { border-radius: var(--pane-radius); box-shadow: var(--pane-shadow); overflow: hidden; background: var(--bg); }
 /* terminal encaixado: fundo do tom escolhido (vidro: translúcido e desfocado); cabeçalho sólido se o tom divergir do tema */
