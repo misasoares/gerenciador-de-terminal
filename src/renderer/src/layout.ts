@@ -27,7 +27,7 @@ export function splitLeaf(root: LayoutNode, target: string, paneId: string, dir:
   if (idx >= 0 && root.dir === dir) {
     const children = [...root.children]
     children.splice(idx + 1, 0, { type: 'leaf', paneId })
-    return { ...root, children, sizes: [] }
+    return { ...root, children, sizes: [], extra: undefined }
   }
   return { ...root, children: root.children.map((c) => splitLeaf(c, target, paneId, dir)) }
 }
@@ -37,7 +37,8 @@ export function removeLeaf(root: LayoutNode, paneId: string): LayoutNode | null 
   const children = root.children.map((c) => removeLeaf(c, paneId)).filter((c): c is LayoutNode => c !== null)
   if (children.length === 0) return null
   if (children.length === 1) return children[0]
-  return { ...root, children, sizes: children.length === root.children.length ? root.sizes : [] }
+  const same = children.length === root.children.length
+  return { ...root, children, sizes: same ? root.sizes : [], extra: same ? root.extra : undefined }
 }
 
 /** tira o painel do layout; a aba que fica vazia fecha junto, a não ser que seja a única */
@@ -98,7 +99,7 @@ export function insertBeside(root: LayoutNode, target: string, paneId: string, s
   if (idx >= 0 && root.dir === dir) {
     const children = [...root.children]
     children.splice(before ? idx : idx + 1, 0, fresh)
-    return { ...root, children, sizes: [] }
+    return { ...root, children, sizes: [], extra: undefined }
   }
   return { ...root, children: root.children.map((c) => insertBeside(c, target, paneId, side)) }
 }
@@ -139,7 +140,7 @@ export function dockAtRoot(root: LayoutNode | null, paneId: string, side: Side):
   const dir = side === 'left' || side === 'right' ? 'row' : 'column'
   const before = side === 'left' || side === 'top'
   if (root.type === 'split' && root.dir === dir) {
-    return { ...root, children: before ? [fresh, ...root.children] : [...root.children, fresh], sizes: [] }
+    return { ...root, children: before ? [fresh, ...root.children] : [...root.children, fresh], sizes: [], extra: undefined }
   }
   return { type: 'split', dir, sizes: [], children: before ? [fresh, root] : [root, fresh] }
 }
@@ -173,5 +174,49 @@ export function minExtent(n: LayoutNode, minW: number, minH: number): { w: numbe
   const kids = n.children.map((c) => minExtent(c, minW, minH))
   const sum = (k: 'w' | 'h') => kids.reduce((a, c) => a + c[k], 0)
   const max = (k: 'w' | 'h') => Math.max(...kids.map((c) => c[k]))
-  return n.dir === 'row' ? { w: sum('w'), h: max('h') } : { w: max('w'), h: sum('h') }
+  const extra = n.extra ?? 0
+  return n.dir === 'row' ? { w: sum('w') + extra, h: max('h') } : { w: max('w'), h: sum('h') + extra }
+}
+
+/** grava quanto a divisão cresceu além dos mínimos */
+export function withSplitExtra(root: LayoutNode, path: number[], extra: number): LayoutNode {
+  if (root.type === 'leaf') return root
+  if (path.length === 0) return { ...root, extra: extra > 0 ? extra : undefined }
+  const [i, ...rest] = path
+  return { ...root, children: root.children.map((c, j) => (j === i ? withSplitExtra(c, rest, extra) : c)) }
+}
+
+/**
+ * arraste do divisor depois do painel index, em relação ao início do arraste.
+ * Aumentar tira dos painéis seguintes até o mínimo; o que faltar faz a aba crescer.
+ * Diminuir devolve primeiro o que está rolando (a aba encolhe); o resto vai para o vizinho.
+ */
+export function growDrag(o: { sizes: number[]; mins: number[]; index: number; delta: number; extra: number; overflow: number }): { sizes: number[]; extra: number } {
+  const next = [...o.sizes]
+  const i = o.index
+  const minSum = o.mins.reduce((a, b) => a + b, 0)
+  const start = o.sizes.reduce((a, b) => a + b, 0)
+  let change = 0
+  if (o.delta > 0) {
+    next[i] += o.delta
+    let rest = o.delta
+    for (let j = i + 1; j < next.length && rest > 0; j++) {
+      const take = Math.min(rest, Math.max(0, next[j] - o.mins[j]))
+      next[j] -= take
+      rest -= take
+    }
+    change = rest
+  } else if (o.delta < 0) {
+    let rest = -o.delta
+    for (let j = i; j >= 0 && rest > 0; j--) {
+      const take = Math.min(rest, Math.max(0, next[j] - o.mins[j]))
+      next[j] -= take
+      rest -= take
+    }
+    const freed = -o.delta - rest
+    const shrink = Math.min(freed, o.overflow)
+    if (i + 1 < next.length) next[i + 1] += freed - shrink
+    change = -shrink
+  }
+  return { sizes: next, extra: change === 0 ? o.extra : Math.max(0, start + change - minSum) }
 }

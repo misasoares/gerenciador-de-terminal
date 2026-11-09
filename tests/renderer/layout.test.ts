@@ -1,10 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, dockAtRoot, dockPane, withPaneInNewTab, nodeKey, setSizes, splitLeaf, withTabColor, minExtent } from '../../src/renderer/src/layout'
+import { findTab, leaves, neighbor, removeLeaf, removePane, moveTab, tabInsertIndex, dockAtRoot, dockPane, withPaneInNewTab, nodeKey, setSizes, splitLeaf, withTabColor, minExtent, growDrag, withSplitExtra } from '../../src/renderer/src/layout'
 import type { Layout, LayoutNode } from '../../src/shared/types'
 
 const leaf = (paneId: string): LayoutNode => ({ type: 'leaf', paneId })
 
 describe('layout', () => {
+  const mins = [400, 400, 400]
+  it('growDrag: tira do vizinho enquanto ele tem folga', () => {
+    expect(growDrag({ sizes: [500, 600, 400], mins, index: 0, delta: 100, extra: 0, overflow: 0 })).toEqual({ sizes: [600, 500, 400], extra: 0 })
+  })
+  it('growDrag: vizinhos no mínimo, o painel cresce e a aba aumenta', () => {
+    expect(growDrag({ sizes: [400, 400, 400], mins, index: 0, delta: 150, extra: 0, overflow: 200 })).toEqual({ sizes: [550, 400, 400], extra: 150 })
+  })
+  it('growDrag: consome a folga e só o resto aumenta a aba', () => {
+    expect(growDrag({ sizes: [400, 450, 400], mins, index: 0, delta: 100, extra: 0, overflow: 0 })).toEqual({ sizes: [500, 400, 400], extra: 100 })
+  })
+  it('growDrag: voltar encolhe a aba enquanto houver rolagem', () => {
+    expect(growDrag({ sizes: [550, 400, 400], mins, index: 0, delta: -100, extra: 150, overflow: 300 })).toEqual({ sizes: [450, 400, 400], extra: 50 })
+  })
+  it('growDrag: sem rolagem, encolher devolve a largura ao vizinho', () => {
+    expect(growDrag({ sizes: [600, 400, 400], mins, index: 0, delta: -100, extra: 0, overflow: 0 })).toEqual({ sizes: [500, 500, 400], extra: 0 })
+  })
+  it('growDrag: não passa do mínimo ao encolher', () => {
+    expect(growDrag({ sizes: [400, 400, 400], mins, index: 0, delta: -50, extra: 0, overflow: 100 })).toEqual({ sizes: [400, 400, 400], extra: 0 })
+  })
+  it('extra entra no mínimo e some quando a divisão muda', () => {
+    const t: LayoutNode = { type: 'split', dir: 'row', sizes: [], children: [leaf('a'), leaf('b')] }
+    const x = withSplitExtra(t, [], 150)
+    expect(minExtent(x, 400, 200)).toEqual({ w: 950, h: 200 })
+    const added = splitLeaf(x, 'a', 'c', 'row')
+    expect(minExtent(added, 400, 200).w).toBe(1200)
+    const removed = removeLeaf(withSplitExtra({ ...t, children: [leaf('a'), leaf('b'), leaf('c')] }, [], 150), 'c')!
+    expect(minExtent(removed, 400, 200).w).toBe(800)
+  })
+
   it('minExtent: lado a lado soma na largura, empilhado soma na altura', () => {
     expect(minExtent(leaf('a'), 400, 200)).toEqual({ w: 400, h: 200 })
     const t: LayoutNode = { type: 'split', dir: 'row', sizes: [], children: [leaf('a'), { type: 'split', dir: 'column', sizes: [], children: [leaf('b'), leaf('c'), leaf('d')] }] }

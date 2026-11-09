@@ -153,7 +153,7 @@ export interface PaneView {
 
 export type LayoutNode =
   | { type: 'leaf'; paneId: string }
-  | { type: 'split'; dir: 'row' | 'column'; children: LayoutNode[]; sizes: number[] }
+  | { type: 'split'; dir: 'row' | 'column'; children: LayoutNode[]; sizes: number[]; /** px além da soma dos mínimos, ganhos arrastando um divisor: fazem a aba crescer e rolar */ extra?: number }
 
 export interface Tab {
   id: string
