@@ -12,6 +12,15 @@ describe('FocusReporter', () => {
     r.report('b', true)
     expect(sent).toEqual(['a', null, 'b'])
   })
+  it('janela em foco sem painel também avisa (o daemon pausa o git só sem foco)', () => {
+    const sent: [string | null, boolean][] = []
+    const r = new FocusReporter((id, w) => sent.push([id, w]))
+    r.report(null, true)
+    r.report(null, false)
+    r.report(null, false)
+    r.report(null, true)
+    expect(sent).toEqual([[null, true], [null, false], [null, true]])
+  })
   it('reset (conexão nova) repete o último foco', () => {
     const sent: (string | null)[] = []
     const r = new FocusReporter((id) => sent.push(id))

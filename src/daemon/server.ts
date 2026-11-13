@@ -11,6 +11,8 @@ export interface Conn {
   subscriptions: Map<string, number>
   /** painel focado nesta janela (null = janela sem foco) */
   focusedPaneId: string | null
+  /** janela em foco (null = ainda não informou; a conexão de serviço do app nunca informa) */
+  windowFocused: boolean | null
   send(m: ServerMessage): void
   end(): void
   onClose(fn: () => void): void
@@ -42,6 +44,7 @@ export async function startServer(socketPath: string, handler: Handler): Promise
       workspaceId: 'principal',
       subscriptions: new Map(),
       focusedPaneId: null,
+      windowFocused: null,
       send: (m) => {
         if (!sock.destroyed) sock.write(encode(m))
       },

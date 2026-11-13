@@ -28,6 +28,31 @@ describe('GitMonitor', () => {
     expect(mon.get(repo.dir)).toBeNull()
   })
 
+  it('worktree sem painel atualiza no intervalo longo; sem foco, pausa; voltar ao foco atualiza', async () => {
+    repo = makeRepo()
+    const other = makeRepo()
+    try {
+      mon = new GitMonitor(() => {}, { pollMs: 100, coldPollMs: 60_000, debounceMs: 10 })
+      mon.track([repo.dir, other.dir])
+      await waitFor(() => mon!.get(repo!.dir) && mon!.get(other.dir))
+      mon.setPriority([repo.dir], true)
+      repo.write('a.txt', 'x')
+      other.write('a.txt', 'x')
+      await waitFor(() => mon!.get(repo!.dir)?.changed === 1)
+      await new Promise((r) => setTimeout(r, 400))
+      expect(mon.get(other.dir)?.changed).toBe(0) // frio: só daqui a 60 s
+      mon.setPriority([repo.dir], false)
+      await new Promise((r) => setTimeout(r, 300)) // o git status em curso termina
+      repo.write('b.txt', 'x')
+      await new Promise((r) => setTimeout(r, 400))
+      expect(mon.get(repo.dir)?.changed).toBe(1) // sem foco: parado
+      mon.setPriority([repo.dir], true)
+      await waitFor(() => mon!.get(repo!.dir)?.changed === 2 && mon!.get(other.dir)?.changed === 1)
+    } finally {
+      other.cleanup()
+    }
+  })
+
   it('erro de git vira campo error, sem exceção', async () => {
     repo = makeRepo()
     mon = new GitMonitor(() => {}, { pollMs: 200, debounceMs: 20 })

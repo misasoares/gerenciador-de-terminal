@@ -2,15 +2,16 @@ import { getUi, subscribeUi } from './store'
 
 /** foco desta janela para o daemon: só quando muda; janela sem foco conta como nenhum painel */
 export class FocusReporter {
-  private last: string | null | undefined = undefined
+  private last: string | undefined = undefined
 
-  constructor(private send: (paneId: string | null) => void) {}
+  constructor(private send: (paneId: string | null, windowFocused: boolean) => void) {}
 
   report(paneId: string | null, windowFocused: boolean): void {
     const target = windowFocused ? paneId : null
-    if (target === this.last) return
-    this.last = target
-    this.send(target)
+    const key = `${windowFocused}|${target}`
+    if (key === this.last) return
+    this.last = key
+    this.send(target, windowFocused)
   }
 
   /** conexão nova com o daemon: o próximo report sempre vai */
@@ -21,7 +22,7 @@ export class FocusReporter {
 
 /** o daemon não hiberna o painel em foco e acorda o hibernado quando ele ganha foco */
 export function startFocusSync(): void {
-  const reporter = new FocusReporter((paneId) => window.gt.send({ t: 'pane.focus', paneId }))
+  const reporter = new FocusReporter((paneId, windowFocused) => window.gt.send({ t: 'pane.focus', paneId, windowFocused }))
   let connected = getUi().connected
   const push = () => reporter.report(getUi().focusedPaneId, document.hasFocus())
   subscribeUi(() => {

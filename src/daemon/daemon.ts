@@ -60,6 +60,8 @@ export interface DaemonOptions {
   /** sobrescreve os minutos das Preferências (testes) */
   hibernateThresholdMs?: number
   gitPollMs?: number
+  /** worktrees sem painel aberto (padrão: 6× gitPollMs) */
+  gitColdPollMs?: number
   fetchIntervalMs?: number
   conflictsDebounceMs?: number
   /** shell usado para detectar claude/codex (testes injetam um falso) */
@@ -266,7 +268,7 @@ export class Daemon {
     this.monitor = new GitMonitor((p) => {
       if (p) this.onWorktreeChanged(p)
       this.changed(false)
-    }, { pollMs: this.o.gitPollMs ?? 10_000, debounceMs: 300 })
+    }, { pollMs: this.o.gitPollMs ?? 10_000, coldPollMs: this.o.gitColdPollMs, debounceMs: 300 })
     // worktrees criadas/removidas: os painéis recalculam onde estão (e desfazem dedução de worktree que sumiu)
     this.registry = new ProjectRegistry(p.projects, () => {
       this.changed()
@@ -406,9 +408,22 @@ export class Daemon {
     }, 100)
   }
 
+  /** git status a cada gitPollMs só nas worktrees com painel; sem janela em foco, pausa */
+  private gitPriority(): void {
+    const hot = this.panes.records().flatMap((r) => {
+      const wt = this.panes.effectiveWorktree(r)
+      return wt ? [wt] : []
+    })
+    const apps = [...(this.server?.conns ?? [])].filter((c) => c.role === 'app')
+    // nenhuma janela informou foco (ao abrir, clientes antigos): segue como antes, com polling
+    const active = apps.some((c) => c.windowFocused === true) || (apps.length > 0 && apps.every((c) => c.windowFocused === null))
+    this.monitor.setPriority(hot, active)
+  }
+
   private changed(persist = true): void {
     if (this.stopping) return
     this.monitor.track(this.registry.allWorktreePaths())
+    this.gitPriority()
     this.tickDelivery()
     if (!this.broadcastTimer) {
       this.broadcastTimer = setTimeout(() => {
@@ -969,6 +984,10 @@ export class Daemon {
     switch (req.t) {
       case 'hello':
         conn.role = req.role
+        if (req.role === 'app') {
+          this.gitPriority()
+          conn.onClose(() => { if (!this.stopping) this.gitPriority() })
+        }
         if (req.workspaceId && this.persisted.workspaces.some((w) => w.id === req.workspaceId)) {
           conn.workspaceId = req.workspaceId
           // só a janela de um espaço (id explícito) o marca aberto; a conexão de serviço do app não
@@ -1169,6 +1188,8 @@ export class Daemon {
         return null
       case 'pane.focus':
         conn.focusedPaneId = req.paneId
+        conn.windowFocused = req.windowFocused ?? true
+        this.gitPriority()
         if (req.paneId) await this.hibernator.wake(req.paneId)
         return null
       case 'project.add': {

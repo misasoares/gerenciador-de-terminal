@@ -11,11 +11,35 @@ export class GitMonitor {
   private tracked = new Set<string>()
   private pollTimer: NodeJS.Timeout | null = null
   private fetchTimer: NodeJS.Timeout | null = null
+  /** worktrees com painel aberto: polling a cada pollMs; null = todas (antes do daemon informar) */
+  private hot: Set<string> | null = null
+  /** alguma janela do app em foco; sem foco, só o watcher do .git e os hooks atualizam */
+  private active = true
+  private lastPoll = new Map<string, number>()
 
   constructor(
     private onChange: (path?: string) => void,
-    private opts: { pollMs: number; debounceMs: number } = { pollMs: 10_000, debounceMs: 300 },
+    private opts: { pollMs: number; coldPollMs?: number; debounceMs: number } = { pollMs: 10_000, debounceMs: 300 },
   ) {}
+
+  /** quem está aberto e se o app está em uso; voltar ao foco atualiza tudo de uma vez */
+  setPriority(hot: Iterable<string>, active: boolean): void {
+    this.hot = new Set(hot)
+    const woke = active && !this.active
+    this.active = active
+    if (woke) for (const p of this.tracked) this.refresh(p)
+  }
+
+  private poll(): void {
+    if (!this.active) return
+    const now = Date.now()
+    const cold = this.opts.coldPollMs ?? this.opts.pollMs * 6
+    for (const p of this.tracked) {
+      // margem de meio intervalo: o setInterval atrasa um pouco e pularia uma volta inteira
+      if (this.hot && !this.hot.has(p) && now - (this.lastPoll.get(p) ?? 0) < cold - this.opts.pollMs / 2) continue
+      this.refresh(p)
+    }
+  }
 
   get(worktreePath: string): GitStatus | null {
     return this.status.get(worktreePath) ?? null
@@ -35,6 +59,7 @@ export class GitMonitor {
       clearTimeout(this.debounce.get(p))
       this.debounce.delete(p)
       this.status.delete(p)
+      this.lastPoll.delete(p)
     }
     for (const p of next) {
       if (this.tracked.has(p)) continue
@@ -43,9 +68,7 @@ export class GitMonitor {
       this.refresh(p)
     }
     if (!this.pollTimer) {
-      this.pollTimer = setInterval(() => {
-        for (const p of this.tracked) this.refresh(p)
-      }, this.opts.pollMs)
+      this.pollTimer = setInterval(() => this.poll(), this.opts.pollMs)
     }
   }
 
@@ -62,6 +85,7 @@ export class GitMonitor {
   }
 
   async refreshNow(p: string): Promise<void> {
+    this.lastPoll.set(p, Date.now())
     const r = await git(p, ['status', '--porcelain=v2', '--branch'])
     if (!this.tracked.has(p)) return
     const prev = this.status.get(p)
@@ -105,6 +129,7 @@ export class GitMonitor {
     this.debounce.clear()
     this.watchers.clear()
     this.tracked.clear()
+    this.lastPoll.clear()
   }
 
   private async watch(p: string): Promise<void> {
