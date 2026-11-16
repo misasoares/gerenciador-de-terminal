@@ -17,13 +17,15 @@ export function MediaView(o: {
   /** vídeo/áudio: quem chama olha se está tocando antes de recarregar */
   playerRef: RefObject<HTMLMediaElement | null>
   onError(): void
+  /** imagem/vídeo: tamanho natural quando carrega (galeria escolhe as colunas por ele) */
+  onSize?(size: Size): void
 }) {
   const src = mediaUrl(o.path, o.version)
-  if (o.kind === 'image') return <ImageView src={src} fit={o.fit} onFitChange={o.onFitChange} alignTop={!!o.alignTop} onError={o.onError} />
+  if (o.kind === 'image') return <ImageView src={src} fit={o.fit} onFitChange={o.onFitChange} alignTop={!!o.alignTop} onError={o.onError} onSize={o.onSize} />
   if (o.kind === 'video') {
     return (
       <div className="media-box media-video">
-        <video ref={o.playerRef as RefObject<HTMLVideoElement>} src={src} controls preload="metadata" onError={o.onError} />
+        <video ref={o.playerRef as RefObject<HTMLVideoElement>} src={src} controls preload="metadata" onError={o.onError} onLoadedMetadata={(e) => o.onSize?.({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })} />
       </div>
     )
   }
@@ -41,7 +43,7 @@ export function MediaView(o: {
 const CLICK_SLOP = 4
 
 /** pinça ou ⌘/Ctrl + roda: zoom no cursor · roda ou arraste: anda pela imagem · clique: ajustar ↔ 100% */
-function ImageView(o: { src: string; fit: boolean; onFitChange(fit: boolean): void; alignTop: boolean; onError(): void }) {
+function ImageView(o: { src: string; fit: boolean; onFitChange(fit: boolean): void; alignTop: boolean; onError(): void; onSize?(size: Size): void }) {
   const box = useRef<HTMLDivElement>(null)
   const [boxSize, setBoxSize] = useState<Size>({ w: 0, h: 0 })
   const [img, setImg] = useState<Size | null>(null)
@@ -71,11 +73,19 @@ function ImageView(o: { src: string; fit: boolean; onFitChange(fit: boolean): vo
     return () => ro.disconnect()
   }, [])
 
-  // painel mudou de tamanho: ajustada continua ajustada; com zoom, só segura dentro dos limites
+  // painel mudou de tamanho: ajustada continua ajustada; com zoom, só segura dentro dos limites.
+  // "ajustada" é a do tamanho anterior (wasFit): comparar a vista antiga com a caixa nova daria zoom falso ao encolher
+  const wasFit = useRef(true)
   useLayoutEffect(() => {
     if (!img || boxSize.w === 0) return
-    setView((v) => (!v || isFit(v, boxSize, img) ? fitView(boxSize, img, top) : zoomTo(v, v.scale, { x: 0, y: 0 }, boxSize, img, top)))
+    // lê agora: o atualizador roda no próximo render, depois do efeito de baixo já ter gravado o estado novo
+    const was = wasFit.current
+    setView((v) => (!v || was ? fitView(boxSize, img, top) : zoomTo(v, v.scale, { x: 0, y: 0 }, boxSize, img, top)))
   }, [boxSize, img, top])
+  // depois do ajuste acima (ordem dos efeitos): guarda o estado deste render para o próximo redimensionamento
+  useLayoutEffect(() => {
+    if (view && img) wasFit.current = fitted
+  })
 
   // pedido de fora (botão 100% / Ajustar do cabeçalho)
   useEffect(() => {
@@ -155,7 +165,11 @@ function ImageView(o: { src: string; fit: boolean; onFitChange(fit: boolean): vo
         alt=""
         draggable={false}
         onError={o.onError}
-        onLoad={(e) => setImg({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+        onLoad={(e) => {
+          const size = { w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight }
+          setImg(size)
+          o.onSize?.(size)
+        }}
         style={
           img && view
             ? { left: v.x, top: v.y, width: img.w * v.scale, height: img.h * v.scale, imageRendering: v.scale >= 4 ? 'pixelated' : undefined }
