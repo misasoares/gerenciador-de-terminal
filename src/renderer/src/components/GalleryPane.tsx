@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { dropOnPane, floatPane, focusPane, PANE_MIME, requestCloseFile } from '../actions'
 import { FloatControls } from './FloatControls'
@@ -7,11 +7,11 @@ import { mediaKind } from '../../../shared/media'
 import { dropZone, type DropZone } from '../layout'
 import { onFileChanged } from '../file-events'
 import { baseName } from '../file-model'
-import { gridColumns, groupTitle, stepGroup } from '../gallery-model'
+import { bestColumns, groupTitle, stepGroup, type GridMetrics } from '../gallery-model'
 import { useUi } from '../store'
 
 /** uma mídia da comparação: rótulo em cima, ajustar ↔ zoom com arraste, recarrega quando muda no disco */
-function Cell({ path, label }: { path: string; label: string | null }) {
+function Cell({ path, label, onAspect }: { path: string; label: string | null; onAspect(aspect: number): void }) {
   const kind = mediaKind(path)
   const [version, setVersion] = useState(0)
   const [fit, setFit] = useState(true)
@@ -39,19 +39,26 @@ function Cell({ path, label }: { path: string; label: string | null }) {
           <div className="pane-dead-title">{problem === 'missing' ? 'Arquivo não encontrado' : 'Não dá para mostrar aqui'}</div>
         </div>
       ) : (
-        <MediaView kind={kind} path={path} version={version} fit={fit} onFitChange={setFit} alignTop playerRef={player} onError={() => setProblem('cannot-open')} />
+        <MediaView kind={kind} path={path} version={version} fit={fit} onFitChange={setFit} alignTop playerRef={player} onError={() => setProblem('cannot-open')} onSize={(s) => s.w > 0 && s.h > 0 && onAspect(s.w / s.h)} />
       )}
     </div>
   )
 }
 
-/** comparação aberta pelo agente (abrir_midia): um grupo por vez, lado a lado; ← → trocam, Esc fecha */
+/** precisa bater com .gallery-grid / .gallery-label no styles.css */
+const GRID: GridMetrics = { gap: 6, pad: 6, label: 22 }
+
+/** comparação aberta pelo agente (abrir_midia): um grupo por vez, em colunas e linhas que deixam as mídias maiores; ← → trocam, Esc fecha */
 export function GalleryPane({ paneId, floating }: { paneId: string; floating?: boolean }) {
   const gallery = useUi((s) => s.app?.filePanes[paneId]?.gallery)
   const focused = useUi((s) => s.focusedPaneId === paneId)
   const root = useRef<HTMLDivElement>(null)
   const [i, setI] = useState(0)
   const [zone, setZone] = useState<DropZone | null>(null)
+  const grid = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState({ w: 0, h: 0 })
+  // largura ÷ altura de cada mídia, por caminho (vídeo/pdf/áudio sem medida ficam no 16:9)
+  const [aspects, setAspects] = useState<Record<string, number>>({})
   const zoneAt = (e: React.DragEvent<HTMLDivElement>): DropZone => {
     const r = e.currentTarget.getBoundingClientRect()
     return dropZone((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height)
@@ -62,11 +69,24 @@ export function GalleryPane({ paneId, floating }: { paneId: string; floating?: b
   useEffect(() => {
     if (focused) root.current?.focus()
   }, [focused])
+  // encaixado, flutuante ou janela redimensionada: a grade se refaz pelo tamanho atual
+  useLayoutEffect(() => {
+    const el = grid.current
+    if (!el) return
+    const measure = () => setBox((b) => (b.w === el.clientWidth && b.h === el.clientHeight ? b : { w: el.clientWidth, h: el.clientHeight }))
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    measure()
+    return () => ro.disconnect()
+  }, [!!gallery])
   if (!gallery) return null
   const total = gallery.groups.length
   const at = Math.min(i, total - 1)
   const group = gallery.groups[at]
   const go = (d: 1 | -1) => setI(stepGroup(at, d, total))
+  const layout = gallery.layout ?? 'auto'
+  const cols = layout === 'lado_a_lado' ? group.length : layout === 'empilhado' ? 1 : bestColumns(group.map((p) => aspects[p] ?? null), box, GRID)
+  const setAspect = (p: string, a: number) => setAspects((m) => (Math.abs((m[p] ?? 0) - a) < 0.001 ? m : { ...m, [p]: a }))
 
   return (
     <div
@@ -123,9 +143,9 @@ export function GalleryPane({ paneId, floating }: { paneId: string; floating?: b
           </>
         )}
       </div>
-      <div className="gallery-grid" style={{ gridTemplateColumns: `repeat(${gridColumns(group.length)}, minmax(0, 1fr))` }}>
+      <div ref={grid} className="gallery-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
         {group.map((p, j) => (
-          <Cell key={`${at}:${j}:${p}`} path={p} label={gallery.labels?.[j] ?? null} />
+          <Cell key={`${at}:${j}:${p}`} path={p} label={gallery.labels?.[j] ?? null} onAspect={(a) => setAspect(p, a)} />
         ))}
       </div>
     </div>

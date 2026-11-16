@@ -20,6 +20,13 @@ describe('abrir_midia: argumentos', () => {
       'não abri nada: /p/zz.png (não existe), /p/n.txt (não é imagem, vídeo, áudio ou PDF)',
     )
   })
+  it('disposicao: auto some do resultado, as outras vão junto, inválida recusa', () => {
+    const base = { grupos: [['a.png', 'b.png']] }
+    expect(parseOpenMedia({ ...base, disposicao: 'auto' }, o).layout).toBeUndefined()
+    expect(parseOpenMedia({ ...base, disposicao: 'lado_a_lado' }, o).layout).toBe('lado_a_lado')
+    expect(parseOpenMedia({ ...base, disposicao: 'empilhado' }, o).layout).toBe('empilhado')
+    expect(() => parseOpenMedia({ ...base, disposicao: 'diagonal' }, o)).toThrow(/disposicao/)
+  })
   it('formato inválido', () => {
     for (const bad of [{}, { caminhos: [] }, { grupos: [] }, { grupos: [[]] }, { caminhos: ['a.png'], grupos: [['a.png']] }, { caminhos: 'a.png' }, { grupos: [['a.png']], rotulos: [1] }])
       expect(() => parseOpenMedia(bad, o)).toThrow('passe caminhos (lista) ou grupos (lista de listas)')

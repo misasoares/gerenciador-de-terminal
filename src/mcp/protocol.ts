@@ -20,7 +20,7 @@ export const INSTRUCTIONS = [
   'Falar com um colega: Claude → Claude: SendMessage; para outra CLI: mandar_mensagem(para, texto). Quem não é Claude sempre usa mandar_mensagem. A mensagem entra na fila e é digitada no terminal do destinatário quando ele fica parado; a resposta chega no seu terminal com o prefixo [equipe].',
   NO_ACK_RULE,
   'Use interromper(para, texto?) só quando a tarefa atual do dev ficou inútil: ele para na hora e recebe o texto em seguida.',
-  'Quando o usuário pedir para ver, abrir, mostrar ou comparar imagens, vídeos, áudios ou PDFs, use abrir_midia em vez de mandar caminhos no texto. Para comparar, passe grupos (um por tela) e rótulos (ex.: iOS, Android). Não monte imagens lado a lado: o painel já compara. Só edite uma imagem (recortar, marcar) quando precisar apontar um detalhe, e abra o resultado com abrir_midia.',
+  'Quando o usuário pedir para ver, abrir, mostrar ou comparar imagens, vídeos, áudios ou PDFs, use abrir_midia em vez de mandar caminhos no texto. Para comparar, passe grupos (um por tela) e rótulos (ex.: iOS, Android); em antes × depois ou versões da mesma tela, use disposicao: "lado_a_lado". Não monte imagens lado a lado: o painel já compara. Só edite uma imagem (recortar, marcar) quando precisar apontar um detalhe, e abra o resultado com abrir_midia.',
 ].join('\n')
 
 export const TOOLS = [
@@ -80,14 +80,19 @@ export const TOOLS = [
   {
     name: 'abrir_midia',
     description:
-      'Abre imagens, vídeos, áudios ou PDFs num painel do Gerenciador de Terminal, ao lado desta sessão (qualquer sessão pode usar). Use caminhos para mídia avulsa ou grupos para comparar: cada grupo aparece lado a lado e o usuário passa de um grupo a outro com ← →. Ex.: grupos: [["ios/home.png","android/home.png"],["ios/eq.png","android/eq.png"]], rotulos: ["iOS","Android"]. Chamar de novo troca o conteúdo do mesmo painel. Caminho relativo vale a partir da pasta desta sessão; se algum não existir ou não for mídia, nada abre.',
+      'Abre imagens, vídeos, áudios ou PDFs num painel do Gerenciador de Terminal, ao lado desta sessão (qualquer sessão pode usar). Use caminhos para mídia avulsa ou grupos para comparar: o usuário vê um grupo por vez e passa de um a outro com ← →. Por padrão o painel arruma o grupo em colunas e linhas que deixam as mídias maiores (imagens largas tendem a ficar empilhadas); quando a comparação pede olhar uma ao lado da outra (antes × depois, versão A × B), passe disposicao: "lado_a_lado"; para ler de cima a baixo (ex.: páginas, telas largas), "empilhado". Ex.: grupos: [["ios/home.png","android/home.png"],["ios/eq.png","android/eq.png"]], rotulos: ["iOS","Android"]. Chamar de novo troca o conteúdo do mesmo painel. Caminho relativo vale a partir da pasta desta sessão; se algum não existir ou não for mídia, nada abre.',
     inputSchema: {
       type: 'object',
       properties: {
         caminhos: { type: 'array', items: { type: 'string' }, description: 'mídias avulsas (uma por vez); use isto ou grupos' },
-        grupos: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'comparações: cada grupo é uma lista de caminhos mostrados lado a lado' },
+        grupos: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'comparações: cada grupo é uma lista de caminhos mostrados juntos na tela (arrumação em disposicao)' },
         rotulos: { type: 'array', items: { type: 'string' }, description: 'nome de cada coluna, igual para todos os grupos (ex.: ["iOS","Android"])' },
         titulos: { type: 'array', items: { type: 'string' }, description: 'título de cada grupo; padrão: nome do primeiro arquivo' },
+        disposicao: {
+          type: 'string',
+          enum: ['auto', 'lado_a_lado', 'empilhado'],
+          description: 'como arrumar as mídias de cada grupo: auto (padrão; maior tamanho possível), lado_a_lado (todas numa linha, bom para antes × depois) ou empilhado (uma embaixo da outra)',
+        },
       },
     },
   },

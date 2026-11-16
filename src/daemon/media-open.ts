@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { mediaKind } from '../shared/media'
-import type { MediaGallery } from '../shared/types'
+import { MEDIA_LAYOUTS, type MediaGallery, type MediaLayout } from '../shared/types'
 
 const SHAPE = 'passe caminhos (lista) ou grupos (lista de listas)'
 
@@ -20,11 +20,14 @@ export function parseOpenMedia(args: Record<string, unknown>, o: { cwd: string; 
   else throw new Error(SHAPE)
   const labels = optList(args.rotulos, 'rotulos')
   const titles = optList(args.titulos, 'titulos')
+  const d = args.disposicao
+  if (d !== undefined && d !== null && !MEDIA_LAYOUTS.includes(d as MediaLayout)) throw new Error(`disposicao deve ser ${MEDIA_LAYOUTS.join(', ')}`)
+  const layout = (d ?? 'auto') as MediaLayout
   const abs = (p: string) => path.resolve(o.cwd, p === '~' ? o.home : p.startsWith('~/') ? path.join(o.home, p.slice(2)) : p)
   const groups = raw.map((g) => g.map((p) => abs(p.trim())))
   const bad = [...new Set(groups.flat())].flatMap((p) =>
     !o.isFile(p) ? [`${p} (não existe)`] : !mediaKind(p) ? [`${p} (não é imagem, vídeo, áudio ou PDF)`] : [],
   )
   if (bad.length) throw new Error(`não abri nada: ${bad.join(', ')}`)
-  return { groups, labels, titles }
+  return { groups, labels, titles, ...(layout !== 'auto' && { layout }) }
 }

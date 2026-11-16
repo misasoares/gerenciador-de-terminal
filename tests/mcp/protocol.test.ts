@@ -39,7 +39,7 @@ describe('gt-mcp: protocolo', () => {
   })
   it('abrir_midia: schema e instrução de abrir em vez de mandar caminho', async () => {
     const t = TOOLS.find((x) => x.name === 'abrir_midia')!.inputSchema as { properties: Record<string, unknown>; required?: string[] }
-    expect(Object.keys(t.properties)).toEqual(['caminhos', 'grupos', 'rotulos', 'titulos'])
+    expect(Object.keys(t.properties)).toEqual(['caminhos', 'grupos', 'rotulos', 'titulos', 'disposicao'])
     expect(t.required ?? []).toEqual([])
     const r = (await handleMessage({ jsonrpc: '2.0', id: 9, method: 'initialize', params: {} }, noCall)) as { result: { instructions: string } }
     for (const k of ['abrir_midia', 'em vez de mandar caminhos', 'Não monte imagens lado a lado']) expect(r.result.instructions).toContain(k)

@@ -346,12 +346,18 @@ export interface FilePaneMeta {
   gallery?: MediaGallery & { createdBy: string }
 }
 
-/** comparação de mídias: cada grupo é mostrado lado a lado, um grupo por vez */
+/** como as mídias de um grupo se arrumam: auto escolhe pelo tamanho do painel e das mídias */
+export type MediaLayout = 'auto' | 'lado_a_lado' | 'empilhado'
+export const MEDIA_LAYOUTS: readonly MediaLayout[] = ['auto', 'lado_a_lado', 'empilhado']
+
+/** comparação de mídias: um grupo por vez */
 export interface MediaGallery {
   groups: string[][]
   /** nome de cada coluna (ex.: iOS, Android), igual para todos os grupos */
   labels: string[] | null
   titles: string[] | null
+  /** ausente = auto */
+  layout?: MediaLayout
 }
 
 export type MachineLevel = 'ok' | 'warn' | 'bad'
